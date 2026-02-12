@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 
-const cliFiles = ['dist/src/cli.js']
+const cliFiles = ['dist/src/platforms/notionbot/cli.js', 'dist/src/platforms/notion/cli.js']
 
 for (const file of cliFiles) {
   const content = readFileSync(file, 'utf8')

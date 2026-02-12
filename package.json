@@ -6,7 +6,8 @@
   "module": "dist/cli.js",
   "main": "dist/cli.js",
   "bin": {
-    "agent-notion": "./src/cli.ts"
+    "agent-notionbot": "./src/platforms/notionbot/cli.ts",
+    "agent-notion": "./src/platforms/notion/cli.ts"
   },
   "scripts": {
     "build": "tsc",
