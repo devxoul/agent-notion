@@ -80,6 +80,7 @@ async function extractAction(options: CommandOptions): Promise<void> {
         {
           token_v2: maskToken(extracted.token_v2),
           user_id: extracted.user_id,
+          user_ids: extracted.user_ids,
           valid: true,
         },
         options.pretty,

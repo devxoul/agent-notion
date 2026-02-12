@@ -1,7 +1,13 @@
 import { Command } from 'commander'
 import { formatOutput } from '../../../shared/utils/output'
 import { internalRequest } from '../client'
-import { type CommandOptions, generateId, getCredentialsOrExit, resolveSpaceId } from './helpers'
+import {
+  type CommandOptions,
+  generateId,
+  getCredentialsOrExit,
+  resolveAndSetActiveUserId,
+  resolveSpaceId,
+} from './helpers'
 
 type ListPageOptions = CommandOptions & { workspaceId?: string; depth?: string }
 type LoadPageChunkOptions = CommandOptions & { limit?: string }
@@ -138,6 +144,7 @@ async function walkPages(
 async function listAction(options: ListPageOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const space = await getDefaultSpace(creds.token_v2, options.workspaceId)
     const maxDepth = options.depth ? Number(options.depth) : 1
 

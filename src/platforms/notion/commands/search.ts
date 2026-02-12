@@ -1,7 +1,7 @@
 import { Command } from 'commander'
 import { formatOutput } from '../../../shared/utils/output'
 import { internalRequest } from '../client'
-import { type CommandOptions, getCredentialsOrExit } from './helpers'
+import { type CommandOptions, getCredentialsOrExit, resolveAndSetActiveUserId } from './helpers'
 
 type SearchOptions = CommandOptions & {
   workspaceId?: string
@@ -40,6 +40,7 @@ async function getDefaultSpaceId(tokenV2: string): Promise<string> {
 async function searchAction(query: string, options: SearchOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const spaceId = options.workspaceId ?? (await getDefaultSpaceId(creds.token_v2))
     const body = {
       type: 'BlocksInSpace',
