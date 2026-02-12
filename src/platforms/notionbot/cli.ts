@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { Command } from 'commander'
 import pkg from '../../../package.json'
@@ -10,7 +10,7 @@ import {
   pageCommand,
   searchCommand,
   userCommand,
-} from './commands'
+} from './commands/index'
 
 const program = new Command()
 

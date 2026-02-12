@@ -1,8 +1,8 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { Command } from 'commander'
 import pkg from '../../../package.json'
-import { authCommand } from './commands'
+import { authCommand } from './commands/index'
 
 const program = new Command()
 
