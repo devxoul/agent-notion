@@ -66,10 +66,10 @@ Search is the best way to find objects when you don't have their IDs.
 
 ```bash
 # Search for databases only
-agent-notion search "Inventory" --filter database
+agent-notion search "Inventory" --workspace-id <workspace_id> --filter database
 
 # Search for pages modified recently
-agent-notion search "Meeting Notes" --filter page --sort desc
+agent-notion search "Meeting Notes" --workspace-id <workspace_id> --filter page --sort desc
 ```
 
 ## 6. Handling Pagination
