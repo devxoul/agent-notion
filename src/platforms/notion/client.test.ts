@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
-import { internalRequest } from './client'
+import { getActiveUserId, internalRequest, setActiveUserId } from './client'
 
 let mockFetch: ReturnType<typeof mock>
 
 afterEach(() => {
   mock.restore()
+  setActiveUserId(undefined)
 })
 
 beforeEach(() => {
@@ -98,5 +99,89 @@ describe('internalRequest', () => {
 
     // When/Then
     expect(internalRequest('token', 'endpoint')).rejects.toThrow('Notion internal API error: 401')
+  })
+
+  describe('multi-account header logic', () => {
+    test('includes x-notion-active-user-header when activeUserId is set', async () => {
+      // Given
+      setActiveUserId('user123')
+
+      // When
+      await internalRequest('test_token_v2', 'testEndpoint')
+
+      // Then
+      const [, options] = mockFetch.mock.calls[0]
+      expect(options.headers).toHaveProperty('x-notion-active-user-header', 'user123')
+    })
+
+    test('appends notion_user_id to cookie when activeUserId is set', async () => {
+      // Given
+      setActiveUserId('user456')
+
+      // When
+      await internalRequest('test_token_v2', 'testEndpoint')
+
+      // Then
+      const [, options] = mockFetch.mock.calls[0]
+      expect(options.headers.cookie).toBe('token_v2=test_token_v2; notion_user_id=user456')
+    })
+
+    test('does not include x-notion-active-user-header when activeUserId is not set', async () => {
+      // When
+      await internalRequest('test_token_v2', 'testEndpoint')
+
+      // Then
+      const [, options] = mockFetch.mock.calls[0]
+      expect(options.headers).not.toHaveProperty('x-notion-active-user-header')
+    })
+
+    test('cookie is only token_v2 when activeUserId is not set', async () => {
+      // When
+      await internalRequest('test_token_v2', 'testEndpoint')
+
+      // Then
+      const [, options] = mockFetch.mock.calls[0]
+      expect(options.headers.cookie).toBe('token_v2=test_token_v2')
+    })
+  })
+})
+
+describe('setActiveUserId / getActiveUserId', () => {
+  test('getActiveUserId returns undefined by default', () => {
+    // When
+    const result = getActiveUserId()
+
+    // Then
+    expect(result).toBeUndefined()
+  })
+
+  test('setActiveUserId sets the user ID', () => {
+    // When
+    setActiveUserId('user789')
+
+    // Then
+    expect(getActiveUserId()).toBe('user789')
+  })
+
+  test('setActiveUserId with undefined clears the user ID', () => {
+    // Given
+    setActiveUserId('user789')
+
+    // When
+    setActiveUserId(undefined)
+
+    // Then
+    expect(getActiveUserId()).toBeUndefined()
+  })
+
+  test('setActiveUserId overwrites previous value', () => {
+    // Given
+    setActiveUserId('user1')
+
+    // When
+    setActiveUserId('user2')
+
+    // Then
+    expect(getActiveUserId()).toBe('user2')
   })
 })

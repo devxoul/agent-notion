@@ -1,8 +1,14 @@
 import { randomUUID } from 'node:crypto'
-import { internalRequest } from '../client'
+import { internalRequest, setActiveUserId } from '../client'
 import { CredentialManager, type NotionCredentials } from '../credential-manager'
 
 export type CommandOptions = { pretty?: boolean }
+
+type SpaceUserEntry = {
+  space?: Record<string, unknown>
+}
+
+type GetSpacesResponse = Record<string, SpaceUserEntry>
 
 export function generateId(): string {
   return randomUUID()
@@ -28,6 +34,19 @@ export async function resolveSpaceId(tokenV2: string, blockId: string): Promise<
     throw new Error(`Could not resolve space ID for block: ${blockId}`)
   }
   return block.value.space_id
+}
+
+export async function resolveAndSetActiveUserId(tokenV2: string, workspaceId?: string): Promise<void> {
+  if (!workspaceId) return
+
+  const response = (await internalRequest(tokenV2, 'getSpaces', {})) as GetSpacesResponse
+
+  for (const [userId, entry] of Object.entries(response)) {
+    if (entry.space && workspaceId in entry.space) {
+      setActiveUserId(userId)
+      return
+    }
+  }
 }
 
 export async function resolveCollectionViewId(tokenV2: string, collectionId: string): Promise<string> {

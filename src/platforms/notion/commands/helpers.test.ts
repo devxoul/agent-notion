@@ -6,10 +6,12 @@ import { randomUUID } from 'node:crypto'
 
 let _mockInternalRequest: (...args: unknown[]) => unknown = () => Promise.resolve({})
 let _mockGetCredentials: (...args: unknown[]) => unknown = () => Promise.resolve(null)
+let _capturedActiveUserId: string | undefined
 
 afterEach(() => {
   _mockInternalRequest = () => Promise.resolve({})
   _mockGetCredentials = () => Promise.resolve(null)
+  _capturedActiveUserId = undefined
 })
 
 // Re-implement the functions under test with injected mocks.
@@ -61,6 +63,25 @@ async function resolveCollectionViewId(tokenV2: string, collectionId: string): P
     throw new Error(`No views found for collection: ${collectionId}`)
   }
   return viewId
+}
+
+type SpaceUserEntry = {
+  space?: Record<string, unknown>
+}
+
+type GetSpacesResponse = Record<string, SpaceUserEntry>
+
+async function resolveAndSetActiveUserId(tokenV2: string, workspaceId?: string): Promise<void> {
+  if (!workspaceId) return
+
+  const response = (await _mockInternalRequest(tokenV2, 'getSpaces', {})) as GetSpacesResponse
+
+  for (const [userId, entry] of Object.entries(response)) {
+    if (entry.space && workspaceId in entry.space) {
+      _capturedActiveUserId = userId
+      return
+    }
+  }
 }
 
 describe('generateId', () => {
@@ -252,5 +273,82 @@ describe('resolveCollectionViewId', () => {
     await expect(resolveCollectionViewId('token', 'coll-123')).rejects.toThrow(
       'No views found for collection: coll-123',
     )
+  })
+})
+
+describe('resolveAndSetActiveUserId', () => {
+  test('does nothing when workspaceId is undefined', async () => {
+    const calls: unknown[][] = []
+    _mockInternalRequest = (...args: unknown[]) => {
+      calls.push(args)
+      return Promise.resolve({})
+    }
+
+    await resolveAndSetActiveUserId('token', undefined)
+
+    expect(calls.length).toBe(0)
+    expect(_capturedActiveUserId).toBeUndefined()
+  })
+
+  test('sets active user ID when workspace is found under a user', async () => {
+    _mockInternalRequest = () =>
+      Promise.resolve({
+        'user-aaa': { space: { 'workspace-111': {} } },
+        'user-bbb': { space: { 'workspace-222': {} } },
+      })
+
+    await resolveAndSetActiveUserId('token', 'workspace-222')
+
+    expect(_capturedActiveUserId).toBe('user-bbb')
+  })
+
+  test('sets first matching user when workspace exists', async () => {
+    _mockInternalRequest = () =>
+      Promise.resolve({
+        'user-aaa': { space: { 'workspace-111': {}, 'workspace-shared': {} } },
+        'user-bbb': { space: { 'workspace-222': {} } },
+      })
+
+    await resolveAndSetActiveUserId('token', 'workspace-111')
+
+    expect(_capturedActiveUserId).toBe('user-aaa')
+  })
+
+  test('does not set active user when workspace is not found', async () => {
+    _mockInternalRequest = () =>
+      Promise.resolve({
+        'user-aaa': { space: { 'workspace-111': {} } },
+      })
+
+    await resolveAndSetActiveUserId('token', 'workspace-999')
+
+    expect(_capturedActiveUserId).toBeUndefined()
+  })
+
+  test('calls getSpaces with correct parameters', async () => {
+    const calls: unknown[][] = []
+    _mockInternalRequest = (...args: unknown[]) => {
+      calls.push(args)
+      return Promise.resolve({ 'user-aaa': { space: { 'ws-1': {} } } })
+    }
+
+    await resolveAndSetActiveUserId('test_token', 'ws-1')
+
+    expect(calls.length).toBe(1)
+    expect(calls[0][0]).toBe('test_token')
+    expect(calls[0][1]).toBe('getSpaces')
+    expect(calls[0][2]).toEqual({})
+  })
+
+  test('handles user entry with no space property', async () => {
+    _mockInternalRequest = () =>
+      Promise.resolve({
+        'user-aaa': {},
+        'user-bbb': { space: { 'workspace-222': {} } },
+      })
+
+    await resolveAndSetActiveUserId('token', 'workspace-222')
+
+    expect(_capturedActiveUserId).toBe('user-bbb')
   })
 })
