@@ -25,6 +25,23 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
   }
 }
 
+export async function runNotionCLI(args: string[]): Promise<CLIResult> {
+  try {
+    const result = await $`bun ./src/platforms/notion/cli.ts ${args}`.quiet()
+    return {
+      exitCode: result.exitCode,
+      stdout: result.stdout.toString(),
+      stderr: result.stderr.toString(),
+    }
+  } catch (error: any) {
+    return {
+      exitCode: error.exitCode || 1,
+      stdout: error.stdout?.toString() || '',
+      stderr: error.stderr?.toString() || '',
+    }
+  }
+}
+
 export function parseJSON<T>(output: string): T | null {
   try {
     return JSON.parse(output) as T

@@ -1,5 +1,6 @@
 // E2E Test Environment Configuration
-// Hardcoded IDs for the notionbot test workspace
+
+// ── notionbot (official API) ────────────────────────────────────────────
 
 export const NOTIONBOT_E2E_PAGE_ID = '305c0fcf-90b3-802a-aebc-db1e05bb6926'
 export const NOTIONBOT_WORKSPACE_NAME = 'Agent Notion'
@@ -9,7 +10,6 @@ export const NOTIONBOT_KNOWN_USER_ID = '562f9c80-1b28-46e2-85f8-91227533d192'
 export async function validateNotionBotEnvironment() {
   const { runCLI, parseJSON } = await import('./helpers')
 
-  // Check if token is set
   if (!process.env.E2E_NOTIONBOT_TOKEN) {
     throw new Error(
       'E2E_NOTIONBOT_TOKEN environment variable is not set. ' +
@@ -17,7 +17,6 @@ export async function validateNotionBotEnvironment() {
     )
   }
 
-  // Check auth status
   const result = await runCLI(['auth', 'status'])
   if (result.exitCode !== 0) {
     throw new Error(
@@ -27,7 +26,6 @@ export async function validateNotionBotEnvironment() {
     )
   }
 
-  // Parse and validate workspace name
   const data = parseJSON<{ integration: { workspace_name?: string } }>(result.stdout)
   if (!data?.integration?.workspace_name) {
     throw new Error(
@@ -41,6 +39,31 @@ export async function validateNotionBotEnvironment() {
       `Wrong Notion workspace. Expected: ${NOTIONBOT_WORKSPACE_NAME}, ` +
       `Got: ${data.integration.workspace_name}. ` +
       'Please ensure your token is for the correct workspace.'
+    )
+  }
+}
+
+// ── notion (internal API) ───────────────────────────────────────────────
+
+export const NOTION_E2E_PAGE_ID = '305c0fcf-90b3-802a-aebc-db1e05bb6926'
+
+export async function validateNotionEnvironment() {
+  const { runNotionCLI, parseJSON } = await import('./helpers')
+
+  const result = await runNotionCLI(['auth', 'status'])
+  if (result.exitCode !== 0) {
+    throw new Error(
+      'Notion auth status failed. ' +
+      'Please run `agent-notion auth extract` first to store credentials. ' +
+      `Error: ${result.stderr || result.stdout}`
+    )
+  }
+
+  const data = parseJSON<{ stored_token_v2: { token_v2: string; user_id?: string } | null }>(result.stdout)
+  if (!data?.stored_token_v2) {
+    throw new Error(
+      'No stored credentials found. ' +
+      'Please run `agent-notion auth extract` to extract token_v2 from the Notion desktop app.'
     )
   }
 }
