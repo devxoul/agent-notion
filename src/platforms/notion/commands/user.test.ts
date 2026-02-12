@@ -41,6 +41,8 @@ describe('UserCommand', () => {
 
     mock.module('../client', () => ({
       internalRequest: mockInternalRequest,
+      setActiveUserId: mock(),
+      getActiveUserId: mock(),
     }))
 
     mock.module('./helpers', () => ({
@@ -48,6 +50,7 @@ describe('UserCommand', () => {
       generateId: mock(() => 'mock-uuid'),
       resolveSpaceId: mock(async () => 'space-mock'),
       resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
     }))
 
     const { userCommand } = await import('./user')
@@ -102,6 +105,8 @@ describe('UserCommand', () => {
 
     mock.module('../client', () => ({
       internalRequest: mockInternalRequest,
+      setActiveUserId: mock(),
+      getActiveUserId: mock(),
     }))
 
     mock.module('./helpers', () => ({
@@ -109,6 +114,7 @@ describe('UserCommand', () => {
       generateId: mock(() => 'mock-uuid'),
       resolveSpaceId: mock(async () => 'space-mock'),
       resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
     }))
 
     const { userCommand } = await import('./user')
@@ -132,11 +138,11 @@ describe('UserCommand', () => {
     expect(result.profile_photo).toBe('https://example.com/photo.jpg')
   })
 
-  test('user me returns current user with spaces from loadUserContent', async () => {
+  test('user me returns current user with spaces from getSpaces', async () => {
     const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string) => {
-      if (endpoint === 'loadUserContent') {
+      if (endpoint === 'getSpaces') {
         return {
-          recordMap: {
+          'current-user-id': {
             notion_user: {
               'current-user-id': {
                 value: {
@@ -171,6 +177,8 @@ describe('UserCommand', () => {
 
     mock.module('../client', () => ({
       internalRequest: mockInternalRequest,
+      setActiveUserId: mock(),
+      getActiveUserId: mock(),
     }))
 
     mock.module('./helpers', () => ({
@@ -178,6 +186,7 @@ describe('UserCommand', () => {
       generateId: mock(() => 'mock-uuid'),
       resolveSpaceId: mock(async () => 'space-mock'),
       resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
     }))
 
     const { userCommand } = await import('./user')
@@ -217,6 +226,8 @@ describe('UserCommand', () => {
 
     mock.module('../client', () => ({
       internalRequest: mockInternalRequest,
+      setActiveUserId: mock(),
+      getActiveUserId: mock(),
     }))
 
     mock.module('./helpers', () => ({
@@ -224,6 +235,7 @@ describe('UserCommand', () => {
       generateId: mock(() => 'mock-uuid'),
       resolveSpaceId: mock(async () => 'space-mock'),
       resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
     }))
 
     const { userCommand } = await import('./user')
@@ -263,6 +275,8 @@ describe('UserCommand', () => {
 
     mock.module('../client', () => ({
       internalRequest: mockInternalRequest,
+      setActiveUserId: mock(),
+      getActiveUserId: mock(),
     }))
 
     mock.module('./helpers', () => ({
@@ -270,6 +284,7 @@ describe('UserCommand', () => {
       generateId: mock(() => 'mock-uuid'),
       resolveSpaceId: mock(async () => 'space-mock'),
       resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
     }))
 
     const { userCommand } = await import('./user')
@@ -309,6 +324,8 @@ describe('UserCommand', () => {
 
     mock.module('../client', () => ({
       internalRequest: mockInternalRequest,
+      setActiveUserId: mock(),
+      getActiveUserId: mock(),
     }))
 
     mock.module('./helpers', () => ({
@@ -316,6 +333,7 @@ describe('UserCommand', () => {
       generateId: mock(() => 'mock-uuid'),
       resolveSpaceId: mock(async () => 'space-mock'),
       resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
     }))
 
     const { userCommand } = await import('./user')

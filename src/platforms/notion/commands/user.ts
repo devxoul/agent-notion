@@ -39,13 +39,6 @@ type SyncRecordValuesResponse = {
   }
 }
 
-type LoadUserContentResponse = {
-  recordMap: {
-    notion_user?: Record<string, UserRecord>
-    space?: Record<string, SpaceRecord>
-  }
-}
-
 async function listAction(options: CommandOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
@@ -89,24 +82,24 @@ async function getAction(userId: string, options: CommandOptions): Promise<void>
 async function meAction(options: CommandOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
-    const response = (await internalRequest(creds.token_v2, 'loadUserContent', {})) as LoadUserContentResponse
+    const response = (await internalRequest(creds.token_v2, 'getSpaces', {})) as GetSpacesResponse
 
-    const currentUser = Object.values(response.recordMap.notion_user ?? {})[0]?.value
-    const spaces = Object.values(response.recordMap.space ?? {}).map((record) => {
-      const space = record.value
+    const accounts = Object.entries(response).map(([userId, entry]) => {
+      const userRecord = entry.notion_user ? Object.values(entry.notion_user)[0] : undefined
+      const spaces = Object.values(entry.space ?? {}).map((record) => ({
+        id: record.value.id,
+        name: record.value.name,
+      }))
+
       return {
-        id: space.id,
-        name: space.name,
+        id: userId,
+        name: userRecord?.value.name,
+        email: userRecord?.value.email,
+        spaces,
       }
     })
 
-    const output = {
-      id: currentUser?.id,
-      name: currentUser?.name,
-      email: currentUser?.email,
-      spaces,
-    }
-
+    const output = accounts.length === 1 ? accounts[0] : accounts
     console.log(formatOutput(output, options.pretty))
   } catch (error) {
     console.error(JSON.stringify({ error: (error as Error).message }))
