@@ -15,7 +15,7 @@ export class NotionClient {
         'NOTION_TOKEN is required. Create an integration at https://www.notion.so/profile/integrations'
       )
     }
-    this.sdk = new Client({ auth: token })
+    this.sdk = new Client({ auth: token, notionVersion: '2022-06-28' })
   }
 
   get pages() {
@@ -36,6 +36,15 @@ export class NotionClient {
 
   get search() {
     return this.sdk.search.bind(this.sdk)
+  }
+
+  request<T extends object>(args: {
+    path: string
+    method: 'get' | 'post' | 'patch' | 'delete'
+    body?: Record<string, unknown>
+    query?: Record<string, string>
+  }): Promise<T> {
+    return this.sdk.request(args)
   }
 
   get comments() {
