@@ -76,7 +76,10 @@ export class TokenExtractor {
       const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString(
         'utf8'
       )
-      return this.stripTrailingControlChars(decrypted)
+
+      // Extract token from decrypted data (may have padding/garbage before it)
+      const match = decrypted.match(/v\d+(%3A|:)[A-Za-z0-9_.%-]+/)
+      return match ? match[0] : null
     } catch {
       return null
     }
@@ -205,13 +208,5 @@ export class TokenExtractor {
     }
 
     return null
-  }
-
-  private stripTrailingControlChars(value: string): string {
-    let end = value.length
-    while (end > 0 && value.charCodeAt(end - 1) < 32) {
-      end -= 1
-    }
-    return value.slice(0, end)
   }
 }
