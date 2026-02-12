@@ -1,0 +1,32 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agent-notion",
+  "description": "Notion workspace interaction skill for AI agents - manage pages, databases, blocks, search, and comments",
+  "owner": {
+    "name": "devxoul",
+    "url": "https://github.com/devxoul"
+  },
+  "plugins": [
+    {
+      "name": "agent-notion",
+      "description": "Interact with Notion workspaces through a CLI interface. Manage pages, query databases with filters, read and write blocks, search across workspace, and manage comments. All output is JSON by default for AI consumption.",
+      "version": "0.1.0",
+      "author": {
+        "name": "devxoul",
+        "url": "https://github.com/devxoul"
+      },
+      "source": "./",
+      "category": "productivity",
+      "homepage": "https://github.com/devxoul/agent-notion",
+      "keywords": [
+        "notion",
+        "database",
+        "pages",
+        "blocks",
+        "ai-agent",
+        "cli",
+        "productivity"
+      ]
+    }
+  ]
+}
