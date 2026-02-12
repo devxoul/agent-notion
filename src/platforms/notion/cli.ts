@@ -2,7 +2,14 @@
 
 import { Command } from 'commander'
 import pkg from '../../../package.json'
-import { authCommand } from './commands/index'
+import {
+  authCommand,
+  blockCommand,
+  databaseCommand,
+  pageCommand,
+  searchCommand,
+  userCommand,
+} from './commands/index'
 
 const program = new Command()
 
@@ -12,6 +19,11 @@ program
   .version(pkg.version)
 
 program.addCommand(authCommand)
+program.addCommand(blockCommand)
+program.addCommand(databaseCommand)
+program.addCommand(pageCommand)
+program.addCommand(searchCommand)
+program.addCommand(userCommand)
 
 program.parse(process.argv)
 
