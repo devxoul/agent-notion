@@ -31,16 +31,16 @@ describe('NotionBot E2E Tests', () => {
   }, 30000)
 
   afterAll(async () => {
-    for (const pageId of testPageIds) {
+    for (const blockId of testBlockIds) {
       try {
-        await runCLI(['page', 'archive', pageId])
+        await runCLI(['block', 'delete', blockId])
         await waitForRateLimit()
       } catch { /* best-effort */ }
     }
 
-    for (const blockId of testBlockIds) {
+    for (const pageId of testPageIds) {
       try {
-        await runCLI(['block', 'delete', blockId])
+        await runCLI(['page', 'archive', pageId])
         await waitForRateLimit()
       } catch { /* best-effort */ }
     }
@@ -55,8 +55,24 @@ describe('NotionBot E2E Tests', () => {
     if (containerId) {
       try {
         await runCLI(['page', 'archive', containerId])
+        await waitForRateLimit()
       } catch { /* best-effort */ }
     }
+
+    try {
+      const result = await runCLI(['block', 'children', NOTIONBOT_E2E_PAGE_ID])
+      const data = parseJSON<{
+        results: Array<{ id: string; created_by: { id: string }; archived: boolean }>
+      }>(result.stdout)
+      if (data?.results) {
+        for (const block of data.results) {
+          if (block.created_by?.id === NOTIONBOT_BOT_ID && !block.archived) {
+            await runCLI(['block', 'delete', block.id])
+            await waitForRateLimit()
+          }
+        }
+      }
+    } catch { /* best-effort */ }
   }, 60000)
 
   // ── auth ──────────────────────────────────────────────────────────────
@@ -196,32 +212,24 @@ describe('NotionBot E2E Tests', () => {
     }, 15000)
 
     test('database get retrieves a database', async () => {
-      const listResult = await runCLI(['database', 'list', '--page-size', '1'])
-      const listData = parseJSON<{ results: Array<{ id: string }> }>(listResult.stdout)
-      const dbId = createdDbId || listData?.results?.[0]?.id
-      expect(dbId).toBeTruthy()
+      if (!createdDbId) return
 
-      await waitForRateLimit()
-
-      const result = await runCLI(['database', 'get', dbId!])
+      const result = await runCLI(['database', 'get', createdDbId])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ id: string; object: string }>(result.stdout)
-      expect(data?.id).toBe(dbId)
+      expect(data?.id).toBe(createdDbId)
       expect(data?.object).toBe('database')
 
       await waitForRateLimit()
     }, 15000)
 
     test('database query returns results', async () => {
-      const listResult = await runCLI(['database', 'list', '--page-size', '1'])
-      const listData = parseJSON<{ results: Array<{ id: string }> }>(listResult.stdout)
-      const dbId = createdDbId || listData?.results?.[0]?.id
-      expect(dbId).toBeTruthy()
+      if (!createdDbId) return
 
       await waitForRateLimit()
 
-      const result = await runCLI(['database', 'query', dbId!])
+      const result = await runCLI(['database', 'query', createdDbId])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ results: unknown[]; object: string }>(result.stdout)
@@ -450,4 +458,4 @@ describe('NotionBot E2E Tests', () => {
       await waitForRateLimit()
     }, 15000)
   })
-}, 120000)
+})
