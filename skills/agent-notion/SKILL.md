@@ -17,7 +17,7 @@ A TypeScript CLI tool that enables AI agents and humans to interact with Notion 
 agent-notion auth extract
 
 # 2. Search for a page
-agent-notion search "Roadmap" --space-id <space-id> --pretty
+agent-notion search "Roadmap" --workspace-id <workspace-id> --pretty
 
 # 3. Get page content
 agent-notion page get <page-id> --pretty
@@ -62,7 +62,7 @@ agent-notion auth logout     # Remove stored token_v2
 ```bash
 # List pages in a space (defaults to first space, top-level only)
 agent-notion page list --pretty
-agent-notion page list --space-id <space_id> --pretty
+agent-notion page list --workspace-id <workspace_id> --pretty
 agent-notion page list --depth 2 --pretty
 
 # Get a page and all its content blocks
@@ -128,7 +128,7 @@ agent-notion block delete <block_id> --pretty
 ```bash
 # Search across workspace
 agent-notion search "query" --pretty
-agent-notion search "query" --space-id <space_id> --pretty
+agent-notion search "query" --workspace-id <workspace_id> --pretty
 agent-notion search "query" --limit 10 --pretty
 ```
 

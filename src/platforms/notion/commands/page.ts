@@ -3,7 +3,7 @@ import { formatOutput } from '../../../shared/utils/output'
 import { internalRequest } from '../client'
 import { type CommandOptions, generateId, getCredentialsOrExit, resolveSpaceId } from './helpers'
 
-type ListPageOptions = CommandOptions & { spaceId?: string; depth?: string }
+type ListPageOptions = CommandOptions & { workspaceId?: string; depth?: string }
 type LoadPageChunkOptions = CommandOptions & { limit?: string }
 type CreatePageOptions = CommandOptions & { parent: string; title: string }
 type UpdatePageOptions = CommandOptions & { title?: string; icon?: string }
@@ -141,7 +141,7 @@ async function walkPages(
 async function listAction(options: ListPageOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
-    const space = await getDefaultSpace(creds.token_v2, options.spaceId)
+    const space = await getDefaultSpace(creds.token_v2, options.workspaceId)
     const maxDepth = options.depth ? Number(options.depth) : 1
 
     const pages = await walkPages(creds.token_v2, space.pages, maxDepth, 0)
@@ -336,7 +336,7 @@ export const pageCommand = new Command('page')
   .addCommand(
     new Command('list')
       .description('List pages in a space')
-      .option('--space-id <id>', 'Space ID (defaults to first space)')
+      .option('--workspace-id <id>', 'Workspace ID (defaults to first workspace)')
       .option('--depth <n>', 'Recursion depth (default: 1)', '1')
       .option('--pretty', 'Pretty print JSON output')
       .action(listAction)

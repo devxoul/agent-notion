@@ -4,7 +4,7 @@ import { internalRequest } from '../client'
 import { type CommandOptions, getCredentialsOrExit } from './helpers'
 
 type SearchOptions = CommandOptions & {
-  spaceId?: string
+  workspaceId?: string
   limit?: string
   navigableOnly?: boolean
 }
@@ -40,7 +40,7 @@ async function getDefaultSpaceId(tokenV2: string): Promise<string> {
 async function searchAction(query: string, options: SearchOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
-    const spaceId = options.spaceId ?? (await getDefaultSpaceId(creds.token_v2))
+    const spaceId = options.workspaceId ?? (await getDefaultSpaceId(creds.token_v2))
     const body = {
       type: 'BlocksInSpace',
       query: query,
@@ -82,7 +82,7 @@ async function searchAction(query: string, options: SearchOptions): Promise<void
 export const searchCommand = new Command('search')
   .description('Search across workspace')
   .argument('<query>', 'Search query')
-  .option('--space-id <id>', 'Space ID to search in')
+  .option('--workspace-id <id>', 'Workspace ID to search in')
   .option('--limit <n>', 'Number of results')
   .option('--pretty', 'Pretty print JSON output')
   .action(searchAction)
