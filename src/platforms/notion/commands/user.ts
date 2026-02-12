@@ -39,30 +39,6 @@ type SyncRecordValuesResponse = {
   }
 }
 
-async function listAction(options: CommandOptions): Promise<void> {
-  try {
-    const creds = await getCredentialsOrExit()
-    const response = (await internalRequest(creds.token_v2, 'getSpaces', {})) as GetSpacesResponse
-
-    const firstUserId = Object.keys(response)[0]
-    const notionUsers = firstUserId ? response[firstUserId]?.notion_user : undefined
-
-    const output = Object.values(notionUsers ?? {}).map((record) => {
-      const user = record.value
-      return {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-      }
-    })
-
-    console.log(formatOutput(output, options.pretty))
-  } catch (error) {
-    console.error(JSON.stringify({ error: (error as Error).message }))
-    process.exit(1)
-  }
-}
-
 async function getAction(userId: string, options: CommandOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
@@ -109,12 +85,6 @@ async function meAction(options: CommandOptions): Promise<void> {
 
 export const userCommand = new Command('user')
   .description('User commands')
-  .addCommand(
-    new Command('list')
-      .description('List users in workspace')
-      .option('--pretty', 'Pretty print JSON output')
-      .action(listAction),
-  )
   .addCommand(
     new Command('get')
       .description('Retrieve a specific user')

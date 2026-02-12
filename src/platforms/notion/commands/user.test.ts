@@ -9,74 +9,6 @@ describe('UserCommand', () => {
     mock.restore()
   })
 
-  test('user list returns users from getSpaces response', async () => {
-    const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string) => {
-      if (endpoint === 'getSpaces') {
-        return {
-          'user-1': {
-            notion_user: {
-              'user-id-1': {
-                value: {
-                  id: 'user-id-1',
-                  name: 'Alice',
-                  email: 'alice@example.com',
-                },
-              },
-              'user-id-2': {
-                value: {
-                  id: 'user-id-2',
-                  name: 'Bob',
-                  email: 'bob@example.com',
-                },
-              },
-            },
-          },
-        }
-      }
-    })
-
-    const mockGetCredentials = mock(async () => ({
-      token_v2: 'test-token',
-    }))
-
-    mock.module('../client', () => ({
-      internalRequest: mockInternalRequest,
-      setActiveUserId: mock(),
-      getActiveUserId: mock(),
-    }))
-
-    mock.module('./helpers', () => ({
-      getCredentialsOrExit: mockGetCredentials,
-      generateId: mock(() => 'mock-uuid'),
-      resolveSpaceId: mock(async () => 'space-mock'),
-      resolveCollectionViewId: mock(async () => 'view-mock'),
-      resolveAndSetActiveUserId: mock(async () => {}),
-    }))
-
-    const { userCommand } = await import('./user')
-    const output: string[] = []
-    const originalLog = console.log
-    console.log = (msg: string) => output.push(msg)
-
-    try {
-      await userCommand.parseAsync(['list'], { from: 'user' })
-    } catch {
-      // Expected to exit
-    }
-
-    console.log = originalLog
-
-    expect(output.length).toBeGreaterThan(0)
-    const result = JSON.parse(output[0])
-    expect(Array.isArray(result)).toBe(true)
-    expect(result.length).toBe(2)
-    expect(result[0].id).toBe('user-id-1')
-    expect(result[0].name).toBe('Alice')
-    expect(result[0].email).toBe('alice@example.com')
-    expect(result[1].id).toBe('user-id-2')
-    expect(result[1].name).toBe('Bob')
-  })
-
   test('user get returns specific user from syncRecordValues', async () => {
     const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string, body: any) => {
       if (endpoint === 'syncRecordValues') {
@@ -213,55 +145,6 @@ describe('UserCommand', () => {
     expect(result.spaces[0].name).toBe('Personal')
     expect(result.spaces[1].id).toBe('space-2')
     expect(result.spaces[1].name).toBe('Work')
-  })
-
-  test('user list handles errors', async () => {
-    const mockInternalRequest = mock(async () => {
-      throw new Error('API error')
-    })
-
-    const mockGetCredentials = mock(async () => ({
-      token_v2: 'test-token',
-    }))
-
-    mock.module('../client', () => ({
-      internalRequest: mockInternalRequest,
-      setActiveUserId: mock(),
-      getActiveUserId: mock(),
-    }))
-
-    mock.module('./helpers', () => ({
-      getCredentialsOrExit: mockGetCredentials,
-      generateId: mock(() => 'mock-uuid'),
-      resolveSpaceId: mock(async () => 'space-mock'),
-      resolveCollectionViewId: mock(async () => 'view-mock'),
-      resolveAndSetActiveUserId: mock(async () => {}),
-    }))
-
-    const { userCommand } = await import('./user')
-    const errorOutput: string[] = []
-    const originalError = console.error
-    console.error = (msg: string) => errorOutput.push(msg)
-
-    let exitCode: number | undefined
-    const originalExit = process.exit
-    process.exit = ((code: number) => {
-      exitCode = code
-    }) as any
-
-    try {
-      await userCommand.parseAsync(['list'], { from: 'user' })
-    } catch {
-      // Expected
-    }
-
-    console.error = originalError
-    process.exit = originalExit
-
-    expect(errorOutput.length).toBeGreaterThan(0)
-    const errorMsg = JSON.parse(errorOutput[0])
-    expect(errorMsg.error).toBe('API error')
-    expect(exitCode).toBe(1)
   })
 
   test('user get handles errors', async () => {

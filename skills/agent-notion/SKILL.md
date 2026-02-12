@@ -137,9 +137,6 @@ agent-notion search "query" --workspace-id <workspace_id> --limit 10 --pretty
 # Get current user info
 agent-notion user me --pretty
 
-# List users in workspace
-agent-notion user list --pretty
-
 # Get a specific user
 agent-notion user get <user_id> --pretty
 ```
