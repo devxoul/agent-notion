@@ -119,6 +119,7 @@ agent-notion block get <block_id> --workspace-id <workspace_id> --backlinks --pr
 # List child blocks
 agent-notion block children <block_id> --workspace-id <workspace_id> --pretty
 agent-notion block children <block_id> --workspace-id <workspace_id> --limit 50 --pretty
+agent-notion block children <block_id> --workspace-id <workspace_id> --start-cursor '<next_cursor_json>' --pretty
 
 # Append child blocks
 agent-notion block append <parent_id> --workspace-id <workspace_id> --content '[{"type":"text","properties":{"title":[["Hello world"]]}}]' --pretty
@@ -136,6 +137,7 @@ agent-notion block delete <block_id> --workspace-id <workspace_id> --pretty
 # Search across workspace (--workspace-id is required)
 agent-notion search "query" --workspace-id <workspace_id> --pretty
 agent-notion search "query" --workspace-id <workspace_id> --limit 10 --pretty
+agent-notion search "query" --workspace-id <workspace_id> --start-cursor <offset> --pretty
 ```
 
 ### User Commands
@@ -164,11 +166,12 @@ agent-notion search "Roadmap" --workspace-id <workspace_id>
     {
       "id": "305c0fcf-90b3-807a-bc1a-dc7cc18e0022",
       "title": "Getting Started",
-      "score": 76.58,
-      "spaceId": "837c0fcf-90b3-817e-86a1-00031c61d83f"
+      "score": 76.58
     }
   ],
-  "total": 1
+  "has_more": true,
+  "next_cursor": "20",
+  "total": 100
 }
 ```
 
@@ -188,7 +191,8 @@ agent-notion database query <collection_id> --workspace-id <workspace_id>
       }
     }
   ],
-  "has_more": false
+  "has_more": false,
+  "next_cursor": null
 }
 ```
 
@@ -268,6 +272,14 @@ agent-notion search "Enterprise Plan" ...
 agent-notion page get <plan-page-id> --backlinks --pretty
 # → backlinks immediately show all people/rows linked to this plan
 ```
+
+## Pagination
+
+Commands that return lists support pagination via `has_more`, `next_cursor` fields:
+
+- **`block children`**: Cursor-based. Pass `next_cursor` value from previous response as `--start-cursor`.
+- **`search`**: Offset-based. Pass `next_cursor` value (a number) as `--start-cursor`.
+- **`database query`**: Use `--limit` to control page size. `has_more` indicates more results exist, but the private API does not support cursor-based pagination — increase `--limit` to fetch more rows.
 
 ## Limitations
 

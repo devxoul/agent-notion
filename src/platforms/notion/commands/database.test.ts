@@ -209,6 +209,7 @@ describe('database query', () => {
         },
       ],
       has_more: false,
+      next_cursor: null,
     })
   })
 
