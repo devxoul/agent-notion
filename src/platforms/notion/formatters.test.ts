@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test'
+import type { PropertyValue } from './formatters'
 import {
+  collectReferenceIds,
+  enrichProperties,
   extractBlockText,
   extractCollectionName,
   extractNotionTitle,
@@ -836,5 +839,170 @@ describe('formatUserValue', () => {
       email: 'alice@test.com',
     })
     expect('profile_photo' in result).toBe(false)
+  })
+})
+
+describe('collectReferenceIds', () => {
+  test('collects unique page IDs from relation properties', () => {
+    // Given
+    const results: Array<{ id: string; properties: Record<string, PropertyValue> }> = [
+      {
+        id: 'row-1',
+        properties: {
+          연결: { type: 'relation', value: ['page-1', 'page-2'] },
+          이름: { type: 'title', value: 'Test' },
+        },
+      },
+      {
+        id: 'row-2',
+        properties: {
+          연결: { type: 'relation', value: ['page-3'] },
+        },
+      },
+    ]
+
+    // When
+    const refs = collectReferenceIds(results)
+
+    // Then
+    expect(refs.pageIds).toEqual(['page-1', 'page-2', 'page-3'])
+    expect(refs.userIds).toEqual([])
+  })
+
+  test('collects unique user IDs from person properties', () => {
+    // Given
+    const results: Array<{ id: string; properties: Record<string, PropertyValue> }> = [
+      {
+        id: 'row-1',
+        properties: {
+          담당자: { type: 'person', value: ['user-1', 'user-2'] },
+        },
+      },
+    ]
+
+    // When
+    const refs = collectReferenceIds(results)
+
+    // Then
+    expect(refs.pageIds).toEqual([])
+    expect(refs.userIds).toEqual(['user-1', 'user-2'])
+  })
+
+  test('returns empty arrays when no references exist', () => {
+    // Given
+    const results: Array<{ id: string; properties: Record<string, PropertyValue> }> = [
+      {
+        id: 'row-1',
+        properties: {
+          이름: { type: 'title', value: 'Test' },
+          상태: { type: 'status', value: '완료' },
+        },
+      },
+    ]
+
+    // When
+    const refs = collectReferenceIds(results)
+
+    // Then
+    expect(refs.pageIds).toEqual([])
+    expect(refs.userIds).toEqual([])
+  })
+
+  test('deduplicates IDs', () => {
+    // Given
+    const results: Array<{ id: string; properties: Record<string, PropertyValue> }> = [
+      {
+        id: 'row-1',
+        properties: {
+          연결: { type: 'relation', value: ['page-1', 'page-2'] },
+        },
+      },
+      {
+        id: 'row-2',
+        properties: {
+          연결: { type: 'relation', value: ['page-1'] },
+        },
+      },
+    ]
+
+    // When
+    const refs = collectReferenceIds(results)
+
+    // Then
+    expect(refs.pageIds).toEqual(['page-1', 'page-2'])
+  })
+})
+
+describe('enrichProperties', () => {
+  test('replaces relation IDs with { id, title }', () => {
+    // Given
+    const results: Array<{ id: string; properties: Record<string, PropertyValue> }> = [
+      {
+        id: 'row-1',
+        properties: {
+          연결: { type: 'relation', value: ['page-1', 'page-2'] },
+        },
+      },
+    ]
+    const pageLookup = { 'page-1': 'Claude Max (20x)', 'page-2': 'Pro Plan' }
+    const userLookup = {}
+
+    // When
+    enrichProperties(results, pageLookup, userLookup)
+
+    // Then
+    const prop = results[0].properties.연결
+    expect(prop.type).toBe('relation')
+    expect(prop.value).toEqual([
+      { id: 'page-1', title: 'Claude Max (20x)' },
+      { id: 'page-2', title: 'Pro Plan' },
+    ])
+  })
+
+  test('replaces person IDs with { id, name }', () => {
+    // Given
+    const results: Array<{ id: string; properties: Record<string, PropertyValue> }> = [
+      {
+        id: 'row-1',
+        properties: {
+          담당자: { type: 'person', value: ['user-1'] },
+        },
+      },
+    ]
+    const pageLookup = {}
+    const userLookup = { 'user-1': 'Leo (주원)' }
+
+    // When
+    enrichProperties(results, pageLookup, userLookup)
+
+    // Then
+    const prop = results[0].properties.담당자
+    expect(prop.type).toBe('person')
+    expect(prop.value).toEqual([{ id: 'user-1', name: 'Leo (주원)' }])
+  })
+
+  test('graceful degradation: missing lookup uses raw ID as title/name', () => {
+    // Given
+    const results: Array<{ id: string; properties: Record<string, PropertyValue> }> = [
+      {
+        id: 'row-1',
+        properties: {
+          연결: { type: 'relation', value: ['page-unknown'] },
+          담당자: { type: 'person', value: ['user-unknown'] },
+        },
+      },
+    ]
+
+    // When
+    enrichProperties(results, {}, {})
+
+    // Then
+    const relProp = results[0].properties.연결
+    expect(relProp.type).toBe('relation')
+    expect(relProp.value).toEqual([{ id: 'page-unknown', title: 'page-unknown' }])
+
+    const personProp = results[0].properties.담당자
+    expect(personProp.type).toBe('person')
+    expect(personProp.value).toEqual([{ id: 'user-unknown', name: 'user-unknown' }])
   })
 })

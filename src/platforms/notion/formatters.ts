@@ -5,8 +5,8 @@ export type PropertyValue =
   | { type: 'select'; value: string }
   | { type: 'multi_select'; value: string[] }
   | { type: 'date'; value: string | null }
-  | { type: 'person'; value: string[] }
-  | { type: 'relation'; value: string[] }
+  | { type: 'person'; value: string[] | Array<{ id: string; name: string }> }
+  | { type: 'relation'; value: string[] | Array<{ id: string; title: string }> }
   | { type: 'rollup'; value: unknown }
   | { type: 'checkbox'; value: boolean }
   | { type: 'url'; value: string }
@@ -196,6 +196,62 @@ export function formatUserValue(user: Record<string, unknown>): {
     id: toStringValue(user.id),
     name: toOptionalString(user.name),
     email: toOptionalString(user.email),
+  }
+}
+
+export function collectReferenceIds(results: Array<{ id: string; properties: Record<string, PropertyValue> }>): {
+  pageIds: string[]
+  userIds: string[]
+} {
+  const pageIdSet = new Set<string>()
+  const userIdSet = new Set<string>()
+
+  for (const row of results) {
+    for (const prop of Object.values(row.properties)) {
+      if (prop.type === 'relation' && Array.isArray(prop.value)) {
+        for (const entry of prop.value) {
+          if (typeof entry === 'string') {
+            pageIdSet.add(entry)
+          }
+        }
+      } else if (prop.type === 'person' && Array.isArray(prop.value)) {
+        for (const entry of prop.value) {
+          if (typeof entry === 'string') {
+            userIdSet.add(entry)
+          }
+        }
+      }
+    }
+  }
+
+  return { pageIds: [...pageIdSet], userIds: [...userIdSet] }
+}
+
+export function enrichProperties(
+  results: Array<{ id: string; properties: Record<string, PropertyValue> }>,
+  pageLookup: Record<string, string>,
+  userLookup: Record<string, string>,
+): void {
+  for (const row of results) {
+    for (const [name, prop] of Object.entries(row.properties)) {
+      if (prop.type === 'relation' && Array.isArray(prop.value)) {
+        row.properties[name] = {
+          type: 'relation',
+          value: (prop.value as string[]).map((id) => ({
+            id,
+            title: pageLookup[id] ?? id,
+          })),
+        }
+      } else if (prop.type === 'person' && Array.isArray(prop.value)) {
+        row.properties[name] = {
+          type: 'person',
+          value: (prop.value as string[]).map((id) => ({
+            id,
+            name: userLookup[id] ?? id,
+          })),
+        }
+      }
+    }
   }
 }
 

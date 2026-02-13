@@ -1,6 +1,8 @@
 import { Command } from 'commander'
 import { internalRequest } from '@/platforms/notion/client'
 import {
+  collectReferenceIds,
+  enrichProperties,
   extractCollectionName,
   formatCollectionValue,
   formatQueryCollectionResponse,
@@ -85,6 +87,13 @@ type QueryCollectionResponse = {
   }
 }
 
+type SyncRecordValuesResponse = {
+  recordMap?: {
+    block?: Record<string, Record<string, unknown>>
+    notion_user?: Record<string, Record<string, unknown>>
+  }
+}
+
 type LoadUserContentResponse = {
   recordMap: {
     collection?: Record<string, CollectionRecord>
@@ -124,6 +133,53 @@ function parseSchemaProperties(raw?: string): CollectionSchema {
   }
 
   return parsed as CollectionSchema
+}
+
+function getRecordValue(record: Record<string, unknown>): Record<string, unknown> | undefined {
+  const outer = record.value as Record<string, unknown> | undefined
+  if (!outer) return undefined
+  if (typeof outer.role === 'string' && outer.value !== undefined) {
+    return outer.value as Record<string, unknown>
+  }
+  return outer
+}
+
+function buildPageLookup(blockMap: Record<string, Record<string, unknown>> | undefined): Record<string, string> {
+  const lookup: Record<string, string> = {}
+  if (!blockMap) return lookup
+
+  for (const [id, record] of Object.entries(blockMap)) {
+    const value = getRecordValue(record)
+    if (!value) continue
+    const properties = value.properties as Record<string, unknown> | undefined
+    const titleSegments = properties?.title
+    if (Array.isArray(titleSegments)) {
+      const title = titleSegments
+        .map((seg: unknown) => (Array.isArray(seg) && typeof seg[0] === 'string' ? seg[0] : ''))
+        .join('')
+      if (title) {
+        lookup[id] = title
+      }
+    }
+  }
+
+  return lookup
+}
+
+function buildUserLookup(userMap: Record<string, Record<string, unknown>> | undefined): Record<string, string> {
+  const lookup: Record<string, string> = {}
+  if (!userMap) return lookup
+
+  for (const [id, record] of Object.entries(userMap)) {
+    const value = getRecordValue(record)
+    if (!value) continue
+    const name = value.name
+    if (typeof name === 'string') {
+      lookup[id] = name
+    }
+  }
+
+  return lookup
 }
 
 async function fetchCollection(tokenV2: string, collectionId: string): Promise<CollectionValue> {
@@ -175,7 +231,23 @@ async function queryAction(rawCollectionId: string, options: QueryOptions): Prom
       },
     })) as QueryCollectionResponse
 
-    console.log(formatOutput(formatQueryCollectionResponse(response as Record<string, unknown>), options.pretty))
+    const formatted = formatQueryCollectionResponse(response as Record<string, unknown>)
+    const refs = collectReferenceIds(formatted.results)
+
+    if (refs.pageIds.length > 0 || refs.userIds.length > 0) {
+      const batch = (await internalRequest(creds.token_v2, 'syncRecordValues', {
+        requests: [
+          ...refs.pageIds.map((id) => ({ pointer: { table: 'block', id }, version: -1 })),
+          ...refs.userIds.map((id) => ({ pointer: { table: 'notion_user', id }, version: -1 })),
+        ],
+      })) as SyncRecordValuesResponse
+
+      const pageLookup = buildPageLookup(batch.recordMap?.block)
+      const userLookup = buildUserLookup(batch.recordMap?.notion_user)
+      enrichProperties(formatted.results, pageLookup, userLookup)
+    }
+
+    console.log(formatOutput(formatted, options.pretty))
   } catch (error) {
     console.error(JSON.stringify({ error: (error as Error).message }))
     process.exit(1)

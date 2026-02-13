@@ -297,6 +297,209 @@ describe('database query', () => {
       }),
     )
   })
+
+  test('resolves relation and person IDs via syncRecordValues batch call', async () => {
+    mock.restore()
+    // Given
+    const mockQueryResponse = {
+      result: {
+        reducerResults: {
+          collection_group_results: {
+            blockIds: ['row-1'],
+            hasMore: false,
+          },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: {
+              id: 'row-1',
+              properties: {
+                relKey: [
+                  ['‣', [['p', 'page-abc']]],
+                  ['‣', [['p', 'page-def']]],
+                ],
+                personKey: [['‣', [['u', 'user-123']]]],
+              },
+            },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              schema: {
+                relKey: { name: '플랜', type: 'relation' },
+                personKey: { name: '이름', type: 'person' },
+              },
+            },
+          },
+        },
+      },
+    }
+    const mockSyncResponse = {
+      recordMap: {
+        block: {
+          'page-abc': {
+            value: {
+              id: 'page-abc',
+              type: 'page',
+              properties: { title: [['Claude Max (20x)']] },
+            },
+          },
+          'page-def': {
+            value: {
+              id: 'page-def',
+              type: 'page',
+              properties: { title: [['Pro Plan']] },
+            },
+          },
+        },
+        notion_user: {
+          'user-123': {
+            value: {
+              id: 'user-123',
+              name: 'Leo (주원)',
+            },
+          },
+        },
+      },
+    }
+    const mockInternalRequest = mock((_token: string, endpoint: string) => {
+      if (endpoint === 'queryCollection') return Promise.resolve(mockQueryResponse)
+      if (endpoint === 'syncRecordValues') return Promise.resolve(mockSyncResponse)
+      return Promise.resolve({})
+    })
+    const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token' }))
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mock(() => 'mock-uuid'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-123'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+    }))
+
+    const { databaseCommand } = await import('./database')
+
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      // When
+      await databaseCommand.parseAsync(['query', 'coll-1', '--workspace-id', 'space-123'], { from: 'user' })
+    } finally {
+      console.log = originalLog
+    }
+
+    // Then - syncRecordValues called with batch of page + user IDs
+    const syncCall = mockInternalRequest.mock.calls.find(
+      (call) => (call as unknown[])[1] === 'syncRecordValues',
+    ) as unknown as [string, string, Record<string, unknown>] | undefined
+    expect(syncCall).toBeDefined()
+    const requests = (syncCall?.[2] as { requests: unknown[] }).requests
+    expect(requests).toEqual(
+      expect.arrayContaining([
+        { pointer: { table: 'block', id: 'page-abc' }, version: -1 },
+        { pointer: { table: 'block', id: 'page-def' }, version: -1 },
+        { pointer: { table: 'notion_user', id: 'user-123' }, version: -1 },
+      ]),
+    )
+
+    // Then - output has resolved values
+    expect(output.length).toBeGreaterThan(0)
+    const parsed = JSON.parse(output[0])
+    expect(parsed.results[0].properties).toEqual({
+      플랜: {
+        type: 'relation',
+        value: [
+          { id: 'page-abc', title: 'Claude Max (20x)' },
+          { id: 'page-def', title: 'Pro Plan' },
+        ],
+      },
+      이름: {
+        type: 'person',
+        value: [{ id: 'user-123', name: 'Leo (주원)' }],
+      },
+    })
+  })
+
+  test('skips syncRecordValues when no relation or person properties exist', async () => {
+    mock.restore()
+    // Given
+    const mockQueryResponse = {
+      result: {
+        reducerResults: {
+          collection_group_results: {
+            blockIds: ['row-1'],
+            hasMore: false,
+          },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: {
+              id: 'row-1',
+              properties: {
+                titleKey: [['Simple Row']],
+              },
+            },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              schema: {
+                titleKey: { name: 'Name', type: 'title' },
+              },
+            },
+          },
+        },
+      },
+    }
+    const mockInternalRequest = mock((_token: string, endpoint: string) => {
+      if (endpoint === 'queryCollection') return Promise.resolve(mockQueryResponse)
+      return Promise.resolve({})
+    })
+    const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token' }))
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mock(() => 'mock-uuid'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-123'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+    }))
+
+    const { databaseCommand } = await import('./database')
+
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      // When
+      await databaseCommand.parseAsync(['query', 'coll-1', '--workspace-id', 'space-123'], { from: 'user' })
+    } finally {
+      console.log = originalLog
+    }
+
+    // Then - only queryCollection called, no syncRecordValues
+    const syncCalls = mockInternalRequest.mock.calls.filter((call) => (call as unknown[])[1] === 'syncRecordValues')
+    expect(syncCalls.length).toBe(0)
+  })
 })
 
 describe('database list', () => {
