@@ -107,6 +107,8 @@ type QueryOptions = WorkspaceOptions & {
   limit?: string
   searchQuery?: string
   timezone?: string
+  filter?: string
+  sort?: string
 }
 
 type ListOptions = WorkspaceOptions
@@ -215,20 +217,29 @@ async function queryAction(rawCollectionId: string, options: QueryOptions): Prom
     await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const viewId = options.viewId ?? (await resolveCollectionViewId(creds.token_v2, collectionId))
 
+    const loader: Record<string, unknown> = {
+      type: 'reducer',
+      reducers: {
+        collection_group_results: {
+          type: 'results',
+          limit: options.limit ? Number(options.limit) : 50,
+        },
+      },
+      searchQuery: options.searchQuery || '',
+      userTimeZone: options.timezone || 'UTC',
+    }
+
+    if (options.filter) {
+      loader.filter = JSON.parse(options.filter)
+    }
+    if (options.sort) {
+      loader.sort = JSON.parse(options.sort)
+    }
+
     const response = (await internalRequest(creds.token_v2, 'queryCollection', {
       collectionId,
       collectionViewId: viewId,
-      loader: {
-        type: 'reducer',
-        reducers: {
-          collection_group_results: {
-            type: 'results',
-            limit: options.limit ? Number(options.limit) : 50,
-          },
-        },
-        searchQuery: options.searchQuery || '',
-        userTimeZone: options.timezone || 'UTC',
-      },
+      loader,
     })) as QueryCollectionResponse
 
     const formatted = formatQueryCollectionResponse(response as Record<string, unknown>)
@@ -441,6 +452,8 @@ export const databaseCommand = new Command('database')
       .option('--limit <n>', 'Results limit')
       .option('--search-query <q>', 'Search within results')
       .option('--timezone <tz>', 'User timezone')
+      .option('--filter <json>', 'Filter as JSON (uses property IDs from database get schema)')
+      .option('--sort <json>', 'Sort as JSON (uses property IDs from database get schema)')
       .option('--pretty')
       .action(queryAction),
   )

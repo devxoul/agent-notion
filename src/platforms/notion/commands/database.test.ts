@@ -507,6 +507,261 @@ describe('database query', () => {
     const syncCalls = mockInternalRequest.mock.calls.filter((call) => (call as unknown[])[1] === 'syncRecordValues')
     expect(syncCalls.length).toBe(0)
   })
+
+  test('passes filter to queryCollection loader', async () => {
+    mock.restore()
+    // Given
+    const mockQueryResponse = {
+      result: {
+        reducerResults: {
+          collection_group_results: {
+            blockIds: ['row-1'],
+            hasMore: false,
+          },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: {
+              id: 'row-1',
+              properties: {
+                'Ho]U': [['완료']],
+              },
+            },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              schema: {
+                'Ho]U': { name: '상태', type: 'status' },
+              },
+            },
+          },
+        },
+      },
+    }
+    const mockInternalRequest = mock((_token: string, endpoint: string, body: Record<string, unknown>) => {
+      if (endpoint === 'queryCollection') {
+        expect(body.loader).toEqual(
+          expect.objectContaining({
+            filter: {
+              filters: [
+                {
+                  filter: { operator: 'enum_is', value: { type: 'exact', value: 'Done' } },
+                  property: 'Ho]U',
+                },
+              ],
+              operator: 'and',
+            },
+          }),
+        )
+        return Promise.resolve(mockQueryResponse)
+      }
+      return Promise.resolve({})
+    })
+    const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token' }))
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mock(() => 'mock-uuid'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-123'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    const { databaseCommand } = await import('./database')
+
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      // When
+      await databaseCommand.parseAsync(
+        [
+          'query',
+          'coll-1',
+          '--workspace-id',
+          'space-123',
+          '--filter',
+          '{"filters":[{"filter":{"operator":"enum_is","value":{"type":"exact","value":"Done"}},"property":"Ho]U"}],"operator":"and"}',
+        ],
+        { from: 'user' },
+      )
+    } finally {
+      console.log = originalLog
+    }
+
+    // Then
+    expect(mockInternalRequest).toHaveBeenCalledWith('test-token', 'queryCollection', expect.any(Object))
+    expect(output.length).toBeGreaterThan(0)
+  })
+
+  test('passes sort to queryCollection loader', async () => {
+    mock.restore()
+    // Given
+    const mockQueryResponse = {
+      result: {
+        reducerResults: {
+          collection_group_results: {
+            blockIds: ['row-1'],
+            hasMore: false,
+          },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: {
+              id: 'row-1',
+              properties: {
+                title: [['Row Name']],
+              },
+            },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              schema: {
+                title: { name: 'Name', type: 'title' },
+              },
+            },
+          },
+        },
+      },
+    }
+    const mockInternalRequest = mock((_token: string, endpoint: string, body: Record<string, unknown>) => {
+      if (endpoint === 'queryCollection') {
+        expect(body.loader).toEqual(
+          expect.objectContaining({
+            sort: [{ property: 'title', direction: 'ascending' }],
+          }),
+        )
+        return Promise.resolve(mockQueryResponse)
+      }
+      return Promise.resolve({})
+    })
+    const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token' }))
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mock(() => 'mock-uuid'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-123'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    const { databaseCommand } = await import('./database')
+
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      // When
+      await databaseCommand.parseAsync(
+        ['query', 'coll-1', '--workspace-id', 'space-123', '--sort', '[{"property":"title","direction":"ascending"}]'],
+        { from: 'user' },
+      )
+    } finally {
+      console.log = originalLog
+    }
+
+    // Then
+    expect(mockInternalRequest).toHaveBeenCalledWith('test-token', 'queryCollection', expect.any(Object))
+    expect(output.length).toBeGreaterThan(0)
+  })
+
+  test('does not include filter or sort when not provided', async () => {
+    mock.restore()
+    // Given
+    const mockQueryResponse = {
+      result: {
+        reducerResults: {
+          collection_group_results: {
+            blockIds: ['row-1'],
+            hasMore: false,
+          },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: {
+              id: 'row-1',
+              properties: {
+                title: [['Row Name']],
+              },
+            },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              schema: {
+                title: { name: 'Name', type: 'title' },
+              },
+            },
+          },
+        },
+      },
+    }
+    const mockInternalRequest = mock((_token: string, endpoint: string, body: Record<string, unknown>) => {
+      if (endpoint === 'queryCollection') {
+        expect((body.loader as Record<string, unknown>).filter).toBeUndefined()
+        expect((body.loader as Record<string, unknown>).sort).toBeUndefined()
+        return Promise.resolve(mockQueryResponse)
+      }
+      return Promise.resolve({})
+    })
+    const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token' }))
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mock(() => 'mock-uuid'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-123'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    const { databaseCommand } = await import('./database')
+
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      // When
+      await databaseCommand.parseAsync(['query', 'coll-1', '--workspace-id', 'space-123'], { from: 'user' })
+    } finally {
+      console.log = originalLog
+    }
+
+    // Then
+    expect(mockInternalRequest).toHaveBeenCalledWith('test-token', 'queryCollection', expect.any(Object))
+    expect(output.length).toBeGreaterThan(0)
+  })
 })
 
 describe('database list', () => {
