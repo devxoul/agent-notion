@@ -246,6 +246,29 @@ Use `--pretty` flag for formatted output on any command:
 agent-notion search "Roadmap" --workspace-id <workspace_id> --pretty
 ```
 
+## When to Use `--backlinks`
+
+Backlinks reveal which pages/databases **link to** a given page. This is critical for efficient navigation.
+
+**Use `--backlinks` when:**
+- **Tracing relations**: A search result looks like a select option, enum value, or relation target (e.g., a plan name or category). Backlinks instantly reveal all rows/pages that reference it via relation properties — no need to hunt for the parent database.
+- **Finding references**: You found a page and want to know what other pages mention or link to it.
+- **Reverse lookups**: Instead of querying every database to find rows pointing to a page, use backlinks on the target page to get them directly.
+
+**Example — finding who uses a specific plan:**
+```bash
+# BAD: 15 API calls — search, open empty pages, trace parents, find database, query
+agent-notion search "Enterprise Plan" ...
+agent-notion page get <plan-page-id> ...  # empty
+agent-notion block get <plan-page-id> ...  # find parent
+# ... many more calls to discover the database
+
+# GOOD: 2-3 API calls — search, then backlinks on the target
+agent-notion search "Enterprise Plan" ...
+agent-notion page get <plan-page-id> --backlinks --pretty
+# → backlinks immediately show all people/rows linked to this plan
+```
+
 ## Limitations
 
 - `auth extract` supports macOS and Linux. Windows DPAPI decryption is not yet supported.
