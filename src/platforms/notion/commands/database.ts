@@ -31,6 +31,10 @@ type CollectionPropertyType =
   | 'email'
   | 'phone_number'
   | 'status'
+  | 'relation'
+  | 'rollup'
+  | 'formula'
+  | (string & {})
 
 type CollectionProperty = {
   name: string

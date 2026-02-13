@@ -199,9 +199,9 @@ describe('database query', () => {
         {
           id: 'row-1',
           properties: {
-            고객사: '고래몰',
-            상태: '완료',
-            타입: '위젯 설치',
+            고객사: { type: 'title', value: '고래몰' },
+            상태: { type: 'status', value: '완료' },
+            타입: { type: 'text', value: '위젯 설치' },
           },
         },
       ],
