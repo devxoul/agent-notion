@@ -1,7 +1,15 @@
 import { Command } from 'commander'
 import { formatOutput } from '../../../shared/utils/output'
 import { internalRequest } from '../client'
-import { type CommandOptions, generateId, getCredentialsOrExit, resolveSpaceId } from './helpers'
+import {
+  type CommandOptions,
+  generateId,
+  getCredentialsOrExit,
+  resolveAndSetActiveUserId,
+  resolveSpaceId,
+} from './helpers'
+
+type WorkspaceOptions = CommandOptions & { workspaceId: string }
 
 type BlockValue = {
   id: string
@@ -60,15 +68,15 @@ type SaveTransactionsRequest = {
   }>
 }
 
-type ChildListOptions = CommandOptions & {
+type ChildListOptions = WorkspaceOptions & {
   limit?: string
 }
 
-type AppendOptions = CommandOptions & {
+type AppendOptions = WorkspaceOptions & {
   content: string
 }
 
-type UpdateOptions = CommandOptions & {
+type UpdateOptions = WorkspaceOptions & {
   content: string
 }
 
@@ -135,9 +143,10 @@ function assertBlock(block: BlockValue | undefined, blockId: string): BlockValue
   return block
 }
 
-async function getAction(blockId: string, options: CommandOptions): Promise<void> {
+async function getAction(blockId: string, options: WorkspaceOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const response = (await internalRequest(creds.token_v2, 'syncRecordValues', {
       requests: [{ pointer: { table: 'block', id: blockId }, version: -1 }],
     })) as SyncRecordValuesResponse
@@ -153,6 +162,7 @@ async function getAction(blockId: string, options: CommandOptions): Promise<void
 async function childrenAction(blockId: string, options: ChildListOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const response = (await internalRequest(creds.token_v2, 'loadPageChunk', {
       pageId: blockId,
       limit: options.limit ? Number(options.limit) : 100,
@@ -187,6 +197,7 @@ async function appendAction(parentId: string, options: AppendOptions): Promise<v
     }
 
     const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const spaceId = await resolveSpaceId(creds.token_v2, parentId)
     const operations: SaveOperation[] = []
     const newBlockIds: string[] = []
@@ -237,6 +248,7 @@ async function updateAction(blockId: string, options: UpdateOptions): Promise<vo
   try {
     const content = parseUpdateContent(options.content)
     const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const spaceId = await resolveSpaceId(creds.token_v2, blockId)
 
     const payload: SaveTransactionsRequest = {
@@ -271,9 +283,10 @@ async function updateAction(blockId: string, options: UpdateOptions): Promise<vo
   }
 }
 
-async function deleteAction(blockId: string, options: CommandOptions): Promise<void> {
+async function deleteAction(blockId: string, options: WorkspaceOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const blockResponse = (await internalRequest(creds.token_v2, 'syncRecordValues', {
       requests: [{ pointer: { table: 'block', id: blockId }, version: -1 }],
     })) as SyncRecordValuesResponse
@@ -325,6 +338,7 @@ export const blockCommand = new Command('block')
     new Command('get')
       .description('Retrieve a block')
       .argument('<block_id>', 'Block ID')
+      .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .option('--pretty', 'Pretty print JSON output')
       .action(getAction),
   )
@@ -332,6 +346,7 @@ export const blockCommand = new Command('block')
     new Command('children')
       .description('List block children')
       .argument('<block_id>', 'Block ID')
+      .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .option('--limit <n>', 'Number of child blocks to load')
       .option('--pretty', 'Pretty print JSON output')
       .action(childrenAction),
@@ -340,6 +355,7 @@ export const blockCommand = new Command('block')
     new Command('append')
       .description('Append child blocks')
       .argument('<parent_id>', 'Parent block ID')
+      .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .requiredOption('--content <json>', 'Block definitions as JSON array')
       .option('--pretty', 'Pretty print JSON output')
       .action(appendAction),
@@ -348,6 +364,7 @@ export const blockCommand = new Command('block')
     new Command('update')
       .description('Update a block')
       .argument('<block_id>', 'Block ID')
+      .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .requiredOption('--content <json>', 'Block update content as JSON object')
       .option('--pretty', 'Pretty print JSON output')
       .action(updateAction),
@@ -356,6 +373,7 @@ export const blockCommand = new Command('block')
     new Command('delete')
       .description('Delete (archive) a block')
       .argument('<block_id>', 'Block ID')
+      .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .option('--pretty', 'Pretty print JSON output')
       .action(deleteAction),
   )

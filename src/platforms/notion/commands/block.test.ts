@@ -47,6 +47,7 @@ describe('blockCommand', () => {
         generateId: mockGenerateId,
         resolveSpaceId: mockResolveSpaceId,
         resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
       }))
 
       const { blockCommand } = await import('./block')
@@ -56,7 +57,7 @@ describe('blockCommand', () => {
 
       try {
         // When
-        await blockCommand.parseAsync(['get', 'block-123'], { from: 'user' })
+        await blockCommand.parseAsync(['get', 'block-123', '--workspace-id', 'space-123'], { from: 'user' })
       } catch {
         // Expected to exit
       }
@@ -95,6 +96,7 @@ describe('blockCommand', () => {
         generateId: mockGenerateId,
         resolveSpaceId: mockResolveSpaceId,
         resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
       }))
 
       const { blockCommand } = await import('./block')
@@ -110,7 +112,7 @@ describe('blockCommand', () => {
 
       try {
         // When
-        await blockCommand.parseAsync(['get', 'block-123'], { from: 'user' })
+        await blockCommand.parseAsync(['get', 'block-123', '--workspace-id', 'space-123'], { from: 'user' })
       } catch {
         // Expected
       }
@@ -179,6 +181,7 @@ describe('blockCommand', () => {
         generateId: mockGenerateId,
         resolveSpaceId: mockResolveSpaceId,
         resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
       }))
 
       const { blockCommand } = await import('./block')
@@ -188,7 +191,7 @@ describe('blockCommand', () => {
 
       try {
         // When
-        await blockCommand.parseAsync(['children', 'parent-1'], { from: 'user' })
+        await blockCommand.parseAsync(['children', 'parent-1', '--workspace-id', 'space-123'], { from: 'user' })
       } catch {
         // Expected to exit
       }
@@ -240,6 +243,7 @@ describe('blockCommand', () => {
         generateId: mockGenerateId,
         resolveSpaceId: mockResolveSpaceId,
         resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
       }))
 
       const { blockCommand } = await import('./block')
@@ -249,7 +253,7 @@ describe('blockCommand', () => {
 
       try {
         // When
-        await blockCommand.parseAsync(['children', 'parent-1', '--limit', '50'], {
+        await blockCommand.parseAsync(['children', 'parent-1', '--workspace-id', 'space-123', '--limit', '50'], {
           from: 'user',
         })
       } catch {
@@ -280,6 +284,7 @@ describe('blockCommand', () => {
         generateId: mockGenerateId,
         resolveSpaceId: mockResolveSpaceId,
         resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
       }))
 
       const { blockCommand } = await import('./block')
@@ -290,7 +295,14 @@ describe('blockCommand', () => {
       try {
         // When
         await blockCommand.parseAsync(
-          ['append', 'parent-1', '--content', JSON.stringify([{ type: 'text', properties: { title: [['Hello']] } }])],
+          [
+            'append',
+            'parent-1',
+            '--workspace-id',
+            'space-123',
+            '--content',
+            JSON.stringify([{ type: 'text', properties: { title: [['Hello']] } }]),
+          ],
           { from: 'user' },
         )
       } catch {
@@ -323,6 +335,7 @@ describe('blockCommand', () => {
         generateId: mockGenerateId,
         resolveSpaceId: mockResolveSpaceId,
         resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
       }))
 
       const { blockCommand } = await import('./block')
@@ -332,9 +345,12 @@ describe('blockCommand', () => {
 
       try {
         // When
-        await blockCommand.parseAsync(['append', 'parent-1', '--content', JSON.stringify([{ type: 'text' }])], {
-          from: 'user',
-        })
+        await blockCommand.parseAsync(
+          ['append', 'parent-1', '--workspace-id', 'space-123', '--content', JSON.stringify([{ type: 'text' }])],
+          {
+            from: 'user',
+          },
+        )
       } catch {
         // Expected to exit
       }
@@ -383,6 +399,7 @@ describe('blockCommand', () => {
         generateId: mockGenerateId,
         resolveSpaceId: mockResolveSpaceId,
         resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
       }))
 
       const { blockCommand } = await import('./block')
@@ -398,9 +415,12 @@ describe('blockCommand', () => {
 
       try {
         // When
-        await blockCommand.parseAsync(['append', 'parent-1', '--content', 'not valid json'], {
-          from: 'user',
-        })
+        await blockCommand.parseAsync(
+          ['append', 'parent-1', '--workspace-id', 'space-123', '--content', 'not valid json'],
+          {
+            from: 'user',
+          },
+        )
       } catch {
         // Expected
       }
@@ -430,6 +450,7 @@ describe('blockCommand', () => {
         generateId: mockGenerateId,
         resolveSpaceId: mockResolveSpaceId,
         resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
       }))
 
       const { blockCommand } = await import('./block')
@@ -445,9 +466,12 @@ describe('blockCommand', () => {
 
       try {
         // When
-        await blockCommand.parseAsync(['append', 'parent-1', '--content', JSON.stringify([{ properties: {} }])], {
-          from: 'user',
-        })
+        await blockCommand.parseAsync(
+          ['append', 'parent-1', '--workspace-id', 'space-123', '--content', JSON.stringify([{ properties: {} }])],
+          {
+            from: 'user',
+          },
+        )
       } catch {
         // Expected
       }
@@ -501,6 +525,7 @@ describe('blockCommand', () => {
         generateId: mockGenerateId,
         resolveSpaceId: mockResolveSpaceId,
         resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
       }))
 
       const { blockCommand } = await import('./block')
@@ -511,7 +536,14 @@ describe('blockCommand', () => {
       try {
         // When
         await blockCommand.parseAsync(
-          ['update', 'block-123', '--content', JSON.stringify({ properties: { title: [['Updated']] } })],
+          [
+            'update',
+            'block-123',
+            '--workspace-id',
+            'space-123',
+            '--content',
+            JSON.stringify({ properties: { title: [['Updated']] } }),
+          ],
           { from: 'user' },
         )
       } catch {
@@ -561,6 +593,7 @@ describe('blockCommand', () => {
         generateId: mockGenerateId,
         resolveSpaceId: mockResolveSpaceId,
         resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
       }))
 
       const { blockCommand } = await import('./block')
@@ -570,9 +603,12 @@ describe('blockCommand', () => {
 
       try {
         // When
-        await blockCommand.parseAsync(['update', 'block-123', '--content', JSON.stringify({ version: 2 })], {
-          from: 'user',
-        })
+        await blockCommand.parseAsync(
+          ['update', 'block-123', '--workspace-id', 'space-123', '--content', JSON.stringify({ version: 2 })],
+          {
+            from: 'user',
+          },
+        )
       } catch {
         // Expected to exit
       }
@@ -603,6 +639,7 @@ describe('blockCommand', () => {
         generateId: mockGenerateId,
         resolveSpaceId: mockResolveSpaceId,
         resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
       }))
 
       const { blockCommand } = await import('./block')
@@ -618,7 +655,10 @@ describe('blockCommand', () => {
 
       try {
         // When
-        await blockCommand.parseAsync(['update', 'block-123', '--content', JSON.stringify(['array'])], { from: 'user' })
+        await blockCommand.parseAsync(
+          ['update', 'block-123', '--workspace-id', 'space-123', '--content', JSON.stringify(['array'])],
+          { from: 'user' },
+        )
       } catch {
         // Expected
       }
@@ -670,6 +710,7 @@ describe('blockCommand', () => {
         generateId: mockGenerateId,
         resolveSpaceId: mockResolveSpaceId,
         resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
       }))
 
       const { blockCommand } = await import('./block')
@@ -679,7 +720,7 @@ describe('blockCommand', () => {
 
       try {
         // When
-        await blockCommand.parseAsync(['delete', 'block-123'], { from: 'user' })
+        await blockCommand.parseAsync(['delete', 'block-123', '--workspace-id', 'space-123'], { from: 'user' })
       } catch {
         // Expected to exit
       }
@@ -729,6 +770,7 @@ describe('blockCommand', () => {
         generateId: mockGenerateId,
         resolveSpaceId: mockResolveSpaceId,
         resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
       }))
 
       const { blockCommand } = await import('./block')
@@ -738,7 +780,7 @@ describe('blockCommand', () => {
 
       try {
         // When
-        await blockCommand.parseAsync(['delete', 'block-123'], { from: 'user' })
+        await blockCommand.parseAsync(['delete', 'block-123', '--workspace-id', 'space-123'], { from: 'user' })
       } catch {
         // Expected to exit
       }
@@ -804,6 +846,7 @@ describe('blockCommand', () => {
         generateId: mockGenerateId,
         resolveSpaceId: mockResolveSpaceId,
         resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
       }))
 
       const { blockCommand } = await import('./block')
@@ -819,7 +862,7 @@ describe('blockCommand', () => {
 
       try {
         // When
-        await blockCommand.parseAsync(['delete', 'block-123'], { from: 'user' })
+        await blockCommand.parseAsync(['delete', 'block-123', '--workspace-id', 'space-123'], { from: 'user' })
       } catch {
         // Expected
       }
