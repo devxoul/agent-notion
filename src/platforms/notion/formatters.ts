@@ -135,11 +135,7 @@ export function formatCollectionValue(collection: Record<string, unknown>): {
   }
 }
 
-export function formatQueryCollectionResponse(
-  response: Record<string, unknown>,
-  fullBlocks?: Record<string, unknown>,
-  schema?: Record<string, unknown>,
-): {
+export function formatQueryCollectionResponse(response: Record<string, unknown>): {
   results: Array<{ id: string; properties: Record<string, string> }>
   has_more: boolean
 } {
@@ -150,8 +146,8 @@ export function formatQueryCollectionResponse(
   const hasMore = collectionGroupResults?.hasMore === true
 
   const recordMap = toRecord(response.recordMap)
-  const blockMap = toRecordMap(fullBlocks ?? recordMap?.block)
-  const schemaMap = simplifySchemaMap(schema ?? extractSchemaFromRecordMap(recordMap))
+  const blockMap = toRecordMap(recordMap?.block)
+  const schemaMap = extractSchemaMap(recordMap)
 
   const results = blockIds
     .map((blockId) => {
@@ -213,11 +209,13 @@ function buildPageChildren(blocks: Record<string, Record<string, unknown>>, chil
 
 function getRecordValue(record: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
   if (!record) return undefined
-  if (typeof record.spaceId === 'string') {
-    const inner = toRecord(record.value)
-    return inner ? toRecord(inner.value) : undefined
+  const outer = toRecord(record.value)
+  if (!outer) return undefined
+  // Notion wraps records as { value: { value: {...}, role } }
+  if (typeof outer.role === 'string' && outer.value !== undefined) {
+    return toRecord(outer.value)
   }
-  return toRecord(record.value)
+  return outer
 }
 
 function toRecord(value: unknown): Record<string, unknown> | undefined {
@@ -262,19 +260,15 @@ function toOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
 }
 
-function extractSchemaFromRecordMap(recordMap: Record<string, unknown> | undefined): Record<string, unknown> {
+function extractSchemaMap(recordMap: Record<string, unknown> | undefined): Record<string, string> {
   if (!recordMap) return {}
   const collMap = toRecordMap(recordMap.collection)
   const firstColl = getRecordValue(Object.values(collMap)[0])
   if (!firstColl) return {}
 
-  return toRecordMap(firstColl.schema)
-}
-
-function simplifySchemaMap(schema: Record<string, unknown>): Record<string, string> {
-  const schemaMap = toRecordMap(schema)
+  const rawSchema = toRecordMap(firstColl.schema)
   const result: Record<string, string> = {}
-  for (const [propId, entry] of Object.entries(schemaMap)) {
+  for (const [propId, entry] of Object.entries(rawSchema)) {
     const name = toOptionalString(entry.name)
     if (name) {
       result[propId] = name

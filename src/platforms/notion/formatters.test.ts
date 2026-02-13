@@ -508,8 +508,8 @@ describe('formatQueryCollectionResponse', () => {
     })
   })
 
-  test('handles new spaceId wrapping format from queryCollection', () => {
-    // Given - new format: { spaceId, value: { value, role } }
+  test('handles role-wrapped record format from queryCollection', () => {
+    // Given - format: { value: { value: { id, ... }, role: "editor" } }
     const response = {
       result: {
         reducerResults: {
@@ -522,7 +522,6 @@ describe('formatQueryCollectionResponse', () => {
       recordMap: {
         block: {
           'row-1': {
-            spaceId: 'space-1',
             value: {
               value: {
                 id: 'row-1',
@@ -537,7 +536,6 @@ describe('formatQueryCollectionResponse', () => {
         },
         collection: {
           'coll-1': {
-            spaceId: 'space-1',
             value: {
               value: {
                 id: 'coll-1',
