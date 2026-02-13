@@ -1,6 +1,7 @@
 import { Command } from 'commander'
 import { formatOutput } from '../../../shared/utils/output'
 import { internalRequest } from '../client'
+import { extractCollectionName, formatCollectionValue, formatQueryCollectionResponse } from '../formatters'
 import {
   type CommandOptions,
   generateId,
@@ -134,7 +135,7 @@ async function getAction(collectionId: string, options: GetOptions): Promise<voi
     const creds = await getCredentialsOrExit()
     await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const collection = await fetchCollection(creds.token_v2, collectionId)
-    console.log(formatOutput(collection, options.pretty))
+    console.log(formatOutput(formatCollectionValue(collection as Record<string, unknown>), options.pretty))
   } catch (error) {
     console.error(JSON.stringify({ error: (error as Error).message }))
     process.exit(1)
@@ -163,12 +164,7 @@ async function queryAction(collectionId: string, options: QueryOptions): Promise
       },
     })) as QueryCollectionResponse
 
-    const result = {
-      result: response.result,
-      recordMap: response.recordMap,
-    }
-
-    console.log(formatOutput(result, options.pretty))
+    console.log(formatOutput(formatQueryCollectionResponse(response as Record<string, unknown>), options.pretty))
   } catch (error) {
     console.error(JSON.stringify({ error: (error as Error).message }))
     process.exit(1)
@@ -186,7 +182,7 @@ async function listAction(options: ListOptions): Promise<void> {
       const schema = collection.schema ?? {}
       return {
         id: collection.id,
-        name: collection.name,
+        name: extractCollectionName(collection.name),
         schema_properties: Object.keys(schema),
       }
     })
@@ -274,7 +270,7 @@ async function createAction(options: CreateOptions): Promise<void> {
     })
 
     const created = await fetchCollection(creds.token_v2, collId)
-    console.log(formatOutput(created, options.pretty))
+    console.log(formatOutput(formatCollectionValue(created as Record<string, unknown>), options.pretty))
   } catch (error) {
     console.error(JSON.stringify({ error: (error as Error).message }))
     process.exit(1)
@@ -288,7 +284,7 @@ async function updateAction(collectionId: string, options: UpdateOptions): Promi
     const current = await fetchCollection(creds.token_v2, collectionId)
 
     if (!options.title && !options.properties) {
-      console.log(formatOutput(current, options.pretty))
+      console.log(formatOutput(formatCollectionValue(current as Record<string, unknown>), options.pretty))
       return
     }
 
@@ -334,7 +330,7 @@ async function updateAction(collectionId: string, options: UpdateOptions): Promi
     })
 
     const updated = await fetchCollection(creds.token_v2, collectionId)
-    console.log(formatOutput(updated, options.pretty))
+    console.log(formatOutput(formatCollectionValue(updated as Record<string, unknown>), options.pretty))
   } catch (error) {
     console.error(JSON.stringify({ error: (error as Error).message }))
     process.exit(1)

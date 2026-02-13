@@ -55,6 +55,12 @@ describe('database get', () => {
       requests: [{ pointer: { table: 'collection', id: 'coll-1' }, version: -1 }],
     })
     expect(output.length).toBeGreaterThan(0)
+    const parsed = JSON.parse(output[0])
+    expect(parsed).toEqual({
+      id: 'coll-1',
+      name: 'Test DB',
+      schema: { Name: 'title' },
+    })
   })
 
   test('outputs error when collection not found', async () => {
@@ -283,6 +289,19 @@ describe('database list', () => {
     // Then
     expect(mockInternalRequest).toHaveBeenCalledWith('test-token', 'loadUserContent', {})
     expect(output.length).toBeGreaterThan(0)
+    const parsed = JSON.parse(output[0])
+    expect(Array.isArray(parsed)).toBe(true)
+    expect(parsed.length).toBe(2)
+    expect(parsed[0]).toEqual({
+      id: 'coll-1',
+      name: 'My DB',
+      schema_properties: ['title'],
+    })
+    expect(parsed[1]).toEqual({
+      id: 'coll-2',
+      name: 'Another DB',
+      schema_properties: ['title'],
+    })
   })
 })
 
@@ -362,6 +381,12 @@ describe('database create', () => {
       )
     }
     expect(output.length).toBeGreaterThan(0)
+    const parsed = JSON.parse(output[0])
+    expect(parsed).toEqual({
+      id: 'mock-uuid',
+      name: 'New DB',
+      schema: { Name: 'title' },
+    })
   })
 })
 
@@ -409,7 +434,7 @@ describe('database update', () => {
     let callCount = 0
     const mockInternalRequest = mock(() => {
       callCount++
-      if (callCount === 1 || callCount === 3) {
+      if (callCount === 1) {
         return Promise.resolve(mockGetResponse)
       }
       if (callCount === 2) {
@@ -452,6 +477,12 @@ describe('database update', () => {
     ) as unknown as [string, string, Record<string, unknown>] | undefined
     expect(saveTransactionCall).toBeDefined()
     expect(output.length).toBeGreaterThan(0)
+    const parsed = JSON.parse(output[0])
+    expect(parsed).toEqual({
+      id: 'coll-1',
+      name: 'New Title',
+      schema: { Name: 'title' },
+    })
   })
 
   test('outputs current collection when no options provided', async () => {
@@ -506,5 +537,11 @@ describe('database update', () => {
     // Then
     expect(output.length).toBeGreaterThan(0)
     expect(mockInternalRequest).toHaveBeenCalledTimes(1)
+    const parsed = JSON.parse(output[0])
+    expect(parsed).toEqual({
+      id: 'coll-1',
+      name: 'Test DB',
+      schema: { Name: 'title' },
+    })
   })
 })
