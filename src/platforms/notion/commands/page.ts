@@ -1,6 +1,7 @@
 import { Command } from 'commander'
 import { formatOutput } from '../../../shared/utils/output'
 import { internalRequest } from '../client'
+import { formatBlockRecord, formatPageGet } from '../formatters'
 import {
   type CommandOptions,
   generateId,
@@ -188,14 +189,9 @@ async function getAction(pageId: string, options: LoadPageChunkOptions): Promise
       chunkNumber += 1
     } while (cursor.stack.length > 0)
 
-    const result = {
-      cursor,
-      recordMap: {
-        block: blocks,
-      },
-    }
-
-    console.log(formatOutput(result, options.pretty))
+    console.log(
+      formatOutput(formatPageGet(blocks as unknown as Record<string, Record<string, unknown>>, pageId), options.pretty),
+    )
   } catch (error) {
     console.error(JSON.stringify({ error: (error as Error).message }))
     process.exit(1)
@@ -243,7 +239,7 @@ async function createAction(options: CreatePageOptions): Promise<void> {
     })) as SyncRecordValuesResponse
 
     const createdPage = pickBlock(created, newPageId)
-    console.log(formatOutput(createdPage, options.pretty))
+    console.log(formatOutput(formatBlockRecord(createdPage as unknown as Record<string, unknown>), options.pretty))
   } catch (error) {
     console.error(JSON.stringify({ error: (error as Error).message }))
     process.exit(1)
@@ -290,7 +286,7 @@ async function updateAction(pageId: string, options: UpdatePageOptions): Promise
     })) as SyncRecordValuesResponse
 
     const updatedPage = pickBlock(updated, pageId)
-    console.log(formatOutput(updatedPage, options.pretty))
+    console.log(formatOutput(formatBlockRecord(updatedPage as unknown as Record<string, unknown>), options.pretty))
   } catch (error) {
     console.error(JSON.stringify({ error: (error as Error).message }))
     process.exit(1)

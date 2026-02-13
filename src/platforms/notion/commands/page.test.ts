@@ -312,6 +312,7 @@ describe('PageCommand', () => {
                   value: {
                     id: 'page-1',
                     type: 'page',
+                    content: ['block-1', 'block-2'],
                     properties: {
                       title: [['Test Page']],
                     },
@@ -392,10 +393,12 @@ describe('PageCommand', () => {
 
     expect(output.length).toBeGreaterThan(0)
     const result = JSON.parse(output[0])
-    expect(result.recordMap.block['page-1'].value.id).toBe('page-1')
-    expect(result.recordMap.block['block-1'].value.id).toBe('block-1')
-    expect(result.recordMap.block['block-2'].value.id).toBe('block-2')
-    expect(result.cursor.stack.length).toBe(0)
+    expect(Array.isArray(result)).toBe(true)
+    expect(result.length).toBe(2)
+    expect(result[0].id).toBe('block-1')
+    expect(result[0].text).toBe('Block 1')
+    expect(result[1].id).toBe('block-2')
+    expect(result[1].text).toBe('Block 2')
   })
 
   test('page create creates new page with title', async () => {
@@ -474,9 +477,9 @@ describe('PageCommand', () => {
 
     expect(output.length).toBeGreaterThan(0)
     const result = JSON.parse(output[0])
-    expect(result.value.id).toBe('uuid-1')
-    expect(result.value.type).toBe('page')
-    expect(result.value.properties.title[0][0]).toBe('New Page')
+    expect(result.id).toBe('uuid-1')
+    expect(result.type).toBe('page')
+    expect(result.title).toBe('New Page')
   })
 
   test('page update --title updates page title', async () => {
@@ -547,8 +550,9 @@ describe('PageCommand', () => {
 
     expect(output.length).toBeGreaterThan(0)
     const result = JSON.parse(output[0])
-    expect(result.value.id).toBe('page-1')
-    expect(result.value.properties.title[0][0]).toBe('Updated Title')
+    expect(result.id).toBe('page-1')
+    expect(result.title).toBe('Updated Title')
+    expect(result.type).toBe('page')
   })
 
   test('page update --icon updates page icon', async () => {
@@ -619,8 +623,8 @@ describe('PageCommand', () => {
 
     expect(output.length).toBeGreaterThan(0)
     const result = JSON.parse(output[0])
-    expect(result.value.id).toBe('page-1')
-    expect(result.value.format.page_icon).toBe('🚀')
+    expect(result.id).toBe('page-1')
+    expect(result.type).toBe('page')
   })
 
   test('page archive archives page and removes from parent', async () => {
