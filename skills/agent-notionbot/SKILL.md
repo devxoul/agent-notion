@@ -49,8 +49,18 @@ agent-notionbot page get <page_id>
 agent-notionbot page create --parent <parent_id> --title "New Page Title"
 agent-notionbot page create --parent <database_id> --title "New Database Item" --database
 
+# Create a page with markdown content
+agent-notionbot page create --parent <parent_id> --title "My Doc" --markdown '# Hello\n\nThis is **bold** text.'
+
+# Create a page with markdown from a file
+agent-notionbot page create --parent <parent_id> --title "My Doc" --markdown-file ./content.md
+
 # Update page properties
 agent-notionbot page update <page_id> --set "Status=In Progress" --set "Priority=High"
+
+# Replace all content on a page with new markdown
+agent-notionbot page update <page_id> --replace-content --markdown '# New Content'
+agent-notionbot page update <page_id> --replace-content --markdown-file ./updated.md
 
 # Archive (delete) a page
 agent-notionbot page archive <page_id>
@@ -93,6 +103,12 @@ agent-notionbot block children <block_id> --page-size 50 --start-cursor <cursor>
 
 # Append child blocks to a parent
 agent-notionbot block append <parent_id> --content '[{"type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": "Hello World"}}]}}]'
+
+# Append markdown content as blocks
+agent-notionbot block append <parent_id> --markdown '# Hello\n\nThis is **bold** text.'
+
+# Append markdown from a file
+agent-notionbot block append <parent_id> --markdown-file ./content.md
 
 # Update a block's content
 agent-notionbot block update <block_id> --content '{"paragraph": {"rich_text": [{"type": "text", "text": {"content": "Updated content"}}]}}'
