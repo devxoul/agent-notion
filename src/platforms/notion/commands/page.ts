@@ -18,7 +18,13 @@ type WorkspaceOptions = CommandOptions & { workspaceId: string }
 type ListPageOptions = WorkspaceOptions & { depth?: string }
 type LoadPageChunkOptions = WorkspaceOptions & { limit?: string; backlinks?: boolean }
 type CreatePageOptions = WorkspaceOptions & { parent: string; title: string; markdown?: string; markdownFile?: string }
-type UpdatePageOptions = WorkspaceOptions & { title?: string; icon?: string }
+type UpdatePageOptions = WorkspaceOptions & {
+  title?: string
+  icon?: string
+  replaceContent?: boolean
+  markdown?: string
+  markdownFile?: string
+}
 type ArchivePageOptions = WorkspaceOptions
 
 type BlockValue = {
@@ -329,14 +335,94 @@ async function updateAction(rawPageId: string, options: UpdatePageOptions): Prom
       })
     }
 
-    if (operations.length === 0) {
-      throw new Error('No updates provided. Use --title and/or --icon')
+    if (operations.length === 0 && !options.replaceContent) {
+      throw new Error('No updates provided. Use --title, --icon, or --replace-content with --markdown')
     }
 
-    await internalRequest(creds.token_v2, 'saveTransactions', {
-      requestId: generateId(),
-      transactions: [{ id: generateId(), spaceId, operations }],
-    })
+    if (operations.length > 0) {
+      await internalRequest(creds.token_v2, 'saveTransactions', {
+        requestId: generateId(),
+        transactions: [{ id: generateId(), spaceId, operations }],
+      })
+    }
+
+    if (options.replaceContent) {
+      if (!options.markdown && !options.markdownFile) {
+        throw new Error('--replace-content requires --markdown or --markdown-file')
+      }
+
+      const md = readMarkdownInput({ markdown: options.markdown, markdownFile: options.markdownFile })
+      const newBlocks = markdownToBlocks(md)
+
+      const pageChunk = (await internalRequest(creds.token_v2, 'loadPageChunk', {
+        pageId,
+        limit: 100,
+        cursor: { stack: [] },
+        chunkNumber: 0,
+        verticalColumns: false,
+      })) as LoadPageChunkResponse
+
+      const parentBlock = pageChunk.recordMap.block[pageId]?.value
+      const existingChildIds = (parentBlock?.content as string[] | undefined) ?? []
+
+      if (existingChildIds.length > 0) {
+        const deleteOps: BlockOperation[] = existingChildIds.flatMap((childId) => [
+          {
+            pointer: { table: 'block' as const, id: childId, spaceId },
+            command: 'update' as const,
+            path: [] as string[],
+            args: { alive: false },
+          },
+          {
+            pointer: { table: 'block' as const, id: pageId, spaceId },
+            command: 'listRemove' as const,
+            path: ['content'],
+            args: { id: childId },
+          },
+        ])
+
+        await internalRequest(creds.token_v2, 'saveTransactions', {
+          requestId: generateId(),
+          transactions: [{ id: generateId(), spaceId, operations: deleteOps }],
+        })
+      }
+
+      const appendOps: BlockOperation[] = newBlocks.flatMap((def) => {
+        const newBlockId = generateId()
+        return [
+          {
+            pointer: { table: 'block' as const, id: newBlockId, spaceId },
+            command: 'set' as const,
+            path: [] as string[],
+            args: {
+              type: def.type,
+              id: newBlockId,
+              version: 1,
+              parent_id: pageId,
+              parent_table: 'block',
+              alive: true,
+              properties: def.properties ?? {},
+              space_id: spaceId,
+            },
+          },
+          {
+            pointer: { table: 'block' as const, id: pageId, spaceId },
+            command: 'listAfter' as const,
+            path: ['content'],
+            args: { id: newBlockId },
+          },
+        ]
+      })
+
+      try {
+        await internalRequest(creds.token_v2, 'saveTransactions', {
+          requestId: generateId(),
+          transactions: [{ id: generateId(), spaceId, operations: appendOps }],
+        })
+      } catch (appendError) {
+        throw new Error(`Page content cleared but new content failed to append: ${(appendError as Error).message}`)
+      }
+    }
 
     const updated = (await internalRequest(creds.token_v2, 'syncRecordValues', {
       requests: [{ pointer: { table: 'block', id: pageId }, version: -1 }],
@@ -433,6 +519,9 @@ export const pageCommand = new Command('page')
       .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .option('--title <title>', 'New title')
       .option('--icon <emoji>', 'Page icon emoji')
+      .option('--replace-content', 'Replace all page content')
+      .option('--markdown <text>', 'Markdown content')
+      .option('--markdown-file <path>', 'Path to markdown file')
       .option('--pretty')
       .action(updateAction),
   )
