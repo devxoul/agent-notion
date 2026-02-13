@@ -52,6 +52,80 @@ On macOS, your system may prompt for Keychain access — this is normal and requ
 
 The extracted `token_v2` is stored at `~/.config/agent-notion/credentials.json` with `0600` permissions.
 
+## Memory
+
+The agent maintains a `~/.config/agent-notion/MEMORY.md` file as persistent memory across sessions. This is agent-managed — the CLI does not read or write this file. Use the `Read` and `Write` tools to manage your memory file.
+
+### Reading Memory
+
+At the **start of every task**, read `~/.config/agent-notion/MEMORY.md` using the `Read` tool to load any previously discovered workspace IDs, page IDs, database IDs, and user preferences.
+
+- If the file doesn't exist yet, that's fine — proceed without it and create it when you first have useful information to store.
+- If the file can't be read (permissions, missing directory), proceed without memory — don't error out.
+
+### Writing Memory
+
+After discovering useful information, update `~/.config/agent-notion/MEMORY.md` using the `Write` tool. Write triggers include:
+
+- After discovering workspace IDs (from `workspace list`)
+- After discovering useful page IDs, database IDs, collection IDs (from `search`, `page list`, `page get`, `database list`, etc.)
+- After the user gives you an alias or preference ("call this the Tasks DB", "my main workspace is X")
+- After discovering page/database structure (parent-child relationships, what databases live under which pages)
+
+When writing, include the **complete file content** — the `Write` tool overwrites the entire file.
+
+### What to Store
+
+- Workspace IDs with names
+- Page IDs with titles and parent context
+- Database/collection IDs with titles and parent context
+- User-given aliases ("Tasks DB", "Main workspace")
+- Commonly used view IDs
+- Parent-child relationships (which databases are under which pages)
+- Any user preference expressed during interaction
+
+### What NOT to Store
+
+Never store `token_v2`, credentials, API keys, or any sensitive data. Never store full page content (just IDs and titles). Never store block-level IDs unless they're persistent references (like database blocks).
+
+### Handling Stale Data
+
+If a memorized ID returns an error (page not found, access denied), remove it from `MEMORY.md`. Don't blindly trust memorized data — verify when something seems off. Prefer re-searching over using a memorized ID that might be stale.
+
+### Format / Example
+
+Here's a concrete example of how to structure your `MEMORY.md`:
+
+```markdown
+# Agent Notion Memory
+
+## Workspaces
+
+- `abc123-...` — Acme Corp (default)
+
+## Pages (Acme Corp)
+
+- `page-id-1` — Product Roadmap (top-level)
+- `page-id-2` — Q1 Planning (under Product Roadmap)
+
+## Databases (Acme Corp)
+
+- `coll-id-1` — Tasks (under Product Roadmap, views: `view-1`)
+- `coll-id-2` — Contacts (top-level)
+
+## Aliases
+
+- "roadmap" → `page-id-1` (Product Roadmap)
+- "tasks" → `coll-id-1` (Tasks database)
+
+## Notes
+
+- User prefers --pretty output for search results
+- Main workspace is "Acme Corp"
+```
+
+> Memory lets you skip repeated `search` and `workspace list` calls. When you already know an ID from a previous session, use it directly.
+
 ## Commands
 
 ### Auth Commands
