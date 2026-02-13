@@ -1,3 +1,21 @@
+export type PropertyValue =
+  | { type: 'title'; value: string }
+  | { type: 'text'; value: string }
+  | { type: 'number'; value: number | null }
+  | { type: 'select'; value: string }
+  | { type: 'multi_select'; value: string[] }
+  | { type: 'date'; value: string | null }
+  | { type: 'person'; value: string[] }
+  | { type: 'relation'; value: string[] }
+  | { type: 'rollup'; value: unknown }
+  | { type: 'checkbox'; value: boolean }
+  | { type: 'url'; value: string }
+  | { type: 'email'; value: string }
+  | { type: 'phone_number'; value: string }
+  | { type: 'status'; value: string }
+  | { type: 'formula'; value: unknown }
+  | { type: string; value: unknown }
+
 export type SimplifiedBlock = {
   id: string
   type: string
@@ -136,7 +154,7 @@ export function formatCollectionValue(collection: Record<string, unknown>): {
 }
 
 export function formatQueryCollectionResponse(response: Record<string, unknown>): {
-  results: Array<{ id: string; properties: Record<string, string> }>
+  results: Array<{ id: string; properties: Record<string, PropertyValue> }>
   has_more: boolean
 } {
   const result = toRecord(response.result)
@@ -161,7 +179,7 @@ export function formatQueryCollectionResponse(response: Record<string, unknown>)
         properties: formatRowProperties(blockValue, schemaMap),
       }
     })
-    .filter((entry): entry is { id: string; properties: Record<string, string> } => entry !== undefined)
+    .filter((entry): entry is { id: string; properties: Record<string, PropertyValue> } => entry !== undefined)
 
   return {
     results,
@@ -260,18 +278,21 @@ function toOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
 }
 
-function extractSchemaMap(recordMap: Record<string, unknown> | undefined): Record<string, string> {
+function extractSchemaMap(
+  recordMap: Record<string, unknown> | undefined,
+): Record<string, { name: string; type: string }> {
   if (!recordMap) return {}
   const collMap = toRecordMap(recordMap.collection)
   const firstColl = getRecordValue(Object.values(collMap)[0])
   if (!firstColl) return {}
 
   const rawSchema = toRecordMap(firstColl.schema)
-  const result: Record<string, string> = {}
+  const result: Record<string, { name: string; type: string }> = {}
   for (const [propId, entry] of Object.entries(rawSchema)) {
     const name = toOptionalString(entry.name)
-    if (name) {
-      result[propId] = name
+    const type = toOptionalString(entry.type)
+    if (name && type) {
+      result[propId] = { name, type }
     }
   }
   return result
@@ -279,22 +300,22 @@ function extractSchemaMap(recordMap: Record<string, unknown> | undefined): Recor
 
 function formatRowProperties(
   block: Record<string, unknown>,
-  schemaMap: Record<string, string>,
-): Record<string, string> {
-  const result: Record<string, string> = {}
+  schemaMap: Record<string, { name: string; type: string }>,
+): Record<string, PropertyValue> {
+  const result: Record<string, PropertyValue> = {}
   const properties = toRecord(block.properties)
   if (!properties) return result
 
   if (Object.keys(schemaMap).length === 0) {
     const title = extractPropertyText(properties.title)
     if (title) {
-      result.title = title
+      result.title = { type: 'title', value: title }
     }
     return result
   }
 
-  for (const [propId, propName] of Object.entries(schemaMap)) {
-    result[propName] = extractPropertyText(properties[propId])
+  for (const [propId, { name, type }] of Object.entries(schemaMap)) {
+    result[name] = extractPropertyValue(properties[propId], type)
   }
   return result
 }
@@ -326,4 +347,80 @@ function extractPropertyText(value: unknown): string {
     }
   }
   return parts.join('')
+}
+
+function extractPropertyValue(value: unknown, schemaType: string): PropertyValue {
+  switch (schemaType) {
+    case 'person':
+    case 'relation': {
+      const ids = extractDecoratorIds(value, schemaType === 'person' ? 'u' : 'p')
+      return { type: schemaType, value: ids }
+    }
+    case 'date': {
+      const dateStr = extractDateValue(value)
+      return { type: 'date', value: dateStr }
+    }
+    case 'number': {
+      const text = extractPropertyText(value)
+      const num = Number.parseFloat(text)
+      return { type: 'number', value: Number.isNaN(num) ? null : num }
+    }
+    case 'checkbox': {
+      const text = extractPropertyText(value)
+      return { type: 'checkbox', value: text === 'Yes' }
+    }
+    case 'multi_select': {
+      const text = extractPropertyText(value)
+      return { type: 'multi_select', value: text ? text.split(',') : [] }
+    }
+    case 'title':
+    case 'text':
+    case 'url':
+    case 'email':
+    case 'phone_number':
+    case 'status':
+    case 'select':
+      return { type: schemaType, value: extractPropertyText(value) }
+    case 'rollup':
+    case 'formula':
+      return { type: schemaType, value: extractPropertyText(value) }
+    default:
+      return { type: schemaType, value: extractPropertyText(value) }
+  }
+}
+
+function extractDecoratorIds(value: unknown, marker: string): string[] {
+  if (!Array.isArray(value)) return []
+
+  const ids: string[] = []
+  for (const segment of value) {
+    if (!Array.isArray(segment) || segment.length < 2) continue
+    if (!Array.isArray(segment[1])) continue
+
+    for (const deco of segment[1]) {
+      if (!Array.isArray(deco) || deco.length < 2) continue
+      if (deco[0] === marker && typeof deco[1] === 'string') {
+        ids.push(deco[1])
+      }
+    }
+  }
+  return ids
+}
+
+function extractDateValue(value: unknown): string | null {
+  if (!Array.isArray(value)) return null
+
+  for (const segment of value) {
+    if (!Array.isArray(segment) || segment.length < 2) continue
+    if (!Array.isArray(segment[1])) continue
+
+    for (const deco of segment[1]) {
+      if (!Array.isArray(deco) || deco.length < 2) continue
+      if (deco[0] === 'd' && deco[1] && typeof deco[1] === 'object' && !Array.isArray(deco[1])) {
+        const dateStr = toOptionalString((deco[1] as Record<string, unknown>).start_date)
+        if (dateStr) return dateStr
+      }
+    }
+  }
+  return null
 }

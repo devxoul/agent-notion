@@ -440,9 +440,9 @@ describe('formatQueryCollectionResponse', () => {
         {
           id: 'row-1',
           properties: {
-            고객사: '고래몰',
-            상태: '완료',
-            타입: '위젯 설치',
+            고객사: { type: 'title', value: '고래몰' },
+            상태: { type: 'status', value: '완료' },
+            타입: { type: 'text', value: '위젯 설치' },
           },
         },
       ],
@@ -498,9 +498,9 @@ describe('formatQueryCollectionResponse', () => {
         {
           id: 'row-1',
           properties: {
-            담당자: 'user-123',
-            연결: 'page-456',
-            일자: '2026-01-01',
+            담당자: { type: 'person', value: ['user-123'] },
+            연결: { type: 'relation', value: ['page-456'] },
+            일자: { type: 'date', value: '2026-01-01' },
           },
         },
       ],
@@ -555,7 +555,7 @@ describe('formatQueryCollectionResponse', () => {
 
     // Then
     expect(result).toEqual({
-      results: [{ id: 'row-1', properties: { Name: 'My Row' } }],
+      results: [{ id: 'row-1', properties: { Name: { type: 'title', value: 'My Row' } } }],
       has_more: true,
     })
   })
@@ -595,6 +595,209 @@ describe('formatQueryCollectionResponse', () => {
     expect(result).toEqual({
       results: [{ id: 'row-1', properties: {} }],
       has_more: false,
+    })
+  })
+
+  test('returns typed number property', () => {
+    // Given
+    const response = {
+      result: {
+        reducerResults: {
+          collection_group_results: { blockIds: ['row-1'], hasMore: false },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: { id: 'row-1', properties: { numKey: [['42']] } },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: { id: 'coll-1', schema: { numKey: { name: '수량', type: 'number' } } },
+          },
+        },
+      },
+    }
+
+    // When
+    const result = formatQueryCollectionResponse(response)
+
+    // Then
+    expect(result.results[0].properties).toEqual({
+      수량: { type: 'number', value: 42 },
+    })
+  })
+
+  test('returns null for non-numeric number property', () => {
+    // Given
+    const response = {
+      result: {
+        reducerResults: {
+          collection_group_results: { blockIds: ['row-1'], hasMore: false },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: { id: 'row-1', properties: { numKey: [['not-a-number']] } },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: { id: 'coll-1', schema: { numKey: { name: '수량', type: 'number' } } },
+          },
+        },
+      },
+    }
+
+    // When
+    const result = formatQueryCollectionResponse(response)
+
+    // Then
+    expect(result.results[0].properties).toEqual({
+      수량: { type: 'number', value: null },
+    })
+  })
+
+  test('returns typed checkbox property', () => {
+    // Given
+    const response = {
+      result: {
+        reducerResults: {
+          collection_group_results: { blockIds: ['row-1'], hasMore: false },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: { id: 'row-1', properties: { cbKey: [['Yes']] } },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: { id: 'coll-1', schema: { cbKey: { name: '완료', type: 'checkbox' } } },
+          },
+        },
+      },
+    }
+
+    // When
+    const result = formatQueryCollectionResponse(response)
+
+    // Then
+    expect(result.results[0].properties).toEqual({
+      완료: { type: 'checkbox', value: true },
+    })
+  })
+
+  test('returns typed multi_select property', () => {
+    // Given
+    const response = {
+      result: {
+        reducerResults: {
+          collection_group_results: { blockIds: ['row-1'], hasMore: false },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: { id: 'row-1', properties: { msKey: [['A,B,C']] } },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              schema: { msKey: { name: '태그', type: 'multi_select' } },
+            },
+          },
+        },
+      },
+    }
+
+    // When
+    const result = formatQueryCollectionResponse(response)
+
+    // Then
+    expect(result.results[0].properties).toEqual({
+      태그: { type: 'multi_select', value: ['A', 'B', 'C'] },
+    })
+  })
+
+  test('returns relation with multiple targets', () => {
+    // Given
+    const response = {
+      result: {
+        reducerResults: {
+          collection_group_results: { blockIds: ['row-1'], hasMore: false },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: {
+              id: 'row-1',
+              properties: {
+                relKey: [
+                  ['‣', [['p', 'id-1', 'sp-1']]],
+                  ['‣', [['p', 'id-2', 'sp-2']]],
+                ],
+              },
+            },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              schema: { relKey: { name: '연결', type: 'relation' } },
+            },
+          },
+        },
+      },
+    }
+
+    // When
+    const result = formatQueryCollectionResponse(response)
+
+    // Then
+    expect(result.results[0].properties).toEqual({
+      연결: { type: 'relation', value: ['id-1', 'id-2'] },
+    })
+  })
+
+  test('returns fallback for unknown property type', () => {
+    // Given
+    const response = {
+      result: {
+        reducerResults: {
+          collection_group_results: { blockIds: ['row-1'], hasMore: false },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: { id: 'row-1', properties: { xKey: [['some value']] } },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              schema: { xKey: { name: '커스텀', type: 'custom_thing' } },
+            },
+          },
+        },
+      },
+    }
+
+    // When
+    const result = formatQueryCollectionResponse(response)
+
+    // Then
+    expect(result.results[0].properties).toEqual({
+      커스텀: { type: 'custom_thing', value: 'some value' },
     })
   })
 
