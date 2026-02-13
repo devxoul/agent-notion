@@ -2,12 +2,13 @@ import { Command } from 'commander'
 import { handleError } from '../../../shared/utils/error-handler'
 import { formatOutput } from '../../../shared/utils/output'
 import { getClient } from '../client'
+import { formatPage } from '../formatters'
 
 async function getAction(pageId: string, options: { pretty?: boolean }): Promise<void> {
   try {
     const client = getClient()
     const page = await client.pages.retrieve({ page_id: pageId })
-    console.log(formatOutput(page, options.pretty))
+    console.log(formatOutput(formatPage(page as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
@@ -29,7 +30,7 @@ async function createAction(options: {
         title: { title: [{ text: { content: options.title } }] },
       },
     })
-    console.log(formatOutput(page, options.pretty))
+    console.log(formatOutput(formatPage(page as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
@@ -52,7 +53,7 @@ async function updateAction(pageId: string, options: { set: Record<string, strin
       page_id: pageId,
       properties: options.set as any,
     })
-    console.log(formatOutput(page, options.pretty))
+    console.log(formatOutput(formatPage(page as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
@@ -65,7 +66,7 @@ async function archiveAction(pageId: string, options: { pretty?: boolean }): Pro
       page_id: pageId,
       archived: true,
     })
-    console.log(formatOutput(page, options.pretty))
+    console.log(formatOutput(formatPage(page as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }

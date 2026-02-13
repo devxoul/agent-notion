@@ -56,7 +56,13 @@ describe('page commands', () => {
       mockPageRetrieve.mockResolvedValue({
         id: 'page-123',
         object: 'page',
-        properties: { title: { type: 'title' } },
+        url: 'https://notion.so/page-123',
+        archived: false,
+        last_edited_time: '2024-01-01T00:00:00.000Z',
+        parent: { type: 'page_id', page_id: 'parent-1' },
+        properties: {
+          Name: { id: 'title', type: 'title', title: [{ plain_text: 'Test Page' }] },
+        },
       })
 
       // When
@@ -66,7 +72,9 @@ describe('page commands', () => {
       expect(mockPageRetrieve).toHaveBeenCalledWith({ page_id: 'page-123' })
       const output = JSON.parse(consoleOutput[0])
       expect(output.id).toBe('page-123')
-      expect(output.object).toBe('page')
+      expect(output.title).toBe('Test Page')
+      expect(output.url).toBe('https://notion.so/page-123')
+      expect(output.properties.Name).toBe('Test Page')
     })
 
     test('handles not found error with sharing hint', async () => {
@@ -94,6 +102,13 @@ describe('page commands', () => {
       mockPageCreate.mockResolvedValue({
         id: 'new-page-456',
         object: 'page',
+        url: 'https://notion.so/new-page-456',
+        archived: false,
+        last_edited_time: '2024-01-01T00:00:00.000Z',
+        parent: { type: 'page_id', page_id: 'parent-123' },
+        properties: {
+          title: { id: 'title', type: 'title', title: [{ plain_text: 'My Page' }] },
+        },
       })
 
       // When
@@ -110,6 +125,7 @@ describe('page commands', () => {
       })
       const output = JSON.parse(consoleOutput[0])
       expect(output.id).toBe('new-page-456')
+      expect(output.title).toBe('My Page')
     })
 
     test('creates a page under a database parent when --database flag used', async () => {
@@ -117,6 +133,13 @@ describe('page commands', () => {
       mockPageCreate.mockResolvedValue({
         id: 'new-page-789',
         object: 'page',
+        url: 'https://notion.so/new-page-789',
+        archived: false,
+        last_edited_time: '2024-01-01T00:00:00.000Z',
+        parent: { type: 'database_id', database_id: 'db-123' },
+        properties: {
+          Name: { id: 'title', type: 'title', title: [{ plain_text: 'DB Entry' }] },
+        },
       })
 
       // When
@@ -140,6 +163,10 @@ describe('page commands', () => {
       mockPageUpdate.mockResolvedValue({
         id: 'page-123',
         object: 'page',
+        url: 'https://notion.so/page-123',
+        archived: false,
+        last_edited_time: '2024-01-01T00:00:00.000Z',
+        parent: { type: 'page_id', page_id: 'parent-1' },
         properties: {},
       })
 
@@ -164,6 +191,11 @@ describe('page commands', () => {
       mockPageUpdate.mockResolvedValue({
         id: 'page-123',
         object: 'page',
+        url: 'https://notion.so/page-123',
+        archived: false,
+        last_edited_time: '2024-01-01T00:00:00.000Z',
+        parent: { type: 'page_id', page_id: 'parent-1' },
+        properties: {},
       })
 
       // When
@@ -188,7 +220,11 @@ describe('page commands', () => {
       mockPageUpdate.mockResolvedValue({
         id: 'page-123',
         object: 'page',
+        url: 'https://notion.so/page-123',
         archived: true,
+        last_edited_time: '2024-01-01T00:00:00.000Z',
+        parent: { type: 'page_id', page_id: 'parent-1' },
+        properties: {},
       })
 
       // When

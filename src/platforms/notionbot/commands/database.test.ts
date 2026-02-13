@@ -58,8 +58,11 @@ describe('database commands', () => {
       // Given
       mockRetrieve.mockResolvedValue({
         id: 'db-123',
+        url: 'https://notion.so/db-123',
         title: [{ plain_text: 'My Database' }],
-        properties: { Name: { type: 'title' } },
+        parent: { type: 'page_id', page_id: 'parent-1' },
+        last_edited_time: '2024-01-01T00:00:00.000Z',
+        properties: { Name: { id: 'title', type: 'title', title: {} } },
       })
 
       // When
@@ -69,6 +72,8 @@ describe('database commands', () => {
       expect(mockRetrieve).toHaveBeenCalledWith({ database_id: 'db-123' })
       const output = JSON.parse(consoleOutput[0])
       expect(output.id).toBe('db-123')
+      expect(output.title).toBe('My Database')
+      expect(output.properties.Name).toBe('title')
     })
 
     test('handles error on retrieve failure', async () => {
@@ -92,7 +97,14 @@ describe('database commands', () => {
     test('queries database with default params', async () => {
       // Given
       mockRequest.mockResolvedValue({
-        results: [{ id: 'page-1' }],
+        results: [
+          {
+            id: 'page-1',
+            object: 'page',
+            url: 'https://notion.so/page-1',
+            properties: { Name: { id: 'title', type: 'title', title: [{ plain_text: 'Item 1' }] } },
+          },
+        ],
         has_more: false,
         next_cursor: null,
       })
@@ -108,13 +120,25 @@ describe('database commands', () => {
       })
       const output = JSON.parse(consoleOutput[0])
       expect(output.results).toHaveLength(1)
+      expect(output.results[0].title).toBe('Item 1')
     })
 
     test('queries database with filter, sort, page-size, and start-cursor', async () => {
       // Given
       const filter = JSON.stringify({ property: 'Status', select: { equals: 'Done' } })
       const sort = JSON.stringify([{ property: 'Created', direction: 'descending' }])
-      mockRequest.mockResolvedValue({ results: [], has_more: false, next_cursor: null })
+      mockRequest.mockResolvedValue({
+        results: [
+          {
+            id: 'page-1',
+            object: 'page',
+            url: 'https://notion.so/page-1',
+            properties: { Name: { id: 'title', type: 'title', title: [{ plain_text: 'Item 1' }] } },
+          },
+        ],
+        has_more: false,
+        next_cursor: null,
+      })
 
       // When
       await databaseCommand.parseAsync(
@@ -139,7 +163,14 @@ describe('database commands', () => {
   describe('create', () => {
     test('creates database with parent and title', async () => {
       // Given
-      mockCreate.mockResolvedValue({ id: 'new-db-1', title: [{ plain_text: 'Tasks' }] })
+      mockCreate.mockResolvedValue({
+        id: 'new-db-1',
+        url: 'https://notion.so/new-db-1',
+        title: [{ plain_text: 'Tasks' }],
+        parent: { type: 'page_id', page_id: 'page-1' },
+        last_edited_time: '2024-01-01T00:00:00.000Z',
+        properties: {},
+      })
 
       // When
       await databaseCommand.parseAsync(['create', '--parent', 'page-1', '--title', 'Tasks'], {
@@ -154,12 +185,20 @@ describe('database commands', () => {
       })
       const output = JSON.parse(consoleOutput[0])
       expect(output.id).toBe('new-db-1')
+      expect(output.title).toBe('Tasks')
     })
 
     test('creates database with custom properties JSON', async () => {
       // Given
       const properties = JSON.stringify({ Status: { select: { options: [{ name: 'Done' }] } } })
-      mockCreate.mockResolvedValue({ id: 'new-db-2' })
+      mockCreate.mockResolvedValue({
+        id: 'new-db-2',
+        url: 'https://notion.so/new-db-2',
+        title: [{ plain_text: 'Tasks' }],
+        parent: { type: 'page_id', page_id: 'page-1' },
+        last_edited_time: '2024-01-01T00:00:00.000Z',
+        properties: {},
+      })
 
       // When
       await databaseCommand.parseAsync(
@@ -181,7 +220,14 @@ describe('database commands', () => {
   describe('update', () => {
     test('updates database title', async () => {
       // Given
-      mockUpdate.mockResolvedValue({ id: 'db-123', title: [{ plain_text: 'Updated' }] })
+      mockUpdate.mockResolvedValue({
+        id: 'db-123',
+        url: 'https://notion.so/db-123',
+        title: [{ plain_text: 'Updated' }],
+        parent: { type: 'page_id', page_id: 'parent-1' },
+        last_edited_time: '2024-01-01T00:00:00.000Z',
+        properties: {},
+      })
 
       // When
       await databaseCommand.parseAsync(['update', 'db-123', '--title', 'Updated'], { from: 'user' })
@@ -193,6 +239,7 @@ describe('database commands', () => {
       })
       const output = JSON.parse(consoleOutput[0])
       expect(output.id).toBe('db-123')
+      expect(output.title).toBe('Updated')
     })
   })
 
@@ -200,7 +247,10 @@ describe('database commands', () => {
     test('lists databases via search', async () => {
       // Given
       mockSearch.mockResolvedValue({
-        results: [{ id: 'db-1' }, { id: 'db-2' }],
+        results: [
+          { id: 'db-1', object: 'database', title: [{ plain_text: 'DB 1' }], url: 'https://notion.so/db-1' },
+          { id: 'db-2', object: 'database', title: [{ plain_text: 'DB 2' }], url: 'https://notion.so/db-2' },
+        ],
         has_more: false,
         next_cursor: null,
       })
@@ -213,12 +263,21 @@ describe('database commands', () => {
         filter: { property: 'object', value: 'database' },
       })
       const output = JSON.parse(consoleOutput[0])
-      expect(output.results).toHaveLength(2)
+      expect(Array.isArray(output)).toBe(true)
+      expect(output).toHaveLength(2)
+      expect(output[0].title).toBe('DB 1')
     })
 
     test('lists databases with pagination params', async () => {
       // Given
-      mockSearch.mockResolvedValue({ results: [], has_more: false, next_cursor: null })
+      mockSearch.mockResolvedValue({
+        results: [
+          { id: 'db-1', object: 'database', title: [{ plain_text: 'DB 1' }], url: 'https://notion.so/db-1' },
+          { id: 'db-2', object: 'database', title: [{ plain_text: 'DB 2' }], url: 'https://notion.so/db-2' },
+        ],
+        has_more: false,
+        next_cursor: null,
+      })
 
       // When
       await databaseCommand.parseAsync(['list', '--page-size', '5', '--start-cursor', 'cur-1'], {

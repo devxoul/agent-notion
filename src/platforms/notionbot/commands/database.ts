@@ -2,6 +2,7 @@ import { Command } from 'commander'
 import { handleError } from '../../../shared/utils/error-handler'
 import { formatOutput } from '../../../shared/utils/output'
 import { getClient } from '../client'
+import { formatDatabase, formatDatabaseListResults, formatDatabaseQueryResults } from '../formatters'
 
 interface PrettyOption {
   pretty?: boolean
@@ -11,7 +12,7 @@ async function getAction(databaseId: string, options: PrettyOption): Promise<voi
   try {
     const client = getClient()
     const result = await client.databases.retrieve({ database_id: databaseId })
-    console.log(formatOutput(result, options.pretty))
+    console.log(formatOutput(formatDatabase(result as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
@@ -48,7 +49,7 @@ async function queryAction(
       path: `databases/${databaseId}/query`,
       body,
     })
-    console.log(formatOutput(result, options.pretty))
+    console.log(formatOutput(formatDatabaseQueryResults(result as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
@@ -66,7 +67,7 @@ async function createAction(
       title: [{ type: 'text', text: { content: options.title } }],
       properties,
     } as any)
-    console.log(formatOutput(result, options.pretty))
+    console.log(formatOutput(formatDatabase(result as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
@@ -88,7 +89,7 @@ async function updateAction(
     }
 
     const result = await client.databases.update(params as any)
-    console.log(formatOutput(result, options.pretty))
+    console.log(formatOutput(formatDatabase(result as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
@@ -109,7 +110,7 @@ async function listAction(options: PrettyOption & { pageSize?: string; startCurs
     }
 
     const result = await client.search(params as any)
-    console.log(formatOutput(result, options.pretty))
+    console.log(formatOutput(formatDatabaseListResults(result as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
