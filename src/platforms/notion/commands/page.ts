@@ -156,7 +156,6 @@ async function listAction(options: ListPageOptions): Promise<void> {
     const pages = await walkPages(creds.token_v2, space.pages, maxDepth, 0)
 
     const output = {
-      spaceId: space.id,
       pages,
       total: pages.length,
     }

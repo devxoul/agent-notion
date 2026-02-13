@@ -95,7 +95,7 @@ describe('PageCommand', () => {
 
     expect(output.length).toBeGreaterThan(0)
     const result = JSON.parse(output[0])
-    expect(result.spaceId).toBe('space-123')
+    expect(result.spaceId).toBeUndefined()
     expect(Array.isArray(result.pages)).toBe(true)
     expect(result.pages.length).toBe(2)
     expect(result.pages[0].id).toBe('page-1')
@@ -188,7 +188,7 @@ describe('PageCommand', () => {
 
     expect(output.length).toBeGreaterThan(0)
     const result = JSON.parse(output[0])
-    expect(result.spaceId).toBe('space-456')
+    expect(result.spaceId).toBeUndefined()
     expect(result.pages.length).toBe(1)
     expect(result.pages[0].id).toBe('page-3')
   })
