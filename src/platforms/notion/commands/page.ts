@@ -9,10 +9,12 @@ import {
   resolveSpaceId,
 } from './helpers'
 
-type ListPageOptions = CommandOptions & { workspaceId: string; depth?: string }
-type LoadPageChunkOptions = CommandOptions & { limit?: string }
-type CreatePageOptions = CommandOptions & { parent: string; title: string }
-type UpdatePageOptions = CommandOptions & { title?: string; icon?: string }
+type WorkspaceOptions = CommandOptions & { workspaceId: string }
+type ListPageOptions = WorkspaceOptions & { depth?: string }
+type LoadPageChunkOptions = WorkspaceOptions & { limit?: string }
+type CreatePageOptions = WorkspaceOptions & { parent: string; title: string }
+type UpdatePageOptions = WorkspaceOptions & { title?: string; icon?: string }
+type ArchivePageOptions = WorkspaceOptions
 
 type BlockValue = {
   parent_id?: string
@@ -143,9 +145,6 @@ async function walkPages(
 
 async function listAction(options: ListPageOptions): Promise<void> {
   try {
-    if (!options.workspaceId) {
-      throw new Error('--workspace-id is required. Use `agent-notion workspace list` to find your workspace ID.')
-    }
     const creds = await getCredentialsOrExit()
     await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const space = await getSpace(creds.token_v2, options.workspaceId)
@@ -169,6 +168,7 @@ async function listAction(options: ListPageOptions): Promise<void> {
 async function getAction(pageId: string, options: LoadPageChunkOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
 
     let cursor: { stack: unknown[] } = { stack: [] }
     let chunkNumber = 0
@@ -205,6 +205,7 @@ async function getAction(pageId: string, options: LoadPageChunkOptions): Promise
 async function createAction(options: CreatePageOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const spaceId = await resolveSpaceId(creds.token_v2, options.parent)
     const newPageId = generateId()
 
@@ -252,6 +253,7 @@ async function createAction(options: CreatePageOptions): Promise<void> {
 async function updateAction(pageId: string, options: UpdatePageOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const spaceId = await resolveSpaceId(creds.token_v2, pageId)
 
     const operations: BlockOperation[] = []
@@ -295,9 +297,10 @@ async function updateAction(pageId: string, options: UpdatePageOptions): Promise
   }
 }
 
-async function archiveAction(pageId: string, options: CommandOptions): Promise<void> {
+async function archiveAction(pageId: string, options: ArchivePageOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
 
     const pageResponse = (await internalRequest(creds.token_v2, 'syncRecordValues', {
       requests: [{ pointer: { table: 'block', id: pageId }, version: -1 }],
@@ -352,6 +355,7 @@ export const pageCommand = new Command('page')
     new Command('get')
       .description('Retrieve a page and its content')
       .argument('<page_id>')
+      .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .option('--limit <n>', 'Block limit')
       .option('--pretty')
       .action(getAction),
@@ -359,6 +363,7 @@ export const pageCommand = new Command('page')
   .addCommand(
     new Command('create')
       .description('Create a new page')
+      .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .requiredOption('--parent <id>', 'Parent page or block ID')
       .requiredOption('--title <title>', 'Page title')
       .option('--pretty')
@@ -368,11 +373,17 @@ export const pageCommand = new Command('page')
     new Command('update')
       .description('Update page properties')
       .argument('<page_id>')
+      .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .option('--title <title>', 'New title')
       .option('--icon <emoji>', 'Page icon emoji')
       .option('--pretty')
       .action(updateAction),
   )
   .addCommand(
-    new Command('archive').description('Archive a page').argument('<page_id>').option('--pretty').action(archiveAction),
+    new Command('archive')
+      .description('Archive a page')
+      .argument('<page_id>')
+      .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
+      .option('--pretty')
+      .action(archiveAction),
   )

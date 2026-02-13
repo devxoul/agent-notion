@@ -9,49 +9,6 @@ describe('PageCommand', () => {
     mock.restore()
   })
 
-  test('page list errors when --workspace-id is not provided', async () => {
-    const mockGetCredentials = mock(async () => ({
-      token_v2: 'test-token',
-    }))
-
-    mock.module('../client', () => ({
-      internalRequest: mock(async () => ({})),
-    }))
-
-    mock.module('./helpers', () => ({
-      getCredentialsOrExit: mockGetCredentials,
-      generateId: mock(() => 'uuid-1'),
-      resolveSpaceId: mock(async () => 'space-123'),
-      resolveCollectionViewId: mock(async () => 'view-mock'),
-      resolveAndSetActiveUserId: mock(async () => {}),
-    }))
-
-    const { pageCommand } = await import('./page')
-    const errorOutput: string[] = []
-    const originalError = console.error
-    console.error = (msg: string) => errorOutput.push(msg)
-
-    let exitCode: number | undefined
-    const originalExit = process.exit
-    process.exit = ((code: number) => {
-      exitCode = code
-    }) as any
-
-    try {
-      await pageCommand.parseAsync(['list'], { from: 'user' })
-    } catch {
-      // Expected
-    }
-
-    console.error = originalError
-    process.exit = originalExit
-
-    expect(errorOutput.length).toBeGreaterThan(0)
-    const errorMsg = JSON.parse(errorOutput[0])
-    expect(errorMsg.error).toContain('--workspace-id')
-    expect(exitCode).toBe(1)
-  })
-
   test('page list returns pages from space', async () => {
     const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string) => {
       if (endpoint === 'getSpaces') {
@@ -426,7 +383,7 @@ describe('PageCommand', () => {
     console.log = (msg: string) => output.push(msg)
 
     try {
-      await pageCommand.parseAsync(['get', 'page-1'], { from: 'user' })
+      await pageCommand.parseAsync(['get', 'page-1', '--workspace-id', 'space-123'], { from: 'user' })
     } catch {
       // Expected to exit
     }
@@ -503,9 +460,12 @@ describe('PageCommand', () => {
     console.log = (msg: string) => output.push(msg)
 
     try {
-      await pageCommand.parseAsync(['create', '--parent', 'parent-page', '--title', 'New Page'], {
-        from: 'user',
-      })
+      await pageCommand.parseAsync(
+        ['create', '--workspace-id', 'space-123', '--parent', 'parent-page', '--title', 'New Page'],
+        {
+          from: 'user',
+        },
+      )
     } catch {
       // Expected to exit
     }
@@ -576,7 +536,7 @@ describe('PageCommand', () => {
     console.log = (msg: string) => output.push(msg)
 
     try {
-      await pageCommand.parseAsync(['update', 'page-1', '--title', 'Updated Title'], {
+      await pageCommand.parseAsync(['update', 'page-1', '--workspace-id', 'space-123', '--title', 'Updated Title'], {
         from: 'user',
       })
     } catch {
@@ -648,7 +608,9 @@ describe('PageCommand', () => {
     console.log = (msg: string) => output.push(msg)
 
     try {
-      await pageCommand.parseAsync(['update', 'page-1', '--icon', '🚀'], { from: 'user' })
+      await pageCommand.parseAsync(['update', 'page-1', '--workspace-id', 'space-123', '--icon', '🚀'], {
+        from: 'user',
+      })
     } catch {
       // Expected to exit
     }
@@ -718,7 +680,7 @@ describe('PageCommand', () => {
     console.log = (msg: string) => output.push(msg)
 
     try {
-      await pageCommand.parseAsync(['archive', 'page-1'], { from: 'user' })
+      await pageCommand.parseAsync(['archive', 'page-1', '--workspace-id', 'space-123'], { from: 'user' })
     } catch {
       // Expected to exit
     }
@@ -819,7 +781,7 @@ describe('PageCommand', () => {
     }) as any
 
     try {
-      await pageCommand.parseAsync(['get', 'invalid-page'], { from: 'user' })
+      await pageCommand.parseAsync(['get', 'invalid-page', '--workspace-id', 'space-123'], { from: 'user' })
     } catch {
       // Expected
     }
@@ -870,9 +832,12 @@ describe('PageCommand', () => {
     }) as any
 
     try {
-      await pageCommand.parseAsync(['create', '--parent', 'parent-page', '--title', 'New Page'], {
-        from: 'user',
-      })
+      await pageCommand.parseAsync(
+        ['create', '--workspace-id', 'space-123', '--parent', 'parent-page', '--title', 'New Page'],
+        {
+          from: 'user',
+        },
+      )
     } catch {
       // Expected
     }
@@ -923,7 +888,7 @@ describe('PageCommand', () => {
     }) as any
 
     try {
-      await pageCommand.parseAsync(['update', 'page-1', '--title', 'New Title'], {
+      await pageCommand.parseAsync(['update', 'page-1', '--workspace-id', 'space-123', '--title', 'New Title'], {
         from: 'user',
       })
     } catch {
@@ -976,7 +941,7 @@ describe('PageCommand', () => {
     }) as any
 
     try {
-      await pageCommand.parseAsync(['archive', 'page-1'], { from: 'user' })
+      await pageCommand.parseAsync(['archive', 'page-1', '--workspace-id', 'space-123'], { from: 'user' })
     } catch {
       // Expected
     }
