@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@notionhq/client": "latest",
+    "@tryfabric/martian": "^1.2.4",
     "better-sqlite3": "latest",
     "commander": "latest",
     "remark-gfm": "^4.0.1",
