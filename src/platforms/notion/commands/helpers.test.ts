@@ -84,6 +84,34 @@ async function resolveAndSetActiveUserId(tokenV2: string, workspaceId?: string):
   }
 }
 
+function formatNotionId(id: string): string {
+  const hex = id.replace(/-/g, '')
+  if (hex.length !== 32 || !/^[0-9a-f]+$/i.test(hex)) {
+    return id
+  }
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+describe('formatNotionId', () => {
+  test('converts 32-char hex to hyphenated UUID', () => {
+    expect(formatNotionId('30471800c4a58061a0ecd608a915dfdd')).toBe('30471800-c4a5-8061-a0ec-d608a915dfdd')
+  })
+
+  test('returns already hyphenated UUID unchanged', () => {
+    expect(formatNotionId('30471800-c4a5-8061-a0ec-d608a915dfdd')).toBe('30471800-c4a5-8061-a0ec-d608a915dfdd')
+  })
+
+  test('returns non-UUID strings unchanged', () => {
+    expect(formatNotionId('short')).toBe('short')
+    expect(formatNotionId('')).toBe('')
+    expect(formatNotionId('not-a-valid-id')).toBe('not-a-valid-id')
+  })
+
+  test('returns strings with non-hex characters unchanged', () => {
+    expect(formatNotionId('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz')).toBe('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz')
+  })
+})
+
 describe('generateId', () => {
   test('returns a valid UUID string', () => {
     const id = generateId()
