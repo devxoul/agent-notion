@@ -25,9 +25,6 @@ type SearchResponse = {
 
 async function searchAction(query: string, options: SearchOptions): Promise<void> {
   try {
-    if (!options.workspaceId) {
-      throw new Error('--workspace-id is required. Use `agent-notion workspace list` to find your workspace ID.')
-    }
     const creds = await getCredentialsOrExit()
     await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const spaceId = options.workspaceId

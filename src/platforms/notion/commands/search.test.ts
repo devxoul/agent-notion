@@ -9,49 +9,6 @@ describe('SearchCommand', () => {
     mock.restore()
   })
 
-  test('search errors when --workspace-id is not provided', async () => {
-    const mockGetCredentials = mock(async () => ({
-      token_v2: 'test-token',
-    }))
-
-    mock.module('../client', () => ({
-      internalRequest: mock(async () => ({})),
-    }))
-
-    mock.module('./helpers', () => ({
-      getCredentialsOrExit: mockGetCredentials,
-      generateId: mock(() => 'mock-uuid'),
-      resolveSpaceId: mock(async () => 'space-mock'),
-      resolveCollectionViewId: mock(async () => 'view-mock'),
-      resolveAndSetActiveUserId: mock(async () => {}),
-    }))
-
-    const { searchCommand } = await import('./search')
-    const errorOutput: string[] = []
-    const originalError = console.error
-    console.error = (msg: string) => errorOutput.push(msg)
-
-    let exitCode: number | undefined
-    const originalExit = process.exit
-    process.exit = ((code: number) => {
-      exitCode = code
-    }) as any
-
-    try {
-      await searchCommand.parseAsync(['test query'], { from: 'user' })
-    } catch {
-      // Expected
-    }
-
-    console.error = originalError
-    process.exit = originalExit
-
-    expect(errorOutput.length).toBeGreaterThan(0)
-    const errorMsg = JSON.parse(errorOutput[0])
-    expect(errorMsg.error).toContain('--workspace-id')
-    expect(exitCode).toBe(1)
-  })
-
   test('search with --workspace-id returns results', async () => {
     const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string, _body: any) => {
       if (endpoint === 'search') {
