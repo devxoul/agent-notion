@@ -4,6 +4,7 @@ const mockPageRetrieve = mock(() => Promise.resolve({}))
 const mockPageCreate = mock(() => Promise.resolve({}))
 const mockPageUpdate = mock(() => Promise.resolve({}))
 const mockPagePropertyRetrieve = mock(() => Promise.resolve({}))
+const mockAppendBlockChildren = mock(() => Promise.resolve([{ results: [] }] as any))
 
 mock.module('../client', () => ({
   getClient: () => ({
@@ -13,6 +14,7 @@ mock.module('../client', () => ({
       update: mockPageUpdate,
       properties: { retrieve: mockPagePropertyRetrieve },
     },
+    appendBlockChildren: mockAppendBlockChildren,
   }),
 }))
 
@@ -42,6 +44,7 @@ describe('page commands', () => {
     mockPageCreate.mockReset()
     mockPageUpdate.mockReset()
     mockPagePropertyRetrieve.mockReset()
+    mockAppendBlockChildren.mockReset()
   })
 
   afterEach(() => {
@@ -154,6 +157,40 @@ describe('page commands', () => {
           title: { title: [{ text: { content: 'DB Entry' } }] },
         },
       })
+    })
+
+    test('creates a page with markdown content appended', async () => {
+      // Given
+      mockPageCreate.mockResolvedValue({
+        id: 'new-page-md',
+        object: 'page',
+        url: 'https://notion.so/new-page-md',
+        archived: false,
+        last_edited_time: '2024-01-01T00:00:00.000Z',
+        parent: { type: 'page_id', page_id: 'parent-123' },
+        properties: {
+          title: { id: 'title', type: 'title', title: [{ plain_text: 'Page with Markdown' }] },
+        },
+      })
+      mockAppendBlockChildren.mockResolvedValue([{ results: [] }] as any)
+
+      // When
+      await pageCommand.parseAsync(
+        ['create', '--parent', 'parent-123', '--title', 'Page with Markdown', '--markdown', '# Hello\n\nWorld'],
+        { from: 'user' },
+      )
+
+      // Then
+      expect(mockPageCreate).toHaveBeenCalledWith({
+        parent: { page_id: 'parent-123' },
+        properties: {
+          title: { title: [{ text: { content: 'Page with Markdown' } }] },
+        },
+      })
+      expect(mockAppendBlockChildren).toHaveBeenCalled()
+      const output = JSON.parse(consoleOutput[0])
+      expect(output.id).toBe('new-page-md')
+      expect(output.title).toBe('Page with Markdown')
     })
   })
 

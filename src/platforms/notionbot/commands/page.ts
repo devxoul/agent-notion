@@ -1,6 +1,8 @@
 import { Command } from 'commander'
 import { getClient } from '@/platforms/notionbot/client'
 import { formatPage } from '@/platforms/notionbot/formatters'
+import { readMarkdownInput } from '@/shared/markdown/read-input'
+import { markdownToOfficialBlocks } from '@/shared/markdown/to-notion-official'
 import { handleError } from '@/shared/utils/error-handler'
 import { formatNotionId } from '@/shared/utils/id'
 import { formatOutput } from '@/shared/utils/output'
@@ -20,6 +22,8 @@ async function createAction(options: {
   parent: string
   title: string
   database?: boolean
+  markdown?: string
+  markdownFile?: string
   pretty?: boolean
 }): Promise<void> {
   const parentId = formatNotionId(options.parent)
@@ -33,6 +37,15 @@ async function createAction(options: {
         title: { title: [{ text: { content: options.title } }] },
       },
     })
+
+    if (options.markdown || options.markdownFile) {
+      const markdown = readMarkdownInput({ markdown: options.markdown, markdownFile: options.markdownFile })
+      const blocks = markdownToOfficialBlocks(markdown)
+      if (blocks.length > 0) {
+        await client.appendBlockChildren(page.id, blocks)
+      }
+    }
+
     console.log(formatOutput(formatPage(page as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
@@ -109,6 +122,8 @@ export const pageCommand = new Command('page')
       .requiredOption('--parent <parent_id>', 'Parent page or database ID')
       .requiredOption('--title <title>', 'Page title')
       .option('--database', 'Parent is a database (default: page)')
+      .option('--markdown <text>', 'Markdown content for page body')
+      .option('--markdown-file <path>', 'Path to markdown file for page body')
       .option('--pretty', 'Pretty print JSON output')
       .action(createAction),
   )

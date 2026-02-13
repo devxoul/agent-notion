@@ -44,6 +44,14 @@ mock.module('../client', () => ({
   }),
 }))
 
+mock.module('@/shared/markdown/read-input', () => ({
+  readMarkdownInput: (options: any) => {
+    if (options.markdown) return options.markdown
+    if (options.markdownFile) return '# File content'
+    throw new Error('No markdown provided')
+  },
+}))
+
 const { blockCommand } = await import('./block')
 
 describe('block commands', () => {
@@ -162,6 +170,124 @@ describe('block commands', () => {
 
     // Then — client.appendBlockChildren handles chunking internally, called once with all 150
     expect(mockAppendBlockChildren).toHaveBeenCalledWith('parent-789', children)
+  })
+
+  test('update modifies a block', async () => {
+    // Given
+    const content = { paragraph: { rich_text: [{ text: { content: 'updated' } }] } }
+    mockBlockUpdate.mockResolvedValue({
+      id: 'block-upd',
+      type: 'paragraph',
+      has_children: false,
+      paragraph: { rich_text: [{ plain_text: 'updated' }] },
+    } as any)
+
+    // When
+    await blockCommand.parseAsync(['update', 'block-upd', '--content', JSON.stringify(content)], {
+      from: 'user',
+    })
+
+    // Then
+    expect(mockBlockUpdate).toHaveBeenCalledWith({ block_id: 'block-upd', ...content })
+    const output = JSON.parse(consoleOutput[0])
+    expect(output.id).toBe('block-upd')
+    expect(output.content).toBe('updated')
+  })
+
+  test('delete trashes a block', async () => {
+    // Given
+    mockBlockDelete.mockResolvedValue({
+      id: 'block-del',
+      type: 'paragraph',
+      has_children: false,
+      paragraph: { rich_text: [] },
+      archived: true,
+    } as any)
+
+    // When
+    await blockCommand.parseAsync(['delete', 'block-del'], { from: 'user' })
+
+    // Then
+    expect(mockBlockDelete).toHaveBeenCalledWith({ block_id: 'block-del' })
+    const output = JSON.parse(consoleOutput[0])
+    expect(output.deleted).toBe(true)
+    expect(output.id).toBe('block-del')
+  })
+
+  test('handles errors from Notion API', async () => {
+    // Given
+    mockBlockRetrieve.mockRejectedValue(new Error('Not found'))
+
+    // When
+    try {
+      await blockCommand.parseAsync(['get', 'bad-id'], { from: 'user' })
+    } catch {
+      // handleError calls process.exit which our mock throws
+    }
+
+    // Then
+    const allOutput = [...consoleOutput, ...consoleErrors].join('\n')
+    expect(allOutput).toContain('Not found')
+  })
+
+  test('append with --markdown converts markdown to blocks', async () => {
+    // Given
+    const resultBlock = { id: 'new-block-1', type: 'heading_1', has_children: false }
+    mockAppendBlockChildren.mockResolvedValue([{ results: [resultBlock] }] as any)
+
+    // When
+    await blockCommand.parseAsync(['append', 'parent-456', '--markdown', '# Hello'], {
+      from: 'user',
+    })
+
+    // Then
+    expect(mockAppendBlockChildren).toHaveBeenCalled()
+    const output = JSON.parse(consoleOutput[0])
+    expect(output.results[0].id).toBe('new-block-1')
+  })
+
+  test('append with --markdown-file reads and converts markdown file', async () => {
+    // Given
+    const resultBlock = { id: 'new-block-2', type: 'paragraph', has_children: false }
+    mockAppendBlockChildren.mockResolvedValue([{ results: [resultBlock] }] as any)
+
+    // When
+    await blockCommand.parseAsync(['append', 'parent-789', '--markdown-file', '/tmp/test.md'], {
+      from: 'user',
+    })
+
+    // Then
+    expect(mockAppendBlockChildren).toHaveBeenCalled()
+    const output = JSON.parse(consoleOutput[0])
+    expect(output.results[0].id).toBe('new-block-2')
+  })
+
+  test('append with both --markdown and --content errors', async () => {
+    // When
+    try {
+      await blockCommand.parseAsync(['append', 'parent-456', '--markdown', '# Hello', '--content', '[]'], {
+        from: 'user',
+      })
+    } catch {
+      // handleError calls process.exit which our mock throws
+    }
+
+    // Then
+    const allOutput = [...consoleOutput, ...consoleErrors].join('\n')
+    expect(allOutput).toContain('Provide either --markdown or --markdown-file, not both')
+  })
+
+  test('append with neither --markdown nor --content errors', async () => {
+    // When
+    try {
+      await blockCommand.parseAsync(['append', 'parent-456'], { from: 'user' })
+    } catch {
+      // handleError calls process.exit which our mock throws
+    }
+
+    // Then
+    const allOutput = [...consoleOutput, ...consoleErrors].join('\n')
+    expect(allOutput).toContain('Provide either --content or --markdown/--markdown-file')
   })
 
   test('update modifies a block', async () => {

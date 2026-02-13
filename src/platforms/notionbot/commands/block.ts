@@ -2,6 +2,8 @@ import type { BlockObjectRequest } from '@notionhq/client/build/src/api-endpoint
 import { Command } from 'commander'
 import { getClient } from '@/platforms/notionbot/client'
 import { formatAppendResponse, formatBlock, formatBlockChildrenResponse } from '@/platforms/notionbot/formatters'
+import { readMarkdownInput } from '@/shared/markdown/read-input'
+import { markdownToOfficialBlocks } from '@/shared/markdown/to-notion-official'
 import { handleError } from '@/shared/utils/error-handler'
 import { formatNotionId } from '@/shared/utils/id'
 import { formatOutput } from '@/shared/utils/output'
@@ -34,11 +36,32 @@ async function childrenAction(
   }
 }
 
-async function appendAction(rawParentId: string, options: { pretty?: boolean; content: string }): Promise<void> {
+async function appendAction(
+  rawParentId: string,
+  options: { pretty?: boolean; content?: string; markdown?: string; markdownFile?: string },
+): Promise<void> {
   const parentId = formatNotionId(rawParentId)
   try {
     const client = getClient()
-    const children: BlockObjectRequest[] = JSON.parse(options.content)
+    let children: BlockObjectRequest[]
+
+    // Check mutual exclusivity
+    const hasMarkdown = options.markdown || options.markdownFile
+    if (options.content && hasMarkdown) {
+      throw new Error('Provide either --markdown or --markdown-file, not both')
+    }
+
+    if (!options.content && !hasMarkdown) {
+      throw new Error('Provide either --content or --markdown/--markdown-file')
+    }
+
+    if (hasMarkdown) {
+      const markdown = readMarkdownInput({ markdown: options.markdown, markdownFile: options.markdownFile })
+      children = markdownToOfficialBlocks(markdown)
+    } else {
+      children = JSON.parse(options.content!)
+    }
+
     const results = await client.appendBlockChildren(parentId, children)
     console.log(formatOutput(formatAppendResponse(results), options.pretty))
   } catch (error) {
@@ -91,7 +114,9 @@ export const blockCommand = new Command('block')
     new Command('append')
       .description('Append child blocks')
       .argument('<parent_id>', 'Parent block ID')
-      .requiredOption('--content <json>', 'Block children as JSON array')
+      .option('--content <json>', 'Block children as JSON array')
+      .option('--markdown <text>', 'Markdown content to convert to blocks')
+      .option('--markdown-file <path>', 'Path to markdown file')
       .option('--pretty', 'Pretty print JSON output')
       .action(appendAction),
   )
