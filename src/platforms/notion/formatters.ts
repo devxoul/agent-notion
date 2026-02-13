@@ -113,7 +113,10 @@ export function formatPageGet(
   }
 }
 
-export function formatBacklinks(response: Record<string, unknown>): BacklinkEntry[] {
+export function formatBacklinks(
+  response: Record<string, unknown>,
+  userLookup: Record<string, string> = {},
+): BacklinkEntry[] {
   const backlinks = response.backlinks
   if (!Array.isArray(backlinks)) return []
 
@@ -132,11 +135,70 @@ export function formatBacklinks(response: Record<string, unknown>): BacklinkEntr
       seen.add(sourceBlockId)
 
       const blockValue = getRecordValue(blockMap[sourceBlockId])
-      const title = blockValue ? extractNotionTitle(blockValue) : ''
+      const title = blockValue ? extractTitleWithMentions(blockValue, userLookup) : ''
 
       return { id: sourceBlockId, title }
     })
     .filter((entry): entry is BacklinkEntry => entry !== undefined)
+}
+
+export function collectBacklinkUserIds(response: Record<string, unknown>): string[] {
+  const recordMap = toRecord(response.recordMap)
+  const blockMap = toRecordMap(recordMap?.block)
+  const userIds = new Set<string>()
+
+  for (const record of Object.values(blockMap)) {
+    const value = getRecordValue(record)
+    if (!value) continue
+    const properties = toRecord(value.properties)
+    if (!properties) continue
+    const titleSegments = properties.title
+    if (!Array.isArray(titleSegments)) continue
+
+    for (const segment of titleSegments) {
+      if (!Array.isArray(segment) || segment.length < 2) continue
+      if (!Array.isArray(segment[1])) continue
+      for (const deco of segment[1]) {
+        if (Array.isArray(deco) && deco[0] === 'u' && typeof deco[1] === 'string') {
+          userIds.add(deco[1])
+        }
+      }
+    }
+  }
+
+  return [...userIds]
+}
+
+function extractTitleWithMentions(block: Record<string, unknown>, userLookup: Record<string, string>): string {
+  const properties = toRecord(block.properties)
+  const titleSegments = properties?.title
+  if (!Array.isArray(titleSegments)) return ''
+
+  const parts: string[] = []
+  for (const segment of titleSegments) {
+    if (!Array.isArray(segment)) continue
+    const text = segment[0]
+
+    if (text === '‣' && Array.isArray(segment[1])) {
+      let resolved = false
+      for (const deco of segment[1]) {
+        if (Array.isArray(deco) && deco[0] === 'u' && typeof deco[1] === 'string') {
+          const name = userLookup[deco[1]]
+          if (name) {
+            parts.push(name)
+            resolved = true
+          }
+        }
+      }
+      if (!resolved) {
+        parts.push('‣')
+      }
+    } else if (typeof text === 'string') {
+      parts.push(text)
+    }
+  }
+
+  return parts.join('').trim()
 }
 
 export function formatBlockRecord(record: Record<string, unknown>): {

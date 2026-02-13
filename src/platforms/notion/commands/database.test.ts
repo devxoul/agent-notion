@@ -35,6 +35,7 @@ describe('database get', () => {
       resolveSpaceId: mock(async () => 'space-123'),
       resolveCollectionViewId: mock(async () => 'view-123'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { databaseCommand } = await import('./database')
@@ -87,6 +88,7 @@ describe('database get', () => {
       resolveSpaceId: mock(async () => 'space-123'),
       resolveCollectionViewId: mock(async () => 'view-123'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const originalExit = process.exit
@@ -174,6 +176,7 @@ describe('database query', () => {
       resolveSpaceId: mock(async () => 'space-123'),
       resolveCollectionViewId: mockResolveCollectionViewId,
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { databaseCommand } = await import('./database')
@@ -264,6 +267,7 @@ describe('database query', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mockResolveCollectionViewId,
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { databaseCommand } = await import('./database')
@@ -383,6 +387,7 @@ describe('database query', () => {
       resolveSpaceId: mock(async () => 'space-123'),
       resolveCollectionViewId: mock(async () => 'view-123'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { databaseCommand } = await import('./database')
@@ -481,6 +486,7 @@ describe('database query', () => {
       resolveSpaceId: mock(async () => 'space-123'),
       resolveCollectionViewId: mock(async () => 'view-123'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { databaseCommand } = await import('./database')
@@ -543,6 +549,7 @@ describe('database list', () => {
       resolveSpaceId: mock(async () => 'space-123'),
       resolveCollectionViewId: mock(async () => 'view-123'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { databaseCommand } = await import('./database')
@@ -620,6 +627,7 @@ describe('database create', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mockResolveCollectionViewId,
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { databaseCommand } = await import('./database')
@@ -726,6 +734,7 @@ describe('database update', () => {
       resolveSpaceId: mock(async () => 'space-123'),
       resolveCollectionViewId: mock(async () => 'view-123'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { databaseCommand } = await import('./database')
@@ -791,6 +800,7 @@ describe('database update', () => {
       resolveSpaceId: mock(async () => 'space-123'),
       resolveCollectionViewId: mock(async () => 'view-123'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { databaseCommand } = await import('./database')

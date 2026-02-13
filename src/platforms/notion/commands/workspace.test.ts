@@ -53,6 +53,7 @@ describe('WorkspaceCommand', () => {
       resolveSpaceId: mock(async () => 'space-mock'),
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { workspaceCommand } = await import('./workspace')
@@ -118,6 +119,7 @@ describe('WorkspaceCommand', () => {
       resolveSpaceId: mock(async () => 'space-mock'),
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { workspaceCommand } = await import('./workspace')
@@ -165,6 +167,7 @@ describe('WorkspaceCommand', () => {
       resolveSpaceId: mock(async () => 'space-mock'),
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { workspaceCommand } = await import('./workspace')
@@ -207,6 +210,7 @@ describe('WorkspaceCommand', () => {
       resolveSpaceId: mock(async () => 'space-mock'),
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { workspaceCommand } = await import('./workspace')

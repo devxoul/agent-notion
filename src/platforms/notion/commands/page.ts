@@ -8,6 +8,7 @@ import {
   generateId,
   getCredentialsOrExit,
   resolveAndSetActiveUserId,
+  resolveBacklinkUsers,
   resolveSpaceId,
 } from './helpers'
 
@@ -197,7 +198,8 @@ async function getAction(rawPageId: string, options: LoadPageChunkOptions): Prom
       const backlinksResponse = (await internalRequest(creds.token_v2, 'getBacklinksForBlock', {
         blockId: pageId,
       })) as Record<string, unknown>
-      const output = { ...result, backlinks: formatBacklinks(backlinksResponse) }
+      const userLookup = await resolveBacklinkUsers(creds.token_v2, backlinksResponse)
+      const output = { ...result, backlinks: formatBacklinks(backlinksResponse, userLookup) }
       console.log(formatOutput(output, options.pretty))
     } else {
       console.log(formatOutput(result, options.pretty))

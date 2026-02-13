@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { internalRequest, setActiveUserId } from '@/platforms/notion/client'
 import { CredentialManager, type NotionCredentials } from '@/platforms/notion/credential-manager'
+import { collectBacklinkUserIds } from '@/platforms/notion/formatters'
 
 export type CommandOptions = { pretty?: boolean }
 
@@ -70,4 +71,27 @@ export async function resolveCollectionViewId(tokenV2: string, collectionId: str
     throw new Error(`No views found for collection: ${collectionId}`)
   }
   return viewId
+}
+
+type UserRecord = { value?: { name?: string } }
+
+export async function resolveBacklinkUsers(
+  tokenV2: string,
+  backlinksResponse: Record<string, unknown>,
+): Promise<Record<string, string>> {
+  const userIds = collectBacklinkUserIds(backlinksResponse)
+  if (userIds.length === 0) return {}
+
+  const response = (await internalRequest(tokenV2, 'syncRecordValues', {
+    requests: userIds.map((id) => ({ pointer: { table: 'notion_user', id }, version: -1 })),
+  })) as { recordMap: { notion_user?: Record<string, UserRecord> } }
+
+  const lookup: Record<string, string> = {}
+  const userMap = response.recordMap.notion_user ?? {}
+  for (const [id, record] of Object.entries(userMap)) {
+    if (record.value?.name) {
+      lookup[id] = record.value.name
+    }
+  }
+  return lookup
 }

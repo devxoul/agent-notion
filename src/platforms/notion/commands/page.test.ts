@@ -77,6 +77,7 @@ describe('PageCommand', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { pageCommand } = await import('./page')
@@ -169,6 +170,7 @@ describe('PageCommand', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { pageCommand } = await import('./page')
@@ -271,6 +273,7 @@ describe('PageCommand', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { pageCommand } = await import('./page')
@@ -376,6 +379,7 @@ describe('PageCommand', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { pageCommand } = await import('./page')
@@ -451,6 +455,7 @@ describe('PageCommand', () => {
       resolveSpaceId: mock(async () => 'space-123'),
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { pageCommand } = await import('./page')
@@ -527,6 +532,7 @@ describe('PageCommand', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { pageCommand } = await import('./page')
@@ -603,6 +609,7 @@ describe('PageCommand', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { pageCommand } = await import('./page')
@@ -676,6 +683,7 @@ describe('PageCommand', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { pageCommand } = await import('./page')
@@ -748,6 +756,7 @@ describe('PageCommand', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { pageCommand } = await import('./page')
@@ -792,6 +801,7 @@ describe('PageCommand', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { pageCommand } = await import('./page')
@@ -843,6 +853,7 @@ describe('PageCommand', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { pageCommand } = await import('./page')
@@ -894,6 +905,7 @@ describe('PageCommand', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { pageCommand } = await import('./page')
@@ -950,6 +962,7 @@ describe('PageCommand', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { pageCommand } = await import('./page')
@@ -1003,6 +1016,7 @@ describe('PageCommand', () => {
       resolveSpaceId: mockResolveSpaceId,
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
     }))
 
     const { pageCommand } = await import('./page')

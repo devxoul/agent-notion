@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import type { MentionRef, PropertyValue } from './formatters'
+import type { PropertyValue } from './formatters'
 import {
+  collectBacklinkUserIds,
   collectReferenceIds,
   enrichProperties,
   extractBlockText,
@@ -401,6 +402,84 @@ describe('formatBacklinks', () => {
 
     // Then
     expect(result).toEqual([{ id: 'source-missing', title: '' }])
+  })
+
+  test('resolves user mentions in titles with userLookup', () => {
+    // Given
+    const response = {
+      backlinks: [{ block_id: 'target', mentioned_from: { type: 'property_mention', block_id: 'source-a' } }],
+      recordMap: {
+        block: {
+          'source-a': {
+            value: {
+              id: 'source-a',
+              type: 'page',
+              properties: { title: [['‣', [['u', 'user-1']]], [' ']] },
+            },
+            role: 'editor',
+          },
+        },
+      },
+    }
+    const userLookup = { 'user-1': 'Sungyu Kang' }
+
+    // When
+    const result = formatBacklinks(response, userLookup)
+
+    // Then
+    expect(result).toEqual([{ id: 'source-a', title: 'Sungyu Kang' }])
+  })
+})
+
+describe('collectBacklinkUserIds', () => {
+  test('collects user IDs from title mention decorators', () => {
+    // Given
+    const response = {
+      recordMap: {
+        block: {
+          'block-1': {
+            value: {
+              id: 'block-1',
+              properties: { title: [['‣', [['u', 'user-1']]], [' ']] },
+            },
+            role: 'editor',
+          },
+          'block-2': {
+            value: {
+              id: 'block-2',
+              properties: { title: [['‣', [['u', 'user-2']]], [' ']] },
+            },
+            role: 'editor',
+          },
+        },
+      },
+    }
+
+    // When
+    const result = collectBacklinkUserIds(response)
+
+    // Then
+    expect(result.sort()).toEqual(['user-1', 'user-2'])
+  })
+
+  test('returns empty array when no user mentions', () => {
+    // Given
+    const response = {
+      recordMap: {
+        block: {
+          'block-1': {
+            value: { id: 'block-1', properties: { title: [['Plain text']] } },
+            role: 'editor',
+          },
+        },
+      },
+    }
+
+    // When
+    const result = collectBacklinkUserIds(response)
+
+    // Then
+    expect(result).toEqual([])
   })
 })
 
