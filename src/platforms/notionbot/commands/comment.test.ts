@@ -16,7 +16,7 @@ describe('CommentCommands', () => {
                 created_time: '2024-01-01T00:00:00.000Z',
                 last_edited_time: '2024-01-01T00:00:00.000Z',
                 created_by: { id: 'user-1', object: 'user' },
-                rich_text: [{ type: 'text', text: { content: 'Test comment' } }],
+                rich_text: [{ type: 'text', text: { content: 'Test comment' }, plain_text: 'Test comment' }],
                 discussion_id: 'discussion-1',
               },
             ],
@@ -45,8 +45,11 @@ describe('CommentCommands', () => {
     console.log = originalLog
     expect(output.length).toBeGreaterThan(0)
     const result = JSON.parse(output[0])
-    expect(result.results).toBeDefined()
     expect(result.results.length).toBe(1)
+    expect(result.results[0].id).toBe('comment-1')
+    expect(result.results[0].text).toBe('Test comment')
+    expect(result.results[0].author).toBeDefined()
+    expect(result.results[0].author.id).toBe('user-1')
   })
 
   test('comment list with pagination', async () => {
@@ -95,7 +98,7 @@ describe('CommentCommands', () => {
             created_time: '2024-01-01T00:00:00.000Z',
             last_edited_time: '2024-01-01T00:00:00.000Z',
             created_by: { id: 'user-1', object: 'user' },
-            rich_text: [{ type: 'text', text: { content: 'New comment' } }],
+            rich_text: [{ type: 'text', text: { content: 'New comment' }, plain_text: 'New comment' }],
             discussion_id: 'discussion-new',
           }),
         ),
@@ -135,7 +138,7 @@ describe('CommentCommands', () => {
             created_time: '2024-01-01T00:00:00.000Z',
             last_edited_time: '2024-01-01T00:00:00.000Z',
             created_by: { id: 'user-1', object: 'user' },
-            rich_text: [{ type: 'text', text: { content: 'Reply text' } }],
+            rich_text: [{ type: 'text', text: { content: 'Reply text' }, plain_text: 'Reply text' }],
             discussion_id: 'discussion-1',
           }),
         ),
@@ -175,7 +178,7 @@ describe('CommentCommands', () => {
             created_time: '2024-01-01T00:00:00.000Z',
             last_edited_time: '2024-01-01T00:00:00.000Z',
             created_by: { id: 'user-1', object: 'user' },
-            rich_text: [{ type: 'text', text: { content: 'Test comment' } }],
+            rich_text: [{ type: 'text', text: { content: 'Test comment' }, plain_text: 'Test comment' }],
             discussion_id: 'discussion-1',
           }),
         ),

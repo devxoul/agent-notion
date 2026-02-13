@@ -1,12 +1,34 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 
-const mockBlockRetrieve = mock(() => Promise.resolve({ id: 'block-123', type: 'paragraph' }))
-const mockBlockUpdate = mock(() => Promise.resolve({ id: 'block-123', type: 'paragraph' }))
-const mockBlockDelete = mock(() => Promise.resolve({ id: 'block-123', archived: true }))
-const mockChildrenList = mock(() =>
-  Promise.resolve({ results: [{ id: 'child-1' }], has_more: false, next_cursor: null }),
+const mockBlockRetrieve = mock(() =>
+  Promise.resolve({
+    id: 'block-123',
+    type: 'paragraph',
+    has_children: false,
+    paragraph: { rich_text: [] },
+  } as any),
 )
-const mockAppendBlockChildren = mock(() => Promise.resolve([{ results: [] }]))
+const mockBlockUpdate = mock(() =>
+  Promise.resolve({
+    id: 'block-123',
+    type: 'paragraph',
+    has_children: false,
+    paragraph: { rich_text: [] },
+  } as any),
+)
+const mockBlockDelete = mock(() =>
+  Promise.resolve({
+    id: 'block-123',
+    type: 'paragraph',
+    has_children: false,
+    paragraph: { rich_text: [] },
+    archived: true,
+  } as any),
+)
+const mockChildrenList = mock(() =>
+  Promise.resolve({ results: [{ id: 'child-1' }], has_more: false, next_cursor: null } as any),
+)
+const mockAppendBlockChildren = mock(() => Promise.resolve([{ results: [] }] as any))
 
 mock.module('../client', () => ({
   getClient: () => ({
@@ -63,6 +85,7 @@ describe('block commands', () => {
       id: 'block-abc',
       type: 'heading_1',
       has_children: false,
+      heading_1: { rich_text: [{ plain_text: 'Hello' }], color: 'default' },
     })
 
     // When
@@ -73,15 +96,20 @@ describe('block commands', () => {
     const output = JSON.parse(consoleOutput[0])
     expect(output.id).toBe('block-abc')
     expect(output.type).toBe('heading_1')
+    expect(output.content).toBe('Hello')
+    expect(output.has_children).toBe(false)
   })
 
   test('children lists child blocks with pagination options', async () => {
     // Given
     mockChildrenList.mockResolvedValue({
-      results: [{ id: 'child-1' }, { id: 'child-2' }],
+      results: [
+        { id: 'child-1', type: 'paragraph', has_children: false, paragraph: { rich_text: [{ plain_text: 'Text 1' }] } },
+        { id: 'child-2', type: 'paragraph', has_children: false, paragraph: { rich_text: [{ plain_text: 'Text 2' }] } },
+      ],
       has_more: true,
       next_cursor: 'cursor-xyz',
-    })
+    } as any)
 
     // When
     await blockCommand.parseAsync(['children', 'parent-123', '--page-size', '10', '--start-cursor', 'abc'], {
@@ -96,13 +124,16 @@ describe('block commands', () => {
     })
     const output = JSON.parse(consoleOutput[0])
     expect(output.results).toHaveLength(2)
+    expect(output.results[0].content).toBe('Text 1')
     expect(output.has_more).toBe(true)
+    expect(output.next_cursor).toBe('cursor-xyz')
   })
 
   test('append sends block children to parent', async () => {
     // Given
     const children = [{ type: 'paragraph', paragraph: { rich_text: [{ text: { content: 'hi' } }] } }]
-    mockAppendBlockChildren.mockResolvedValue([{ results: children }])
+    const resultBlock = { id: 'new-block-1', type: 'paragraph', has_children: false }
+    mockAppendBlockChildren.mockResolvedValue([{ results: [resultBlock] }] as any)
 
     // When
     await blockCommand.parseAsync(['append', 'parent-456', '--content', JSON.stringify(children)], {
@@ -111,7 +142,9 @@ describe('block commands', () => {
 
     // Then
     expect(mockAppendBlockChildren).toHaveBeenCalledWith('parent-456', children)
-    expect(consoleOutput.length).toBeGreaterThan(0)
+    const output = JSON.parse(consoleOutput[0])
+    expect(output.results[0].id).toBe('new-block-1')
+    expect(output.results[0].type).toBe('paragraph')
   })
 
   test('append chunks >100 blocks via client.appendBlockChildren', async () => {
@@ -120,7 +153,7 @@ describe('block commands', () => {
       type: 'paragraph',
       paragraph: { rich_text: [{ text: { content: `block-${i}` } }] },
     }))
-    mockAppendBlockChildren.mockResolvedValue([{ results: [] }, { results: [] }])
+    mockAppendBlockChildren.mockResolvedValue([{ results: [] }, { results: [] }] as any)
 
     // When
     await blockCommand.parseAsync(['append', 'parent-789', '--content', JSON.stringify(children)], {
@@ -134,7 +167,12 @@ describe('block commands', () => {
   test('update modifies a block', async () => {
     // Given
     const content = { paragraph: { rich_text: [{ text: { content: 'updated' } }] } }
-    mockBlockUpdate.mockResolvedValue({ id: 'block-upd', type: 'paragraph' })
+    mockBlockUpdate.mockResolvedValue({
+      id: 'block-upd',
+      type: 'paragraph',
+      has_children: false,
+      paragraph: { rich_text: [{ plain_text: 'updated' }] },
+    } as any)
 
     // When
     await blockCommand.parseAsync(['update', 'block-upd', '--content', JSON.stringify(content)], {
@@ -145,11 +183,18 @@ describe('block commands', () => {
     expect(mockBlockUpdate).toHaveBeenCalledWith({ block_id: 'block-upd', ...content })
     const output = JSON.parse(consoleOutput[0])
     expect(output.id).toBe('block-upd')
+    expect(output.content).toBe('updated')
   })
 
   test('delete trashes a block', async () => {
     // Given
-    mockBlockDelete.mockResolvedValue({ id: 'block-del', archived: true })
+    mockBlockDelete.mockResolvedValue({
+      id: 'block-del',
+      type: 'paragraph',
+      has_children: false,
+      paragraph: { rich_text: [] },
+      archived: true,
+    } as any)
 
     // When
     await blockCommand.parseAsync(['delete', 'block-del'], { from: 'user' })
@@ -157,7 +202,8 @@ describe('block commands', () => {
     // Then
     expect(mockBlockDelete).toHaveBeenCalledWith({ block_id: 'block-del' })
     const output = JSON.parse(consoleOutput[0])
-    expect(output.archived).toBe(true)
+    expect(output.deleted).toBe(true)
+    expect(output.id).toBe('block-del')
   })
 
   test('handles errors from Notion API', async () => {

@@ -3,12 +3,13 @@ import { Command } from 'commander'
 import { handleError } from '../../../shared/utils/error-handler'
 import { formatOutput } from '../../../shared/utils/output'
 import { getClient } from '../client'
+import { formatAppendResponse, formatBlock, formatBlockChildrenResponse } from '../formatters'
 
 async function getAction(blockId: string, options: { pretty?: boolean }): Promise<void> {
   try {
     const client = getClient()
     const block = await client.blocks.retrieve({ block_id: blockId })
-    console.log(formatOutput(block, options.pretty))
+    console.log(formatOutput(formatBlock(block as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
@@ -24,7 +25,7 @@ async function childrenAction(
     if (options.pageSize) params.page_size = Number(options.pageSize)
     if (options.startCursor) params.start_cursor = options.startCursor
     const response = await client.blocks.children.list(params as any)
-    console.log(formatOutput(response, options.pretty))
+    console.log(formatOutput(formatBlockChildrenResponse(response as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
@@ -35,7 +36,7 @@ async function appendAction(parentId: string, options: { pretty?: boolean; conte
     const client = getClient()
     const children: BlockObjectRequest[] = JSON.parse(options.content)
     const results = await client.appendBlockChildren(parentId, children)
-    console.log(formatOutput(results, options.pretty))
+    console.log(formatOutput(formatAppendResponse(results), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
@@ -46,7 +47,7 @@ async function updateAction(blockId: string, options: { pretty?: boolean; conten
     const client = getClient()
     const content = JSON.parse(options.content)
     const result = await client.blocks.update({ block_id: blockId, ...content })
-    console.log(formatOutput(result, options.pretty))
+    console.log(formatOutput(formatBlock(result as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
@@ -55,8 +56,8 @@ async function updateAction(blockId: string, options: { pretty?: boolean; conten
 async function deleteAction(blockId: string, options: { pretty?: boolean }): Promise<void> {
   try {
     const client = getClient()
-    const result = await client.blocks.delete({ block_id: blockId })
-    console.log(formatOutput(result, options.pretty))
+    await client.blocks.delete({ block_id: blockId })
+    console.log(formatOutput({ deleted: true, id: blockId }, options.pretty))
   } catch (error) {
     handleError(error as Error)
   }

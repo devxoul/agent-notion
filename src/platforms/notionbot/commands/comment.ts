@@ -2,6 +2,7 @@ import { Command } from 'commander'
 import { handleError } from '../../../shared/utils/error-handler'
 import { formatOutput } from '../../../shared/utils/output'
 import { getClient } from '../client'
+import { formatComment, formatCommentListResponse } from '../formatters'
 
 async function listAction(options: {
   page?: string
@@ -21,7 +22,7 @@ async function listAction(options: {
       start_cursor: options.startCursor,
     })
 
-    console.log(formatOutput(result, options.pretty))
+    console.log(formatOutput(formatCommentListResponse(result as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
@@ -62,7 +63,7 @@ async function createAction(
     }
 
     const result = await client.comments.create(createParams)
-    console.log(formatOutput(result, options.pretty))
+    console.log(formatOutput(formatComment(result as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
@@ -75,7 +76,7 @@ async function getAction(commentId: string, options: { pretty?: boolean }): Prom
       comment_id: commentId,
     })
 
-    console.log(formatOutput(result, options.pretty))
+    console.log(formatOutput(formatComment(result as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
   }
