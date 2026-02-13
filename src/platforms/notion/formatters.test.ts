@@ -172,7 +172,7 @@ describe('formatBlockChildren', () => {
     ]
 
     // When
-    const result = formatBlockChildren(blocks, false)
+    const result = formatBlockChildren(blocks, false, null)
 
     // Then
     expect(result).toEqual({
@@ -181,6 +181,7 @@ describe('formatBlockChildren', () => {
         { id: 'block-2', type: 'to_do', text: 'Second' },
       ],
       has_more: false,
+      next_cursor: null,
     })
   })
 })
@@ -646,6 +647,7 @@ describe('formatQueryCollectionResponse', () => {
         },
       ],
       has_more: false,
+      next_cursor: null,
     })
   })
 
@@ -704,6 +706,7 @@ describe('formatQueryCollectionResponse', () => {
         },
       ],
       has_more: false,
+      next_cursor: null,
     })
   })
 
@@ -756,6 +759,7 @@ describe('formatQueryCollectionResponse', () => {
     expect(result).toEqual({
       results: [{ id: 'row-1', properties: { Name: { type: 'title', value: 'My Row' } } }],
       has_more: true,
+      next_cursor: null,
     })
   })
 
@@ -794,6 +798,7 @@ describe('formatQueryCollectionResponse', () => {
     expect(result).toEqual({
       results: [{ id: 'row-1', properties: {} }],
       has_more: false,
+      next_cursor: null,
     })
   })
 
@@ -1131,6 +1136,7 @@ describe('formatQueryCollectionResponse', () => {
     expect(result).toEqual({
       results: [],
       has_more: false,
+      next_cursor: null,
     })
   })
 })

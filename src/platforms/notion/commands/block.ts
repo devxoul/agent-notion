@@ -73,6 +73,7 @@ type SaveTransactionsRequest = {
 
 type ChildListOptions = WorkspaceOptions & {
   limit?: string
+  startCursor?: string
 }
 
 type AppendOptions = WorkspaceOptions & {
@@ -179,12 +180,13 @@ async function getAction(rawBlockId: string, options: BlockGetOptions): Promise<
 async function childrenAction(rawBlockId: string, options: ChildListOptions): Promise<void> {
   const blockId = formatNotionId(rawBlockId)
   try {
+    const cursor = parsePageChunkCursor(options.startCursor)
     const creds = await getCredentialsOrExit()
     await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const response = (await internalRequest(creds.token_v2, 'loadPageChunk', {
       pageId: blockId,
       limit: options.limit ? Number(options.limit) : 100,
-      cursor: { stack: [] },
+      cursor,
       chunkNumber: 0,
       verticalColumns: false,
     })) as LoadPageChunkResponse
@@ -195,13 +197,33 @@ async function childrenAction(rawBlockId: string, options: ChildListOptions): Pr
       .map((childId) => getBlockById(response.recordMap.block, childId))
       .filter((block): block is BlockValue => block !== undefined)
 
-    const output = formatBlockChildren(childBlocks as Array<Record<string, unknown>>, response.cursor.stack.length > 0)
+    const hasMore = response.cursor.stack.length > 0
+    const nextCursor = hasMore ? JSON.stringify(response.cursor) : null
+    const output = formatBlockChildren(childBlocks as Array<Record<string, unknown>>, hasMore, nextCursor)
 
     console.log(formatOutput(output, options.pretty))
   } catch (error) {
     console.error(JSON.stringify({ error: getErrorMessage(error) }))
     process.exit(1)
   }
+}
+
+function parsePageChunkCursor(rawCursor: string | undefined): { stack: unknown[] } {
+  if (!rawCursor) {
+    return { stack: [] }
+  }
+
+  const parsed = JSON.parse(rawCursor) as unknown
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('start-cursor must be a JSON object with a stack array')
+  }
+
+  const cursor = parsed as { stack?: unknown }
+  if (!Array.isArray(cursor.stack)) {
+    throw new Error('start-cursor must be a JSON object with a stack array')
+  }
+
+  return { stack: cursor.stack }
 }
 
 async function appendAction(rawParentId: string, options: AppendOptions): Promise<void> {
@@ -367,6 +389,7 @@ export const blockCommand = new Command('block')
       .argument('<block_id>', 'Block ID')
       .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .option('--limit <n>', 'Number of child blocks to load')
+      .option('--start-cursor <json>', 'Pagination cursor from previous response')
       .option('--pretty', 'Pretty print JSON output')
       .action(childrenAction),
   )

@@ -71,9 +71,11 @@ export function formatBlockValue(block: Record<string, unknown>): {
 export function formatBlockChildren(
   blocks: Array<Record<string, unknown>>,
   hasMore: boolean,
+  nextCursor: string | null,
 ): {
   results: Array<{ id: string; type: string; text: string }>
   has_more: boolean
+  next_cursor: string | null
 } {
   return {
     results: blocks.map((block) => ({
@@ -82,6 +84,7 @@ export function formatBlockChildren(
       text: extractBlockText(block),
     })),
     has_more: hasMore,
+    next_cursor: nextCursor,
   }
 }
 
@@ -262,6 +265,7 @@ export function formatCollectionValue(collection: Record<string, unknown>): {
 export function formatQueryCollectionResponse(response: Record<string, unknown>): {
   results: Array<{ id: string; properties: Record<string, PropertyValue> }>
   has_more: boolean
+  next_cursor: null
 } {
   const result = toRecord(response.result)
   const reducerResults = toRecord(result?.reducerResults)
@@ -290,6 +294,7 @@ export function formatQueryCollectionResponse(response: Record<string, unknown>)
   return {
     results,
     has_more: hasMore,
+    next_cursor: null,
   }
 }
 

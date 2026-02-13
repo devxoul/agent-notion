@@ -349,6 +349,7 @@ describe('blockCommand', () => {
       expect(result.results[0].id).toBe('child-1')
       expect(result.results[1].id).toBe('child-2')
       expect(result.has_more).toBe(false)
+      expect(result.next_cursor).toBeNull()
     })
 
     test('respects limit option', async () => {
@@ -408,6 +409,82 @@ describe('blockCommand', () => {
 
       // Then
       expect(output.length).toBeGreaterThan(0)
+    })
+
+    test('passes start cursor and returns next_cursor when more results exist', async () => {
+      // Given
+      const startCursor = {
+        stack: [[{ index: 5, id: 'parent-1' }]],
+      }
+      const responseCursor = {
+        stack: [[{ index: 10, id: 'parent-1' }]],
+      }
+      const mockInternalRequest = mock((_token: string, endpoint: string, body: any) => {
+        if (endpoint === 'loadPageChunk') {
+          expect(body.cursor).toEqual(startCursor)
+          return Promise.resolve({
+            cursor: responseCursor,
+            recordMap: {
+              block: {
+                'parent-1': {
+                  value: {
+                    id: 'parent-1',
+                    type: 'page',
+                    content: ['child-1'],
+                  },
+                  role: 'editor',
+                },
+                'child-1': {
+                  value: {
+                    id: 'child-1',
+                    type: 'text',
+                    parent_id: 'parent-1',
+                  },
+                  role: 'editor',
+                },
+              },
+            },
+          })
+        }
+        return Promise.resolve({})
+      })
+      const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token', space_id: 'space-123' }))
+
+      mock.module('../client', () => ({
+        internalRequest: mockInternalRequest,
+      }))
+
+      mock.module('./helpers', () => ({
+        getCredentialsOrExit: mockGetCredentials,
+        generateId: mock(() => 'mock-uuid'),
+        resolveSpaceId: mock(() => Promise.resolve('space-123')),
+        resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
+        resolveBacklinkUsers: mock(async () => ({})),
+      }))
+
+      const { blockCommand } = await import('./block')
+      const output: string[] = []
+      const originalLog = console.log
+      console.log = (msg: string) => output.push(msg)
+
+      try {
+        // When
+        await blockCommand.parseAsync(
+          ['children', 'parent-1', '--workspace-id', 'space-123', '--start-cursor', JSON.stringify(startCursor)],
+          { from: 'user' },
+        )
+      } catch {
+        // Expected to exit
+      }
+
+      console.log = originalLog
+
+      // Then
+      expect(output.length).toBeGreaterThan(0)
+      const result = JSON.parse(output[0])
+      expect(result.has_more).toBe(true)
+      expect(result.next_cursor).toBe(JSON.stringify(responseCursor))
     })
   })
 
