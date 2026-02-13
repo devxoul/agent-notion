@@ -224,10 +224,14 @@ describe('formatPageGet', () => {
     const result = formatPageGet(blocks, 'page-1')
 
     // Then
-    expect(result).toEqual([
-      { id: 'block-1', type: 'text', text: 'First' },
-      { id: 'block-2', type: 'to_do', text: 'Second' },
-    ])
+    expect(result).toEqual({
+      id: 'page-1',
+      title: '',
+      blocks: [
+        { id: 'block-1', type: 'text', text: 'First' },
+        { id: 'block-2', type: 'to_do', text: 'Second' },
+      ],
+    })
   })
 
   test('recursively includes nested children', () => {
@@ -256,14 +260,18 @@ describe('formatPageGet', () => {
     const result = formatPageGet(blocks, 'page-1')
 
     // Then
-    expect(result).toEqual([
-      {
-        id: 'block-1',
-        type: 'text',
-        text: 'Parent',
-        children: [{ id: 'block-3', type: 'text', text: 'Nested' }],
-      },
-    ])
+    expect(result).toEqual({
+      id: 'page-1',
+      title: '',
+      blocks: [
+        {
+          id: 'block-1',
+          type: 'text',
+          text: 'Parent',
+          children: [{ id: 'block-3', type: 'text', text: 'Nested' }],
+        },
+      ],
+    })
   })
 
   test('skips missing blocks gracefully', () => {
@@ -283,7 +291,11 @@ describe('formatPageGet', () => {
     const result = formatPageGet(blocks, 'page-1')
 
     // Then
-    expect(result).toEqual([{ id: 'block-1', type: 'text', text: 'Present' }])
+    expect(result).toEqual({
+      id: 'page-1',
+      title: '',
+      blocks: [{ id: 'block-1', type: 'text', text: 'Present' }],
+    })
   })
 })
 

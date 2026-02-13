@@ -90,11 +90,22 @@ export function formatBlockUpdate(block: Record<string, unknown>): {
   }
 }
 
-export function formatPageGet(blocks: Record<string, Record<string, unknown>>, pageId: string): SimplifiedBlock[] {
+export function formatPageGet(
+  blocks: Record<string, Record<string, unknown>>,
+  pageId: string,
+): {
+  id: string
+  title: string
+  blocks: SimplifiedBlock[]
+} {
   const root = getRecordValue(blocks[pageId])
   const content = toStringArray(root?.content)
 
-  return buildPageChildren(blocks, content)
+  return {
+    id: pageId,
+    title: root ? extractNotionTitle(root) : '',
+    blocks: buildPageChildren(blocks, content),
+  }
 }
 
 export function formatBlockRecord(record: Record<string, unknown>): {

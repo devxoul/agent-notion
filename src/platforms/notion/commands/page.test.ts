@@ -393,12 +393,13 @@ describe('PageCommand', () => {
 
     expect(output.length).toBeGreaterThan(0)
     const result = JSON.parse(output[0])
-    expect(Array.isArray(result)).toBe(true)
-    expect(result.length).toBe(2)
-    expect(result[0].id).toBe('block-1')
-    expect(result[0].text).toBe('Block 1')
-    expect(result[1].id).toBe('block-2')
-    expect(result[1].text).toBe('Block 2')
+    expect(result.id).toBe('page-1')
+    expect(result.title).toBe('Test Page')
+    expect(result.blocks.length).toBe(2)
+    expect(result.blocks[0].id).toBe('block-1')
+    expect(result.blocks[0].text).toBe('Block 1')
+    expect(result.blocks[1].id).toBe('block-2')
+    expect(result.blocks[1].text).toBe('Block 2')
   })
 
   test('page create creates new page with title', async () => {
