@@ -450,9 +450,9 @@ describe('PageCommand', () => {
       internalRequest: mockInternalRequest,
     }))
     mock.module('./helpers', () => ({
-      getCredentialsOrExit: mockGetCredentials,
-      generateId: mockGenerateId,
-      resolveSpaceId: mockResolveSpaceId,
+      getCredentialsOrExit: mock(async () => ({ token_v2: 'test-token' })),
+      generateId: mock(() => 'uuid-1'),
+      resolveSpaceId: mock(async () => 'space-123'),
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
       resolveBacklinkUsers: mock(async () => ({})),
@@ -1104,6 +1104,21 @@ describe('PageCommand', () => {
       resolveCollectionViewId: mock(async () => 'view-mock'),
       resolveAndSetActiveUserId: mock(async () => {}),
       resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    mock.module('@/shared/markdown/read-input', () => ({
+      readMarkdownInput: mock(() => '# Hello World'),
+    }))
+
+    mock.module('@/shared/markdown/to-notion-internal', () => ({
+      markdownToBlocks: mock(() => [
+        {
+          type: 'header',
+          properties: {
+            title: [['Hello World']],
+          },
+        },
+      ]),
     }))
 
     const { pageCommand } = await import('./page')
