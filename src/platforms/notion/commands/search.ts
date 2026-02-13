@@ -8,6 +8,7 @@ type SearchOptions = CommandOptions & {
   limit?: string
   startCursor?: string
   navigableOnly?: boolean
+  sort?: string
 }
 
 type SearchResult = {
@@ -48,7 +49,7 @@ async function searchAction(query: string, options: SearchOptions): Promise<void
         lastEditedTime: {},
         createdTime: {},
       },
-      sort: { field: 'relevance' },
+      sort: { field: options.sort || 'relevance' },
       source: 'quick_find',
     }
 
@@ -90,5 +91,6 @@ export const searchCommand = new Command('search')
   .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
   .option('--limit <n>', 'Number of results')
   .option('--start-cursor <n>', 'Pagination offset from previous response')
+  .option('--sort <field>', 'Sort field (relevance, lastEdited, created)')
   .option('--pretty', 'Pretty print JSON output')
   .action(searchAction)
