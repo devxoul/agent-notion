@@ -1,7 +1,7 @@
 import { Command } from 'commander'
-import { formatOutput } from '../../../shared/utils/output'
-import { CredentialManager } from '../credential-manager'
-import { TokenExtractor } from '../token-extractor'
+import { CredentialManager } from '@/platforms/notion/credential-manager'
+import { TokenExtractor } from '@/platforms/notion/token-extractor'
+import { formatOutput } from '@/shared/utils/output'
 
 type CommandOptions = { pretty?: boolean; debug?: boolean }
 

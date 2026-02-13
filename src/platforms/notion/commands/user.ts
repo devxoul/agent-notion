@@ -1,7 +1,7 @@
 import { Command } from 'commander'
-import { formatOutput } from '../../../shared/utils/output'
-import { internalRequest } from '../client'
-import { formatUserValue } from '../formatters'
+import { internalRequest } from '@/platforms/notion/client'
+import { formatUserValue } from '@/platforms/notion/formatters'
+import { formatOutput } from '@/shared/utils/output'
 import { type CommandOptions, getCredentialsOrExit, resolveAndSetActiveUserId } from './helpers'
 
 type UserGetOptions = CommandOptions & { workspaceId: string }

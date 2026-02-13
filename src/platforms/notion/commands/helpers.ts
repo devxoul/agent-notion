@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { internalRequest, setActiveUserId } from '../client'
-import { CredentialManager, type NotionCredentials } from '../credential-manager'
+import { internalRequest, setActiveUserId } from '@/platforms/notion/client'
+import { CredentialManager, type NotionCredentials } from '@/platforms/notion/credential-manager'
 
 export type CommandOptions = { pretty?: boolean }
 

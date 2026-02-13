@@ -1,6 +1,6 @@
 import { Command } from 'commander'
-import { formatOutput } from '../../../shared/utils/output'
-import { internalRequest } from '../client'
+import { internalRequest } from '@/platforms/notion/client'
+import { formatOutput } from '@/shared/utils/output'
 import { type CommandOptions, getCredentialsOrExit, resolveAndSetActiveUserId } from './helpers'
 
 type SearchOptions = CommandOptions & {
