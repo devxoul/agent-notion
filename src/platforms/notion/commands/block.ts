@@ -1,6 +1,6 @@
 import { Command } from 'commander'
 import { internalRequest } from '@/platforms/notion/client'
-import { formatBlockChildren, formatBlockValue } from '@/platforms/notion/formatters'
+import { formatBacklinks, formatBlockChildren, formatBlockValue } from '@/platforms/notion/formatters'
 import { formatNotionId } from '@/shared/utils/id'
 import { formatOutput } from '@/shared/utils/output'
 import {
@@ -145,7 +145,9 @@ function assertBlock(block: BlockValue | undefined, blockId: string): BlockValue
   return block
 }
 
-async function getAction(rawBlockId: string, options: WorkspaceOptions): Promise<void> {
+type BlockGetOptions = WorkspaceOptions & { backlinks?: boolean }
+
+async function getAction(rawBlockId: string, options: BlockGetOptions): Promise<void> {
   const blockId = formatNotionId(rawBlockId)
   try {
     const creds = await getCredentialsOrExit()
@@ -155,7 +157,17 @@ async function getAction(rawBlockId: string, options: WorkspaceOptions): Promise
     })) as SyncRecordValuesResponse
 
     const block = assertBlock(getBlockById(response.recordMap.block, blockId), blockId)
-    console.log(formatOutput(formatBlockValue(block as Record<string, unknown>), options.pretty))
+    const result = formatBlockValue(block as Record<string, unknown>)
+
+    if (options.backlinks) {
+      const backlinksResponse = (await internalRequest(creds.token_v2, 'getBacklinksForBlock', {
+        blockId,
+      })) as Record<string, unknown>
+      const output = { ...result, backlinks: formatBacklinks(backlinksResponse) }
+      console.log(formatOutput(output, options.pretty))
+    } else {
+      console.log(formatOutput(result, options.pretty))
+    }
   } catch (error) {
     console.error(JSON.stringify({ error: getErrorMessage(error) }))
     process.exit(1)
@@ -343,6 +355,7 @@ export const blockCommand = new Command('block')
       .description('Retrieve a block')
       .argument('<block_id>', 'Block ID')
       .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
+      .option('--backlinks', 'Include backlinks (blocks that link to this block)')
       .option('--pretty', 'Pretty print JSON output')
       .action(getAction),
   )

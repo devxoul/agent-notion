@@ -1,6 +1,6 @@
 import { Command } from 'commander'
 import { internalRequest } from '@/platforms/notion/client'
-import { formatBlockRecord, formatPageGet } from '@/platforms/notion/formatters'
+import { formatBacklinks, formatBlockRecord, formatPageGet } from '@/platforms/notion/formatters'
 import { formatNotionId } from '@/shared/utils/id'
 import { formatOutput } from '@/shared/utils/output'
 import {
@@ -13,7 +13,7 @@ import {
 
 type WorkspaceOptions = CommandOptions & { workspaceId: string }
 type ListPageOptions = WorkspaceOptions & { depth?: string }
-type LoadPageChunkOptions = WorkspaceOptions & { limit?: string }
+type LoadPageChunkOptions = WorkspaceOptions & { limit?: string; backlinks?: boolean }
 type CreatePageOptions = WorkspaceOptions & { parent: string; title: string }
 type UpdatePageOptions = WorkspaceOptions & { title?: string; icon?: string }
 type ArchivePageOptions = WorkspaceOptions
@@ -191,9 +191,17 @@ async function getAction(rawPageId: string, options: LoadPageChunkOptions): Prom
       chunkNumber += 1
     } while (cursor.stack.length > 0)
 
-    console.log(
-      formatOutput(formatPageGet(blocks as unknown as Record<string, Record<string, unknown>>, pageId), options.pretty),
-    )
+    const result = formatPageGet(blocks as unknown as Record<string, Record<string, unknown>>, pageId)
+
+    if (options.backlinks) {
+      const backlinksResponse = (await internalRequest(creds.token_v2, 'getBacklinksForBlock', {
+        blockId: pageId,
+      })) as Record<string, unknown>
+      const output = { ...result, backlinks: formatBacklinks(backlinksResponse) }
+      console.log(formatOutput(output, options.pretty))
+    } else {
+      console.log(formatOutput(result, options.pretty))
+    }
   } catch (error) {
     console.error(JSON.stringify({ error: (error as Error).message }))
     process.exit(1)
@@ -358,6 +366,7 @@ export const pageCommand = new Command('page')
       .argument('<page_id>')
       .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .option('--limit <n>', 'Block limit')
+      .option('--backlinks', 'Include backlinks (pages that link to this page)')
       .option('--pretty')
       .action(getAction),
   )

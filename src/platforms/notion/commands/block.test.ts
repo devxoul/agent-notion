@@ -188,6 +188,78 @@ describe('blockCommand', () => {
       expect(result.type).toBe('collection_view')
       expect(result.collection_id).toBe('coll-123')
     })
+
+    test('includes backlinks when --backlinks flag is set', async () => {
+      // Given
+      const mockInternalRequest = mock((_token: string, endpoint: string) => {
+        if (endpoint === 'syncRecordValues') {
+          return Promise.resolve({
+            recordMap: {
+              block: {
+                'block-123': {
+                  value: { id: 'block-123', type: 'text', parent_id: 'parent-1' },
+                  role: 'editor',
+                },
+              },
+            },
+          })
+        }
+        if (endpoint === 'getBacklinksForBlock') {
+          return Promise.resolve({
+            backlinks: [{ block_id: 'ref-1' }, { block_id: 'ref-2' }],
+            recordMap: {
+              block: {
+                'ref-1': {
+                  value: { id: 'ref-1', type: 'page', properties: { title: [['Page One']] } },
+                  role: 'editor',
+                },
+                'ref-2': {
+                  value: { id: 'ref-2', type: 'page', properties: { title: [['Page Two']] } },
+                  role: 'editor',
+                },
+              },
+            },
+          })
+        }
+        return Promise.resolve({})
+      })
+
+      mock.module('../client', () => ({
+        internalRequest: mockInternalRequest,
+      }))
+      mock.module('./helpers', () => ({
+        getCredentialsOrExit: mock(() => Promise.resolve({ token_v2: 'test-token' })),
+        generateId: mock(() => 'mock-uuid'),
+        resolveSpaceId: mock(() => Promise.resolve('space-123')),
+        resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
+      }))
+
+      const { blockCommand } = await import('./block')
+      const output: string[] = []
+      const originalLog = console.log
+      console.log = (msg: string) => output.push(msg)
+
+      try {
+        // When
+        await blockCommand.parseAsync(['get', 'block-123', '--workspace-id', 'space-123', '--backlinks'], {
+          from: 'user',
+        })
+      } catch {
+        // Expected
+      }
+
+      console.log = originalLog
+
+      // Then
+      expect(output.length).toBeGreaterThan(0)
+      const result = JSON.parse(output[0])
+      expect(result.id).toBe('block-123')
+      expect(result.backlinks).toEqual([
+        { id: 'ref-1', title: 'Page One' },
+        { id: 'ref-2', title: 'Page Two' },
+      ])
+    })
   })
 
   describe('block children', () => {

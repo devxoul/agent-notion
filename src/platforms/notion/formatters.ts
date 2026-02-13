@@ -18,6 +18,11 @@ export type PropertyValue =
   | { type: 'formula'; value: unknown }
   | { type: string; value: unknown }
 
+export type BacklinkEntry = {
+  id: string
+  title: string
+}
+
 export type SimplifiedBlock = {
   id: string
   type: string
@@ -106,6 +111,28 @@ export function formatPageGet(
     title: root ? extractNotionTitle(root) : '',
     blocks: buildPageChildren(blocks, content),
   }
+}
+
+export function formatBacklinks(response: Record<string, unknown>): BacklinkEntry[] {
+  const backlinks = response.backlinks
+  if (!Array.isArray(backlinks)) return []
+
+  const blockMap = toRecordMap(toRecord(response.recordMap)?.block)
+
+  return backlinks
+    .map((entry) => {
+      const record = toRecord(entry)
+      if (!record) return undefined
+
+      const blockId = toOptionalString(record.block_id)
+      if (!blockId) return undefined
+
+      const blockValue = getRecordValue(blockMap[blockId])
+      const title = blockValue ? extractNotionTitle(blockValue) : ''
+
+      return { id: blockId, title }
+    })
+    .filter((entry): entry is BacklinkEntry => entry !== undefined)
 }
 
 export function formatBlockRecord(record: Record<string, unknown>): {

@@ -402,6 +402,77 @@ describe('PageCommand', () => {
     expect(result.blocks[1].text).toBe('Block 2')
   })
 
+  test('page get includes backlinks when --backlinks flag is set', async () => {
+    const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string) => {
+      if (endpoint === 'loadPageChunk') {
+        return {
+          cursor: { stack: [] },
+          recordMap: {
+            block: {
+              'page-1': {
+                value: {
+                  id: 'page-1',
+                  type: 'page',
+                  content: ['block-1'],
+                  properties: { title: [['My Page']] },
+                },
+                role: 'editor',
+              },
+              'block-1': {
+                value: { id: 'block-1', type: 'text', properties: { title: [['Hello']] } },
+                role: 'editor',
+              },
+            },
+          },
+        }
+      }
+      if (endpoint === 'getBacklinksForBlock') {
+        return {
+          backlinks: [{ block_id: 'ref-page' }],
+          recordMap: {
+            block: {
+              'ref-page': {
+                value: { id: 'ref-page', type: 'page', properties: { title: [['Referencing Page']] } },
+                role: 'editor',
+              },
+            },
+          },
+        }
+      }
+      return {}
+    })
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mock(async () => ({ token_v2: 'test-token' })),
+      generateId: mock(() => 'uuid-1'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+    }))
+
+    const { pageCommand } = await import('./page')
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      await pageCommand.parseAsync(['get', 'page-1', '--workspace-id', 'space-123', '--backlinks'], { from: 'user' })
+    } catch {
+      // Expected
+    }
+
+    console.log = originalLog
+
+    expect(output.length).toBeGreaterThan(0)
+    const result = JSON.parse(output[0])
+    expect(result.id).toBe('page-1')
+    expect(result.title).toBe('My Page')
+    expect(result.backlinks).toEqual([{ id: 'ref-page', title: 'Referencing Page' }])
+  })
+
   test('page create creates new page with title', async () => {
     const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string, body: any) => {
       if (endpoint === 'saveTransactions') {

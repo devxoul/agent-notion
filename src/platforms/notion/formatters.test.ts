@@ -6,6 +6,7 @@ import {
   extractBlockText,
   extractCollectionName,
   extractNotionTitle,
+  formatBacklinks,
   formatBlockChildren,
   formatBlockRecord,
   formatBlockUpdate,
@@ -296,6 +297,86 @@ describe('formatPageGet', () => {
       title: '',
       blocks: [{ id: 'block-1', type: 'text', text: 'Present' }],
     })
+  })
+})
+
+describe('formatBacklinks', () => {
+  test('extracts backlinks with titles from response', () => {
+    // Given
+    const response = {
+      backlinks: [
+        { block_id: 'page-a', mentioned_from: { type: 'property_mention' } },
+        { block_id: 'page-b', mentioned_from: { type: 'alias' } },
+      ],
+      recordMap: {
+        block: {
+          'page-a': {
+            value: { id: 'page-a', type: 'page', properties: { title: [['Linking Page A']] } },
+            role: 'editor',
+          },
+          'page-b': {
+            value: { id: 'page-b', type: 'page', properties: { title: [['Linking Page B']] } },
+            role: 'editor',
+          },
+        },
+      },
+    }
+
+    // When
+    const result = formatBacklinks(response)
+
+    // Then
+    expect(result).toEqual([
+      { id: 'page-a', title: 'Linking Page A' },
+      { id: 'page-b', title: 'Linking Page B' },
+    ])
+  })
+
+  test('returns empty array when no backlinks', () => {
+    // Given
+    const response = { backlinks: [], recordMap: { block: {} } }
+
+    // When
+    const result = formatBacklinks(response)
+
+    // Then
+    expect(result).toEqual([])
+  })
+
+  test('returns empty array when backlinks field is missing', () => {
+    // When
+    const result = formatBacklinks({})
+
+    // Then
+    expect(result).toEqual([])
+  })
+
+  test('skips entries without block_id', () => {
+    // Given
+    const response = {
+      backlinks: [{ mentioned_from: { type: 'alias' } }],
+      recordMap: { block: {} },
+    }
+
+    // When
+    const result = formatBacklinks(response)
+
+    // Then
+    expect(result).toEqual([])
+  })
+
+  test('returns empty title when block not in recordMap', () => {
+    // Given
+    const response = {
+      backlinks: [{ block_id: 'page-missing' }],
+      recordMap: { block: {} },
+    }
+
+    // When
+    const result = formatBacklinks(response)
+
+    // Then
+    expect(result).toEqual([{ id: 'page-missing', title: '' }])
   })
 })
 
