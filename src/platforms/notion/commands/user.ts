@@ -1,7 +1,9 @@
 import { Command } from 'commander'
 import { formatOutput } from '../../../shared/utils/output'
 import { internalRequest } from '../client'
-import { type CommandOptions, getCredentialsOrExit } from './helpers'
+import { type CommandOptions, getCredentialsOrExit, resolveAndSetActiveUserId } from './helpers'
+
+type UserGetOptions = CommandOptions & { workspaceId: string }
 
 type NotionUserValue = {
   id: string
@@ -39,9 +41,10 @@ type SyncRecordValuesResponse = {
   }
 }
 
-async function getAction(userId: string, options: CommandOptions): Promise<void> {
+async function getAction(userId: string, options: UserGetOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
     const response = (await internalRequest(creds.token_v2, 'syncRecordValues', {
       requests: [{ pointer: { table: 'notion_user', id: userId }, version: -1 }],
     })) as SyncRecordValuesResponse
@@ -89,6 +92,7 @@ export const userCommand = new Command('user')
     new Command('get')
       .description('Retrieve a specific user')
       .argument('<user_id>', 'User ID')
+      .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .option('--pretty', 'Pretty print JSON output')
       .action(getAction),
   )

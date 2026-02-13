@@ -55,7 +55,7 @@ describe('UserCommand', () => {
     console.log = (msg: string) => output.push(msg)
 
     try {
-      await userCommand.parseAsync(['get', 'user-id-123'], { from: 'user' })
+      await userCommand.parseAsync(['get', 'user-id-123', '--workspace-id', 'space-123'], { from: 'user' })
     } catch {
       // Expected to exit
     }
@@ -182,7 +182,7 @@ describe('UserCommand', () => {
     }) as any
 
     try {
-      await userCommand.parseAsync(['get', 'invalid-id'], { from: 'user' })
+      await userCommand.parseAsync(['get', 'invalid-id', '--workspace-id', 'space-123'], { from: 'user' })
     } catch {
       // Expected
     }
