@@ -38,18 +38,29 @@ PAGE_ID=$(agent-notion page create --workspace-id <workspace_id> --parent <paren
 
 # 2. Append content blocks
 agent-notion block append $PAGE_ID --workspace-id <workspace_id> --content '[
-  {
-    "type": "heading_1",
-    "heading_1": { "rich_text": [{ "type": "text", "text": { "content": "Introduction" } }] }
-  },
-  {
-    "type": "paragraph",
-    "paragraph": { "rich_text": [{ "type": "text", "text": { "content": "This is a new page created via CLI." } }] }
-  }
+  {"type": "header", "properties": {"title": [["Introduction"]]}},
+  {"type": "text", "properties": {"title": [["This is a new page created via CLI."]]}}
 ]'
 ```
 
-## 4. Updating Multiple Properties
+## 4. Adding Content with Markdown
+
+Use the `--markdown` flag to append or create pages with markdown content.
+
+```bash
+# Append markdown content to an existing page
+agent-notion block append <page_id> --workspace-id <workspace_id> --markdown '# Introduction
+
+This is a new page created via CLI.'
+
+# Create a page with markdown content from a file
+agent-notion page create --workspace-id <workspace_id> --parent <parent_id> --title "New Document" --markdown-file ./content.md
+
+# Replace all content on a page with new markdown
+agent-notion page update <page_id> --workspace-id <workspace_id> --replace-content --markdown-file ./updated.md
+```
+
+## 5. Updating Multiple Properties
 
 You can update multiple properties at once using the `--set` flag.
 
@@ -60,7 +71,7 @@ agent-notion page update <page_id> --workspace-id <workspace_id> \
   --set "Assignee=user_id"
 ```
 
-## 5. Searching for Specific Content
+## 6. Searching for Specific Content
 
 Search is the best way to find objects when you don't have their IDs.
 
@@ -72,7 +83,7 @@ agent-notion search "Inventory" --workspace-id <workspace_id> --filter database
 agent-notion search "Meeting Notes" --workspace-id <workspace_id> --filter page --sort desc
 ```
 
-## 6. Handling Pagination
+## 7. Handling Pagination
 
 Many list and query commands support pagination.
 
