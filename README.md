@@ -2,15 +2,17 @@
 
 **Give your AI agent the power to read and write Notion pages, databases, and more**
 
-A full-coverage, agent-friendly CLI for the Notion API. Built for AI agents to interact with Notion workspaces through simple CLI commands with JSON output.
+A full-coverage, agent-friendly CLI for the Notion API. Ships two CLIs — `agent-notion` for the unofficial private API (act as yourself) and `agent-notionbot` for the official Integration API (act as a bot).
 
 ## ✨ Why Agent Notion?
 
-Notion's official API only supports Integration (bot) tokens — your agent can't do things **on behalf of you**. Agent Notion solves this by extracting your `token_v2` from the Notion desktop app, so your agent operates as you, with your full permissions. It also fully supports bot tokens via the official API.
+Notion's official API only supports Integration (bot) tokens — your agent can't do things **on behalf of you**. Agent Notion solves this by extracting your `token_v2` from the Notion desktop app, so your agent operates as you, with your full permissions.
 
-- 👤 **Act as you** — Extract `token_v2` from the Notion desktop app to operate with your own permissions
-- 🤖 **Bot support too** — Fully supports official Integration tokens via `NOTION_TOKEN`
-- 📦 **Full API coverage** — Pages, databases, blocks, users, search, and comments
+Need official API access instead? `agent-notionbot` is included and fully supports Integration tokens via `NOTION_TOKEN`.
+
+- 👤 **Act as you** — `agent-notion` extracts `token_v2` from the Notion desktop app to operate with your own permissions
+- 🤖 **Bot support too** — `agent-notionbot` supports official Integration tokens via `NOTION_TOKEN`
+- 📦 **Full API coverage** — Pages, databases, blocks, users, search, comments, and workspaces
 - 🧾 **Agent friendly** — JSON output by default, perfect for LLM tool use
 - 👁 **Human friendly too** — Add `--pretty` for readable output
 - 🧠 **Agent memory** — Remembers workspace IDs, page names, and preferences across sessions
@@ -24,11 +26,14 @@ npm install -g agent-notion
 
 Or use your favorite package manager.
 
-This installs the `agent-notion` CLI tool.
+This installs both the `agent-notion` and `agent-notionbot` CLI tools.
 
 ## 🧩 Agent Skills
 
-Agent Notion includes [Agent Skills](https://agentskills.io/) that teach your AI agent how to use the CLI effectively.
+Agent Notion includes [Agent Skills](https://agentskills.io/) that teach your AI agent how to use the CLI effectively. Two skills are available:
+
+- **`agent-notion`** — For the unofficial private API (`token_v2`)
+- **`agent-notionbot`** — For the official Integration API (`NOTION_TOKEN`)
 
 ### Skills CLI
 
@@ -54,33 +59,68 @@ Or within Claude Code:
 
 ## 🚀 Quick Start
 
-Get up and running in 30 seconds:
+### `agent-notion` (Private API — act as yourself)
+
+```bash
+# 1. Extract token_v2 from Notion desktop app
+agent-notion auth extract
+
+# 2. List your workspaces
+agent-notion workspace list --pretty
+
+# 3. Search for something
+agent-notion search "Roadmap" --workspace-id <workspace-id> --pretty
+
+# 4. Get page details
+agent-notion page get <page-id> --workspace-id <workspace-id> --pretty
+```
+
+### `agent-notionbot` (Official API — act as a bot)
 
 ```bash
 # 1. Set your Notion Integration Token
-export NOTION_TOKEN=your_token_here
+export NOTION_TOKEN=secret_xxx
 
 # 2. Check auth status
-agent-notion auth status --pretty
+agent-notionbot auth status --pretty
 
 # 3. Search for something
-agent-notion search "Roadmap" --filter page
+agent-notionbot search "Roadmap" --filter page --pretty
 
 # 4. Get page details
-agent-notion page get <page-id> --pretty
+agent-notionbot page get <page-id> --pretty
 ```
 
 ## 🛠 Command Overview
 
+### `agent-notion` (Private API)
+
+| Command | Description |
+|---------|-------------|
+| `auth` | Extract token, check status, logout |
+| `workspace` | List accessible workspaces |
+| `page` | Get, list, create, update, archive pages |
+| `database` | Get schema, query, create, update, add rows, list, manage views |
+| `block` | Get, list children, append, update, delete blocks |
+| `user` | Get current user, get user by ID |
+| `search` | Workspace search |
+| `comment` | List, create, and get comments |
+
+> All commands that operate within a workspace require `--workspace-id`. Use `agent-notion workspace list` to find yours.
+
+### `agent-notionbot` (Official API)
+
 | Command | Description |
 |---------|-------------|
 | `auth` | Check authentication status |
-| `page` | Get, create, update, archive pages |
+| `page` | Get, create, update, archive pages, retrieve properties |
 | `database` | Get schema, query, create, update, list databases |
 | `block` | Get, list children, append, update, delete blocks |
 | `user` | List users, get user info, get bot info |
-| `search` | Global workspace search |
-| `comment` | List and create comments |
+| `search` | Global workspace search with filters |
+| `comment` | List, create, and get comments |
+
+> Requires `NOTION_TOKEN` environment variable with an Integration token from the [Notion Developer Portal](https://www.notion.so/my-integrations).
 
 ## 💡 Use Cases
 

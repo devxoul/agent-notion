@@ -59,11 +59,24 @@ The compiled files will be in the `dist/` directory. The `postbuild` script will
 ## Project Structure
 
 - `src/` — Source code
-  - `cli.ts` — Main CLI entry point
-  - `client.ts` — Notion API client wrapper
-  - `commands/` — Command implementations
-  - `shared/utils/` — Shared utility functions
+  - `platforms/notion/` — Unofficial private API CLI (`agent-notion`)
+    - `cli.ts` — CLI entry point
+    - `client.ts` — Private API client
+    - `commands/` — Command implementations
+    - `credential-manager.ts` — Token storage
+    - `token-extractor.ts` — Desktop app token extraction
+    - `formatters.ts` — Output formatting
+  - `platforms/notionbot/` — Official API CLI (`agent-notionbot`)
+    - `cli.ts` — CLI entry point
+    - `client.ts` — Official API client (`@notionhq/client`)
+    - `commands/` — Command implementations
+    - `formatters.ts` — Output formatting
+  - `shared/` — Code shared between platforms
+    - `markdown/` — Markdown parsing utilities
+    - `utils/` — Shared utility functions
 - `skills/` — Agent skill definitions
+  - `agent-notion/` — Skill for the private API CLI
+  - `agent-notionbot/` — Skill for the official API CLI
 - `scripts/` — Build and development scripts
 - `.claude-plugin/` — Claude marketplace manifest files
 
