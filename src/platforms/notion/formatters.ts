@@ -16,6 +16,7 @@ export type PropertyValue =
   | { type: 'phone_number'; value: string }
   | { type: 'status'; value: string }
   | { type: 'formula'; value: unknown }
+  | { type: 'auto_increment_id'; value: number | null; prefix?: string }
   | { type: string; value: unknown }
 
 export type BacklinkEntry = {
@@ -501,12 +502,13 @@ function extractSchemaMap(
   if (!firstColl) return {}
 
   const rawSchema = toRecordMap(firstColl.schema)
-  const result: Record<string, { name: string; type: string }> = {}
+  const result: Record<string, { name: string; type: string; prefix?: string }> = {}
   for (const [propId, entry] of Object.entries(rawSchema)) {
     const name = toOptionalString(entry.name)
     const type = toOptionalString(entry.type)
     if (name && type) {
-      result[propId] = { name, type }
+      const prefix = toOptionalString(entry.prefix)
+      result[propId] = prefix ? { name, type, prefix } : { name, type }
     }
   }
   return result
@@ -514,7 +516,7 @@ function extractSchemaMap(
 
 function formatRowProperties(
   block: Record<string, unknown>,
-  schemaMap: Record<string, { name: string; type: string }>,
+  schemaMap: Record<string, { name: string; type: string; prefix?: string }>,
 ): Record<string, PropertyValue> {
   const result: Record<string, PropertyValue> = {}
   const properties = toRecord(block.properties)
@@ -528,8 +530,8 @@ function formatRowProperties(
     return result
   }
 
-  for (const [propId, { name, type }] of Object.entries(schemaMap)) {
-    result[name] = extractPropertyValue(properties[propId], type)
+  for (const [propId, { name, type, prefix }] of Object.entries(schemaMap)) {
+    result[name] = extractPropertyValue(properties[propId], type, prefix)
   }
   return result
 }
@@ -563,7 +565,7 @@ function extractPropertyText(value: unknown): string {
   return parts.join('')
 }
 
-function extractPropertyValue(value: unknown, schemaType: string): PropertyValue {
+function extractPropertyValue(value: unknown, schemaType: string, prefix?: string): PropertyValue {
   switch (schemaType) {
     case 'person':
     case 'relation': {
@@ -578,6 +580,11 @@ function extractPropertyValue(value: unknown, schemaType: string): PropertyValue
       const text = extractPropertyText(value)
       const num = Number.parseFloat(text)
       return { type: 'number', value: Number.isNaN(num) ? null : num }
+    }
+    case 'auto_increment_id': {
+      const text = extractPropertyText(value)
+      const num = Number.parseFloat(text)
+      return { type: 'auto_increment_id' as const, value: Number.isNaN(num) ? null : num, prefix }
     }
     case 'checkbox': {
       const text = extractPropertyText(value)

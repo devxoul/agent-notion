@@ -1146,6 +1146,108 @@ describe('formatQueryCollectionResponse', () => {
     })
   })
 
+  test('returns typed auto_increment_id property with prefix', () => {
+    // Given
+    const response = {
+      result: {
+        reducerResults: {
+          collection_group_results: { blockIds: ['row-1'], hasMore: false },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: { id: 'row-1', properties: { idKey: [['42']] } },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              schema: { idKey: { name: 'ID', type: 'auto_increment_id', prefix: 'AGN' } },
+            },
+          },
+        },
+      },
+    }
+
+    // When
+    const result = formatQueryCollectionResponse(response)
+
+    // Then
+    expect(result.results[0].properties).toEqual({
+      ID: { type: 'auto_increment_id', value: 42, prefix: 'AGN' },
+    })
+  })
+
+  test('returns typed auto_increment_id property without prefix', () => {
+    // Given
+    const response = {
+      result: {
+        reducerResults: {
+          collection_group_results: { blockIds: ['row-1'], hasMore: false },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: { id: 'row-1', properties: { idKey: [['7']] } },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              schema: { idKey: { name: 'ID', type: 'auto_increment_id' } },
+            },
+          },
+        },
+      },
+    }
+
+    // When
+    const result = formatQueryCollectionResponse(response)
+
+    // Then
+    expect(result.results[0].properties).toEqual({
+      ID: { type: 'auto_increment_id', value: 7, prefix: undefined },
+    })
+  })
+
+  test('returns null for empty auto_increment_id property', () => {
+    // Given
+    const response = {
+      result: {
+        reducerResults: {
+          collection_group_results: { blockIds: ['row-1'], hasMore: false },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: { id: 'row-1', properties: {} },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              schema: { idKey: { name: 'ID', type: 'auto_increment_id', prefix: 'TSK' } },
+            },
+          },
+        },
+      },
+    }
+
+    // When
+    const result = formatQueryCollectionResponse(response)
+
+    // Then
+    expect(result.results[0].properties).toEqual({
+      ID: { type: 'auto_increment_id', value: null, prefix: 'TSK' },
+    })
+  })
+
   test('returns fallback for unknown property type', () => {
     // Given
     const response = {

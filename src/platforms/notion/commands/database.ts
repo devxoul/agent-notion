@@ -37,6 +37,7 @@ type CollectionPropertyType =
   | 'relation'
   | 'rollup'
   | 'formula'
+  | 'auto_increment_id'
   | (string & {})
 
 type CollectionProperty = {
@@ -480,7 +481,8 @@ async function addRowAction(rawCollectionId: string, options: AddRowOptions): Pr
           )
         }
         const propType = schema[propId].type
-        if (propType === 'title') {
+        if (propType === 'auto_increment_id') {
+        } else if (propType === 'title') {
           properties.title = [[value as string]]
         } else if (propType === 'select' || propType === 'status') {
           properties[propId] = [[value as string]]
