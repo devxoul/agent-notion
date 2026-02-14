@@ -1,3 +1,5 @@
+# Agent Notion
+
 **Give your AI agent the power to read and write Notion pages, databases, and more**
 
 A full-coverage, agent-friendly CLI for the Notion API. Ships two CLIs — `agent-notion` for the unofficial private API (act as yourself) and `agent-notionbot` for the official Integration API (act as a bot).
