@@ -130,6 +130,13 @@ type AddRowOptions = WorkspaceOptions & {
   properties?: string
 }
 
+type ViewGetOptions = WorkspaceOptions
+
+type ViewUpdateOptions = WorkspaceOptions & {
+  show?: string
+  hide?: string
+}
+
 function parseSchemaProperties(raw?: string): CollectionSchema {
   if (!raw) {
     return {}
@@ -562,6 +569,232 @@ async function addRowAction(rawCollectionId: string, options: AddRowOptions): Pr
   }
 }
 
+type ViewRecord = {
+  value: {
+    id: string
+    type: string
+    name?: string
+    format?: {
+      collection_pointer?: { id: string; spaceId: string }
+      [key: string]: unknown
+    }
+    parent_id?: string
+    [key: string]: unknown
+  }
+}
+
+type SyncViewResponse = {
+  recordMap: {
+    collection_view: Record<string, ViewRecord>
+  }
+}
+
+type ViewProperty = {
+  property: string
+  visible: boolean
+  width?: number
+}
+
+function viewPropertiesKey(viewType: string): string {
+  return `${viewType}_properties`
+}
+
+async function fetchView(tokenV2: string, viewId: string): Promise<ViewRecord['value']> {
+  const response = (await internalRequest(tokenV2, 'syncRecordValues', {
+    requests: [{ pointer: { table: 'collection_view', id: viewId }, version: -1 }],
+  })) as SyncViewResponse
+
+  const view = Object.values(response.recordMap.collection_view)[0]?.value
+  if (!view) {
+    throw new Error(`View not found: ${viewId}`)
+  }
+  return view
+}
+
+async function resolveCollectionFromView(tokenV2: string, view: ViewRecord['value']): Promise<CollectionValue> {
+  const collectionId = view.format?.collection_pointer?.id
+  if (collectionId) {
+    return fetchCollection(tokenV2, collectionId)
+  }
+
+  const parentId = view.parent_id
+  if (!parentId) {
+    throw new Error('Could not determine collection for view')
+  }
+
+  const blockResp = (await internalRequest(tokenV2, 'syncRecordValues', {
+    requests: [{ pointer: { table: 'block', id: parentId }, version: -1 }],
+  })) as { recordMap: { block: Record<string, { value: { collection_id?: string } }> } }
+
+  const blockCollectionId = Object.values(blockResp.recordMap.block)[0]?.value?.collection_id
+  if (!blockCollectionId) {
+    throw new Error('Could not determine collection for view')
+  }
+
+  return fetchCollection(tokenV2, blockCollectionId)
+}
+
+async function viewGetAction(rawViewId: string, options: ViewGetOptions): Promise<void> {
+  const viewId = formatNotionId(rawViewId)
+  try {
+    const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
+
+    const view = await fetchView(creds.token_v2, viewId)
+    const viewType = view.type
+    const format = view.format ?? {}
+
+    const collection = await resolveCollectionFromView(creds.token_v2, view)
+    const schema = collection.schema ?? {}
+
+    const propsKey = viewPropertiesKey(viewType)
+    const viewProps = (format[propsKey] ?? []) as ViewProperty[]
+
+    const properties = Object.entries(schema).map(([propId, prop]) => {
+      const viewProp = viewProps.find((vp) => vp.property === propId)
+      return {
+        name: prop.name,
+        type: prop.type,
+        visible: viewProp?.visible ?? propId === 'title',
+      }
+    })
+
+    const output = {
+      id: viewId,
+      type: viewType,
+      name: (view.name as string) || '',
+      properties,
+    }
+
+    console.log(formatOutput(output, options.pretty))
+  } catch (error) {
+    console.error(JSON.stringify({ error: (error as Error).message }))
+    process.exit(1)
+  }
+}
+
+async function viewUpdateAction(rawViewId: string, options: ViewUpdateOptions): Promise<void> {
+  const viewId = formatNotionId(rawViewId)
+  try {
+    const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
+
+    if (!options.show && !options.hide) {
+      throw new Error('Provide --show or --hide with comma-separated property names')
+    }
+
+    const view = await fetchView(creds.token_v2, viewId)
+    const viewType = view.type
+    const format = view.format ?? {}
+
+    const collection = await resolveCollectionFromView(creds.token_v2, view)
+    const schema = collection.schema ?? {}
+
+    const nameToId: Record<string, string> = {}
+    for (const [propId, prop] of Object.entries(schema)) {
+      nameToId[prop.name] = propId
+    }
+
+    const propsKey = viewPropertiesKey(viewType)
+    const currentProps = (format[propsKey] ?? []) as ViewProperty[]
+
+    const updatedProps = new Map<string, ViewProperty>()
+    for (const vp of currentProps) {
+      updatedProps.set(vp.property, { ...vp })
+    }
+
+    for (const propId of Object.keys(schema)) {
+      if (!updatedProps.has(propId)) {
+        updatedProps.set(propId, { property: propId, visible: propId === 'title' })
+      }
+    }
+
+    const showNames = options.show ? options.show.split(',').map((s) => s.trim()) : []
+    const hideNames = options.hide ? options.hide.split(',').map((s) => s.trim()) : []
+
+    for (const name of showNames) {
+      const propId = nameToId[name]
+      if (!propId) {
+        throw new Error(
+          `Unknown property: "${name}". Available: ${Object.values(schema)
+            .map((p) => p.name)
+            .join(', ')}`,
+        )
+      }
+      const entry = updatedProps.get(propId) ?? { property: propId, visible: false }
+      entry.visible = true
+      updatedProps.set(propId, entry)
+    }
+
+    for (const name of hideNames) {
+      const propId = nameToId[name]
+      if (!propId) {
+        throw new Error(
+          `Unknown property: "${name}". Available: ${Object.values(schema)
+            .map((p) => p.name)
+            .join(', ')}`,
+        )
+      }
+      const entry = updatedProps.get(propId) ?? { property: propId, visible: true }
+      entry.visible = false
+      updatedProps.set(propId, entry)
+    }
+
+    const newProps = Array.from(updatedProps.values())
+
+    const spaceId = format.collection_pointer?.spaceId
+    if (!spaceId) {
+      throw new Error('Could not determine space ID from view')
+    }
+
+    await internalRequest(creds.token_v2, 'saveTransactions', {
+      requestId: generateId(),
+      transactions: [
+        {
+          id: generateId(),
+          spaceId,
+          operations: [
+            {
+              pointer: { table: 'collection_view', id: viewId, spaceId },
+              command: 'set',
+              path: ['format', propsKey],
+              args: newProps,
+            },
+          ],
+        },
+      ],
+    })
+
+    const updatedView = await fetchView(creds.token_v2, viewId)
+    const updatedFormat = updatedView.format ?? {}
+    const finalProps = (updatedFormat[propsKey] ?? []) as ViewProperty[]
+
+    const properties = Object.entries(schema).map(([propId, prop]) => {
+      const viewProp = finalProps.find((vp) => vp.property === propId)
+      return {
+        name: prop.name,
+        type: prop.type,
+        visible: viewProp?.visible ?? propId === 'title',
+      }
+    })
+
+    console.log(
+      formatOutput(
+        {
+          id: viewId,
+          type: viewType,
+          name: (updatedView.name as string) || '',
+          properties,
+        },
+        options.pretty,
+      ),
+    )
+  } catch (error) {
+    console.error(JSON.stringify({ error: (error as Error).message }))
+    process.exit(1)
+  }
+}
+
 export const databaseCommand = new Command('database')
   .description('Database commands')
   .addCommand(
@@ -622,4 +855,22 @@ export const databaseCommand = new Command('database')
       .option('--properties <json>', 'Row properties as JSON (use property names from schema)')
       .option('--pretty')
       .action(addRowAction),
+  )
+  .addCommand(
+    new Command('view-get')
+      .description('Get view configuration and property visibility')
+      .argument('<view_id>')
+      .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
+      .option('--pretty')
+      .action(viewGetAction),
+  )
+  .addCommand(
+    new Command('view-update')
+      .description('Update property visibility on a view')
+      .argument('<view_id>')
+      .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
+      .option('--show <names>', 'Comma-separated property names to show')
+      .option('--hide <names>', 'Comma-separated property names to hide')
+      .option('--pretty')
+      .action(viewUpdateAction),
   )

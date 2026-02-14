@@ -195,6 +195,14 @@ agent-notion database update <collection_id> --workspace-id <workspace_id> --tit
 # Add a row to a database
 agent-notion database add-row <collection_id> --workspace-id <workspace_id> --title "Row title" --pretty
 agent-notion database add-row <collection_id> --workspace-id <workspace_id> --title "Row title" --properties '{"Status":"In Progress","Due":{"start":"2025-03-01"}}' --pretty
+
+# Get view configuration and property visibility
+agent-notion database view-get <view_id> --workspace-id <workspace_id> --pretty
+
+# Show or hide properties on a view (comma-separated names)
+agent-notion database view-update <view_id> --workspace-id <workspace_id> --show "ID,Due" --pretty
+agent-notion database view-update <view_id> --workspace-id <workspace_id> --hide "Assignee" --pretty
+agent-notion database view-update <view_id> --workspace-id <workspace_id> --show "Status" --hide "Due" --pretty
 ```
 
 ### Block Commands
