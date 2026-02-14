@@ -6,10 +6,13 @@ A full-coverage, agent-friendly CLI for the Notion API. Built for AI agents to i
 
 ## ✨ Why Agent Notion?
 
-- 🤖 **AI-agent friendly** — JSON output by default, perfect for LLM tool use
+Notion's official API only supports Integration (bot) tokens — your agent can't do things **on behalf of you**. Agent Notion solves this by extracting your `token_v2` from the Notion desktop app, so your agent operates as you, with your full permissions. It also fully supports bot tokens via the official API.
+
+- 👤 **Act as you** — Extract `token_v2` from the Notion desktop app to operate with your own permissions
+- 🤖 **Bot support too** — Fully supports official Integration tokens via `NOTION_TOKEN`
 - 📦 **Full API coverage** — Pages, databases, blocks, users, search, and comments
-- 🔑 **Simple Auth** — Just set your `NOTION_TOKEN` environment variable
-- 👤 **Human friendly too** — Add `--pretty` for readable output
+- 🧾 **Agent friendly** — JSON output by default, perfect for LLM tool use
+- 👁 **Human friendly too** — Add `--pretty` for readable output
 - 🧠 **Agent memory** — Remembers workspace IDs, page names, and preferences across sessions
 - 🪙 **Token efficient** — CLI, not MCP. Load only what you need. ([Why not MCP?](#-philosophy))
 
