@@ -194,6 +194,15 @@ Common errors from the Notion API:
 - `unauthorized`: The `NOTION_TOKEN` is invalid.
 - `rate_limited`: Too many requests.
 
+## Troubleshooting
+
+If a `vibe-notionbot` command fails with "command not found", the CLI is not installed. Ask the user which package manager they prefer and offer these options:
+
+- `npm install -g vibe-notion`
+- `yarn global add vibe-notion`
+- `pnpm add -g vibe-notion`
+- `bun add -g vibe-notion`
+
 ## Limitations
 
 - Supports Notion API version 2022-06-28.

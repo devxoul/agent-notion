@@ -465,6 +465,15 @@ Commands that return lists support pagination via `has_more`, `next_cursor` fiel
 - **`search`**: Offset-based. Pass `next_cursor` value (a number) as `--start-cursor`.
 - **`database query`**: Use `--limit` to control page size. `has_more` indicates more results exist, but the private API does not support cursor-based pagination — increase `--limit` to fetch more rows.
 
+## Troubleshooting
+
+If a `vibe-notion` command fails with "command not found", the CLI is not installed. Ask the user which package manager they prefer and offer these options:
+
+- `npm install -g vibe-notion`
+- `yarn global add vibe-notion`
+- `pnpm add -g vibe-notion`
+- `bun add -g vibe-notion`
+
 ## Limitations
 
 - `auth extract` supports macOS and Linux. Windows DPAPI decryption is not yet supported.
