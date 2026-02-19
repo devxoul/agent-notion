@@ -1185,6 +1185,447 @@ describe('database update', () => {
   })
 })
 
+describe('database add-row', () => {
+  test('add-row with select property registers new option in schema', async () => {
+    mock.restore()
+    // Given
+    const mockCollectionResponse = {
+      recordMap: {
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              parent_id: 'block-1',
+              schema: {
+                title: { name: 'Name', type: 'title' },
+                prop1: {
+                  name: 'Status',
+                  type: 'select',
+                  options: [{ id: 'abcd', color: 'default', value: 'Existing' }],
+                },
+              },
+            },
+          },
+        },
+      },
+    }
+    const mockCreatedBlockResponse = {
+      recordMap: {
+        block: {
+          'row-1': {
+            value: {
+              id: 'row-1',
+              type: 'page',
+              properties: { title: [['Task row']] },
+            },
+          },
+        },
+      },
+    }
+    const mockInternalRequest = mock((_token: string, endpoint: string, body: Record<string, unknown>) => {
+      if (endpoint === 'saveTransactions') {
+        return Promise.resolve({})
+      }
+      if (endpoint === 'syncRecordValues') {
+        const requests = body.requests as Array<{ pointer: { table: string } }>
+        if (requests[0]?.pointer.table === 'collection') {
+          return Promise.resolve(mockCollectionResponse)
+        }
+        return Promise.resolve(mockCreatedBlockResponse)
+      }
+      return Promise.resolve({})
+    })
+    const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token' }))
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mock(() => 'mock-uuid'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-123'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    const { databaseCommand } = await import('./database')
+
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      // When
+      await databaseCommand.parseAsync(
+        [
+          'add-row',
+          'coll-1',
+          '--workspace-id',
+          'space-123',
+          '--title',
+          'Task row',
+          '--properties',
+          '{"Status":"In Progress"}',
+        ],
+        { from: 'user' },
+      )
+    } finally {
+      console.log = originalLog
+    }
+
+    // Then
+    const saveCall = mockInternalRequest.mock.calls.find((call) => (call as unknown[])[1] === 'saveTransactions') as
+      | [string, string, { transactions: Array<{ operations: Array<Record<string, unknown>> }> }]
+      | undefined
+    expect(saveCall).toBeDefined()
+    if (!saveCall) {
+      throw new Error('Expected saveTransactions call')
+    }
+
+    const operations = saveCall[2].transactions[0].operations
+    const schemaUpdate = operations.find(
+      (op) => Array.isArray(op.path) && op.path[0] === 'schema' && op.path[1] === 'prop1',
+    )
+    expect(schemaUpdate).toBeDefined()
+
+    const schemaArgs = schemaUpdate?.args as { options?: Array<{ value?: string; id?: string; color?: string }> }
+    expect(schemaArgs.options?.map((option) => option.value)).toEqual(['Existing', 'In Progress'])
+
+    const newOption = schemaArgs.options?.find((option) => option.value === 'In Progress')
+    expect(newOption?.id).toMatch(/^[A-Za-z0-9]{4}$/)
+    expect(newOption?.color).toBe('gray')
+    expect(output.length).toBeGreaterThan(0)
+  })
+
+  test('add-row with multi_select property registers new options in schema', async () => {
+    mock.restore()
+    // Given
+    const mockCollectionResponse = {
+      recordMap: {
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              parent_id: 'block-1',
+              schema: {
+                title: { name: 'Name', type: 'title' },
+                prop1: {
+                  name: 'Labels',
+                  type: 'multi_select',
+                  options: [{ id: 'abcd', color: 'default', value: 'Existing' }],
+                },
+              },
+            },
+          },
+        },
+      },
+    }
+    const mockCreatedBlockResponse = {
+      recordMap: {
+        block: {
+          'row-1': {
+            value: {
+              id: 'row-1',
+              type: 'page',
+              properties: { title: [['Task row']] },
+            },
+          },
+        },
+      },
+    }
+    const mockInternalRequest = mock((_token: string, endpoint: string, body: Record<string, unknown>) => {
+      if (endpoint === 'saveTransactions') {
+        return Promise.resolve({})
+      }
+      if (endpoint === 'syncRecordValues') {
+        const requests = body.requests as Array<{ pointer: { table: string } }>
+        if (requests[0]?.pointer.table === 'collection') {
+          return Promise.resolve(mockCollectionResponse)
+        }
+        return Promise.resolve(mockCreatedBlockResponse)
+      }
+      return Promise.resolve({})
+    })
+    const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token' }))
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mock(() => 'mock-uuid'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-123'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    const { databaseCommand } = await import('./database')
+
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      // When
+      await databaseCommand.parseAsync(
+        [
+          'add-row',
+          'coll-1',
+          '--workspace-id',
+          'space-123',
+          '--title',
+          'Task row',
+          '--properties',
+          '{"Labels":["Alpha","Beta"]}',
+        ],
+        { from: 'user' },
+      )
+    } finally {
+      console.log = originalLog
+    }
+
+    // Then
+    const saveCall = mockInternalRequest.mock.calls.find((call) => (call as unknown[])[1] === 'saveTransactions') as
+      | [string, string, { transactions: Array<{ operations: Array<Record<string, unknown>> }> }]
+      | undefined
+    expect(saveCall).toBeDefined()
+    if (!saveCall) {
+      throw new Error('Expected saveTransactions call')
+    }
+
+    const operations = saveCall[2].transactions[0].operations
+    const schemaUpdate = operations.find(
+      (op) => Array.isArray(op.path) && op.path[0] === 'schema' && op.path[1] === 'prop1',
+    )
+    expect(schemaUpdate).toBeDefined()
+
+    const schemaArgs = schemaUpdate?.args as { options?: Array<{ value?: string; color?: string }> }
+    expect(schemaArgs.options?.map((option) => option.value)).toEqual(['Existing', 'Alpha', 'Beta'])
+    expect(schemaArgs.options?.[1]?.color).toBe('gray')
+    expect(schemaArgs.options?.[2]?.color).toBe('brown')
+    expect(output.length).toBeGreaterThan(0)
+  })
+
+  test('add-row with select value that already exists in schema options does NOT duplicate', async () => {
+    mock.restore()
+    // Given
+    const mockCollectionResponse = {
+      recordMap: {
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              parent_id: 'block-1',
+              schema: {
+                title: { name: 'Name', type: 'title' },
+                prop1: {
+                  name: 'Status',
+                  type: 'select',
+                  options: [{ id: 'abcd', color: 'default', value: 'Done' }],
+                },
+              },
+            },
+          },
+        },
+      },
+    }
+    const mockCreatedBlockResponse = {
+      recordMap: {
+        block: {
+          'row-1': {
+            value: {
+              id: 'row-1',
+              type: 'page',
+              properties: { title: [['Task row']] },
+            },
+          },
+        },
+      },
+    }
+    const mockInternalRequest = mock((_token: string, endpoint: string, body: Record<string, unknown>) => {
+      if (endpoint === 'saveTransactions') {
+        return Promise.resolve({})
+      }
+      if (endpoint === 'syncRecordValues') {
+        const requests = body.requests as Array<{ pointer: { table: string } }>
+        if (requests[0]?.pointer.table === 'collection') {
+          return Promise.resolve(mockCollectionResponse)
+        }
+        return Promise.resolve(mockCreatedBlockResponse)
+      }
+      return Promise.resolve({})
+    })
+    const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token' }))
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mock(() => 'mock-uuid'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-123'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    const { databaseCommand } = await import('./database')
+
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      // When
+      await databaseCommand.parseAsync(
+        [
+          'add-row',
+          'coll-1',
+          '--workspace-id',
+          'space-123',
+          '--title',
+          'Task row',
+          '--properties',
+          '{"Status":"Done"}',
+        ],
+        { from: 'user' },
+      )
+    } finally {
+      console.log = originalLog
+    }
+
+    // Then
+    const saveCall = mockInternalRequest.mock.calls.find((call) => (call as unknown[])[1] === 'saveTransactions') as
+      | [string, string, { transactions: Array<{ operations: Array<Record<string, unknown>> }> }]
+      | undefined
+    expect(saveCall).toBeDefined()
+    if (!saveCall) {
+      throw new Error('Expected saveTransactions call')
+    }
+
+    const operations = saveCall[2].transactions[0].operations
+    const schemaOperations = operations.filter(
+      (op) => Array.isArray(op.path) && op.path[0] === 'schema' && op.path[1] === 'prop1',
+    )
+    expect(schemaOperations.length).toBe(0)
+    expect(output.length).toBeGreaterThan(0)
+  })
+
+  test('add-row with select property where schema has no options array', async () => {
+    mock.restore()
+    // Given
+    const mockCollectionResponse = {
+      recordMap: {
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              parent_id: 'block-1',
+              schema: {
+                title: { name: 'Name', type: 'title' },
+                prop1: {
+                  name: 'Section',
+                  type: 'select',
+                },
+              },
+            },
+          },
+        },
+      },
+    }
+    const mockCreatedBlockResponse = {
+      recordMap: {
+        block: {
+          'row-1': {
+            value: {
+              id: 'row-1',
+              type: 'page',
+              properties: { title: [['Task row']] },
+            },
+          },
+        },
+      },
+    }
+    const mockInternalRequest = mock((_token: string, endpoint: string, body: Record<string, unknown>) => {
+      if (endpoint === 'saveTransactions') {
+        return Promise.resolve({})
+      }
+      if (endpoint === 'syncRecordValues') {
+        const requests = body.requests as Array<{ pointer: { table: string } }>
+        if (requests[0]?.pointer.table === 'collection') {
+          return Promise.resolve(mockCollectionResponse)
+        }
+        return Promise.resolve(mockCreatedBlockResponse)
+      }
+      return Promise.resolve({})
+    })
+    const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token' }))
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mock(() => 'mock-uuid'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-123'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    const { databaseCommand } = await import('./database')
+
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      // When
+      await databaseCommand.parseAsync(
+        [
+          'add-row',
+          'coll-1',
+          '--workspace-id',
+          'space-123',
+          '--title',
+          'Task row',
+          '--properties',
+          '{"Section":"North"}',
+        ],
+        { from: 'user' },
+      )
+    } finally {
+      console.log = originalLog
+    }
+
+    // Then
+    const saveCall = mockInternalRequest.mock.calls.find((call) => (call as unknown[])[1] === 'saveTransactions') as
+      | [string, string, { transactions: Array<{ operations: Array<Record<string, unknown>> }> }]
+      | undefined
+    expect(saveCall).toBeDefined()
+    if (!saveCall) {
+      throw new Error('Expected saveTransactions call')
+    }
+
+    const operations = saveCall[2].transactions[0].operations
+    const schemaUpdate = operations.find(
+      (op) => Array.isArray(op.path) && op.path[0] === 'schema' && op.path[1] === 'prop1',
+    )
+    expect(schemaUpdate).toBeDefined()
+
+    const schemaArgs = schemaUpdate?.args as { options?: Array<{ value?: string; color?: string }> }
+    expect(schemaArgs.options?.map((option) => option.value)).toEqual(['North'])
+    expect(schemaArgs.options?.[0]?.color).toBe('default')
+    expect(output.length).toBeGreaterThan(0)
+  })
+})
+
 describe('database delete-property', () => {
   test('removes property from schema by name', async () => {
     mock.restore()

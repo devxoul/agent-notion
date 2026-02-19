@@ -47,7 +47,15 @@ type CollectionProperty = {
   [key: string]: unknown
 }
 
+type CollectionOption = {
+  id: string
+  color: string
+  value: string
+}
+
 type CollectionSchema = Record<string, CollectionProperty>
+
+const OPTION_COLORS = ['default', 'gray', 'brown', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'red']
 
 type CollectionValue = {
   id: string
@@ -153,6 +161,23 @@ function parseSchemaProperties(raw?: string): CollectionSchema {
   }
 
   return parsed as CollectionSchema
+}
+
+function generateOptionId(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let result = ''
+  for (let i = 0; i < 4; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
+
+function getOptionValue(option: unknown): string | undefined {
+  if (!option || typeof option !== 'object') {
+    return undefined
+  }
+  const value = (option as { value?: unknown }).value
+  return typeof value === 'string' ? value : undefined
 }
 
 function getRecordValue(record: Record<string, unknown>): Record<string, unknown> | undefined {
@@ -525,11 +550,27 @@ async function addRowAction(rawCollectionId: string, options: AddRowOptions): Pr
     }
     const spaceId = await resolveSpaceId(creds.token_v2, parentBlockId)
 
+    const schema = collection.schema ?? {}
+    const optionValuesToRegister: Record<string, string[]> = {}
+
+    const registerSchemaOptionValue = (propId: string, value: string) => {
+      const schemaEntry = schema[propId]
+      const existingOptions = Array.isArray(schemaEntry.options) ? schemaEntry.options : []
+      const existsInSchema = existingOptions.some((option) => getOptionValue(option) === value)
+      if (existsInSchema) {
+        return
+      }
+
+      const pendingValues = optionValuesToRegister[propId] ?? []
+      if (!pendingValues.includes(value)) {
+        optionValuesToRegister[propId] = [...pendingValues, value]
+      }
+    }
+
     const newRowId = generateId()
     const properties: Record<string, unknown> = { title: [[options.title]] }
 
     if (options.properties) {
-      const schema = collection.schema ?? {}
       const nameToId: Record<string, string> = {}
       for (const [propId, prop] of Object.entries(schema)) {
         nameToId[prop.name] = propId
@@ -550,13 +591,18 @@ async function addRowAction(rawCollectionId: string, options: AddRowOptions): Pr
         } else if (propType === 'title') {
           properties.title = [[value as string]]
         } else if (propType === 'select' || propType === 'status') {
-          properties[propId] = [[value as string]]
+          const selectValue = value as string
+          properties[propId] = [[selectValue]]
+          if (propType === 'select') {
+            registerSchemaOptionValue(propId, selectValue)
+          }
         } else if (propType === 'multi_select') {
           const values = value as string[]
           const segments: string[] = []
           for (let i = 0; i < values.length; i++) {
             if (i > 0) segments.push(',')
             segments.push(values[i])
+            registerSchemaOptionValue(propId, values[i])
           }
           properties[propId] = [segments]
         } else if (propType === 'number') {
@@ -579,14 +625,24 @@ async function addRowAction(rawCollectionId: string, options: AddRowOptions): Pr
           properties[propId] = [[value as string]]
         } else if (propType === 'person') {
           const userIds = value as string[]
-          properties[propId] = userIds
-            .map((uid) => ['‣', [['u', uid]]])
-            .reduce((acc, v, i) => (i === 0 ? v : [...acc, [','], ...v]), [] as unknown[])
+          const segments: unknown[] = []
+          for (let i = 0; i < userIds.length; i++) {
+            if (i > 0) {
+              segments.push([','])
+            }
+            segments.push(['‣', [['u', userIds[i]]]])
+          }
+          properties[propId] = segments
         } else if (propType === 'relation') {
           const pageIds = value as string[]
-          properties[propId] = pageIds
-            .map((pid) => ['‣', [['p', formatNotionId(pid)]]])
-            .reduce((acc, v, i) => (i === 0 ? v : [...acc, [','], ...v]), [] as unknown[])
+          const segments: unknown[] = []
+          for (let i = 0; i < pageIds.length; i++) {
+            if (i > 0) {
+              segments.push([','])
+            }
+            segments.push(['‣', [['p', formatNotionId(pageIds[i])]]])
+          }
+          properties[propId] = segments
         } else {
           properties[propId] = [[value as string]]
         }
@@ -595,7 +651,28 @@ async function addRowAction(rawCollectionId: string, options: AddRowOptions): Pr
 
     const viewId = await resolveCollectionViewId(creds.token_v2, collectionId)
 
+    const schemaUpdateOperations = Object.entries(optionValuesToRegister).map(([propId, values]) => {
+      const schemaEntry = schema[propId]
+      const existingOptions = Array.isArray(schemaEntry.options) ? schemaEntry.options : []
+      const newOptions: CollectionOption[] = values.map((value, index) => ({
+        id: generateOptionId(),
+        color: OPTION_COLORS[(existingOptions.length + index) % OPTION_COLORS.length],
+        value,
+      }))
+
+      return {
+        pointer: { table: 'collection' as const, id: collectionId, spaceId },
+        command: 'update' as const,
+        path: ['schema', propId],
+        args: {
+          ...schemaEntry,
+          options: [...existingOptions, ...newOptions],
+        },
+      }
+    })
+
     const operations = [
+      ...schemaUpdateOperations,
       {
         pointer: { table: 'block' as const, id: newRowId, spaceId },
         command: 'set' as const,
