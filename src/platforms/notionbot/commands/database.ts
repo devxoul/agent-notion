@@ -64,13 +64,21 @@ async function createAction(
   const parentId = formatNotionId(options.parent)
   try {
     const client = getClient()
-    const properties = options.properties ? JSON.parse(options.properties) : {}
+    const parsed = options.properties ? JSON.parse(options.properties) : {}
+    const hasTitleProperty = Object.values(parsed).some((v: any) => v && typeof v === 'object' && 'title' in v)
+    const properties = hasTitleProperty ? parsed : { Name: { title: {} }, ...parsed }
 
-    const result = await client.databases.create({
-      parent: { type: 'page_id', page_id: parentId },
-      title: [{ type: 'text', text: { content: options.title } }],
-      properties,
-    } as any)
+    // Use client.request() directly because the SDK (v5+) strips `properties`
+    // from the body params of databases.create, causing the API to reject the request.
+    const result = await client.request({
+      path: 'databases',
+      method: 'post',
+      body: {
+        parent: { type: 'page_id', page_id: parentId },
+        title: [{ type: 'text', text: { content: options.title } }],
+        properties,
+      },
+    })
     console.log(formatOutput(formatDatabase(result as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
@@ -84,16 +92,21 @@ async function updateAction(
   const databaseId = formatNotionId(rawDatabaseId)
   try {
     const client = getClient()
-    const params: Record<string, unknown> = { database_id: databaseId }
+    const body: Record<string, unknown> = {}
 
     if (options.title) {
-      params.title = [{ type: 'text', text: { content: options.title } }]
+      body.title = [{ type: 'text', text: { content: options.title } }]
     }
     if (options.properties) {
-      params.properties = JSON.parse(options.properties)
+      body.properties = JSON.parse(options.properties)
     }
 
-    const result = await client.databases.update(params as any)
+    // Use client.request() directly — same SDK workaround as createAction
+    const result = await client.request({
+      path: `databases/${databaseId}`,
+      method: 'patch',
+      body,
+    })
     console.log(formatOutput(formatDatabase(result as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)

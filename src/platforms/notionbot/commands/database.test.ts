@@ -163,7 +163,7 @@ describe('database commands', () => {
   describe('create', () => {
     test('creates database with parent and title', async () => {
       // Given
-      mockCreate.mockResolvedValue({
+      mockRequest.mockResolvedValue({
         id: 'new-db-1',
         url: 'https://notion.so/new-db-1',
         title: [{ plain_text: 'Tasks' }],
@@ -177,11 +177,15 @@ describe('database commands', () => {
         from: 'user',
       })
 
-      // Then
-      expect(mockCreate).toHaveBeenCalledWith({
-        parent: { type: 'page_id', page_id: 'page-1' },
-        title: [{ type: 'text', text: { content: 'Tasks' } }],
-        properties: {},
+      // Then — auto-adds Name title property when none provided
+      expect(mockRequest).toHaveBeenCalledWith({
+        path: 'databases',
+        method: 'post',
+        body: {
+          parent: { type: 'page_id', page_id: 'page-1' },
+          title: [{ type: 'text', text: { content: 'Tasks' } }],
+          properties: { Name: { title: {} } },
+        },
       })
       const output = JSON.parse(consoleOutput[0])
       expect(output.id).toBe('new-db-1')
@@ -189,9 +193,9 @@ describe('database commands', () => {
     })
 
     test('creates database with custom properties JSON', async () => {
-      // Given
+      // Given — properties without title get Name prepended
       const properties = JSON.stringify({ Status: { select: { options: [{ name: 'Done' }] } } })
-      mockCreate.mockResolvedValue({
+      mockRequest.mockResolvedValue({
         id: 'new-db-2',
         url: 'https://notion.so/new-db-2',
         title: [{ plain_text: 'Tasks' }],
@@ -209,10 +213,14 @@ describe('database commands', () => {
       )
 
       // Then
-      expect(mockCreate).toHaveBeenCalledWith({
-        parent: { type: 'page_id', page_id: 'page-1' },
-        title: [{ type: 'text', text: { content: 'Tasks' } }],
-        properties: { Status: { select: { options: [{ name: 'Done' }] } } },
+      expect(mockRequest).toHaveBeenCalledWith({
+        path: 'databases',
+        method: 'post',
+        body: {
+          parent: { type: 'page_id', page_id: 'page-1' },
+          title: [{ type: 'text', text: { content: 'Tasks' } }],
+          properties: { Name: { title: {} }, Status: { select: { options: [{ name: 'Done' }] } } },
+        },
       })
     })
   })
@@ -220,7 +228,7 @@ describe('database commands', () => {
   describe('update', () => {
     test('updates database title', async () => {
       // Given
-      mockUpdate.mockResolvedValue({
+      mockRequest.mockResolvedValue({
         id: 'db-123',
         url: 'https://notion.so/db-123',
         title: [{ plain_text: 'Updated' }],
@@ -233,9 +241,12 @@ describe('database commands', () => {
       await databaseCommand.parseAsync(['update', 'db-123', '--title', 'Updated'], { from: 'user' })
 
       // Then
-      expect(mockUpdate).toHaveBeenCalledWith({
-        database_id: 'db-123',
-        title: [{ type: 'text', text: { content: 'Updated' } }],
+      expect(mockRequest).toHaveBeenCalledWith({
+        path: 'databases/db-123',
+        method: 'patch',
+        body: {
+          title: [{ type: 'text', text: { content: 'Updated' } }],
+        },
       })
       const output = JSON.parse(consoleOutput[0])
       expect(output.id).toBe('db-123')
