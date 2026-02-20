@@ -250,8 +250,8 @@ async function resolveRollupReferences(
       }
     }
 
+    const aggregation = prop.aggregation as string | undefined
     if (!prop.rollup_type) {
-      const aggregation = prop.aggregation as string | undefined
       if (!aggregation || aggregation === 'show_original' || aggregation === 'show_unique') {
         prop.rollup_type = 'relation'
       } else if (
@@ -276,6 +276,7 @@ async function resolveRollupReferences(
         prop.rollup_type = 'relation'
       }
     }
+    delete prop.aggregation
   }
 }
 
