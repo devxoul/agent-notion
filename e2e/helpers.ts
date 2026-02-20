@@ -54,6 +54,6 @@ export function generateTestId(): string {
   return `e2e-${Date.now()}-${Math.random().toString(36).substring(7)}`
 }
 
-export async function waitForRateLimit(ms: number = 350): Promise<void> {
+export async function waitForRateLimit(ms: number = 500): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, ms))
 }

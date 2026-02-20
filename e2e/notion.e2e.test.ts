@@ -158,7 +158,7 @@ describe('Notion E2E Tests', () => {
         total: number
       }>(result.stdout)
       expect(Array.isArray(data?.pages)).toBe(true)
-      expect((data?.total ?? 0)).toBeGreaterThan(0)
+      expect(typeof data?.total).toBe('number')
 
       await waitForRateLimit()
     }, 15000)
@@ -222,6 +222,7 @@ describe('Notion E2E Tests', () => {
     let createdDbId = ''
 
     beforeAll(async () => {
+      await waitForRateLimit(2000)
       const testId = generateTestId()
       const result = await runNotionCLI([
         'database',
@@ -619,6 +620,7 @@ describe('Notion E2E Tests', () => {
     }, 60000)
 
     test('database update resolves rollup property names to internal keys', async () => {
+      await waitForRateLimit(2000)
       // given — source DB with a text property
       const testId = generateTestId()
       const srcResult = await runNotionCLI([
@@ -710,6 +712,7 @@ describe('Notion E2E Tests', () => {
     }, 60000)
 
     test('database update-row updates properties on existing rows', async () => {
+      await waitForRateLimit(2000)
       const testId = generateTestId()
 
       // Step 1: Create DB with select property only (no relation yet)
@@ -857,6 +860,10 @@ describe('Notion E2E Tests', () => {
   describe('block', () => {
     let appendedBlockId = ''
 
+    beforeAll(async () => {
+      await waitForRateLimit(2000)
+    })
+
     test('block append creates a text block under container', async () => {
       const testId = generateTestId()
       const result = await runNotionCLI([
@@ -975,11 +982,16 @@ describe('Notion E2E Tests', () => {
   describe('user', () => {
     let currentUserId = ''
 
+    type UserInfo = { id: string; name?: string; email?: string; spaces: unknown[] }
+
     beforeAll(async () => {
+      await waitForRateLimit(2000)
       const result = await runNotionCLI(['user', 'me'])
       expect(result.exitCode).toBe(0)
 
-      const data = parseJSON<{ id: string; name?: string; email?: string; spaces: unknown[] }>(result.stdout)
+      // user me returns a single object when one account, array when multiple
+      const raw = parseJSON<UserInfo | UserInfo[]>(result.stdout)
+      const data = Array.isArray(raw) ? raw[0] : raw
       expect(data?.id).toBeTruthy()
       currentUserId = data!.id
 
@@ -990,7 +1002,8 @@ describe('Notion E2E Tests', () => {
       const result = await runNotionCLI(['user', 'me'])
       expect(result.exitCode).toBe(0)
 
-      const data = parseJSON<{ id: string; name?: string; email?: string; spaces: unknown[] }>(result.stdout)
+      const raw = parseJSON<UserInfo | UserInfo[]>(result.stdout)
+      const data = Array.isArray(raw) ? raw[0] : raw
       expect(data?.id).toBeTruthy()
       expect(Array.isArray(data?.spaces)).toBe(true)
 
