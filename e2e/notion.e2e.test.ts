@@ -857,6 +857,149 @@ describe('Notion E2E Tests', () => {
 
       await waitForRateLimit()
     }, 60000)
+
+    test('database view-update --reorder reorders columns in a view', async () => {
+      await waitForRateLimit(2000)
+      const testId = generateTestId()
+
+      // Step 1: Create a sub-page for isolation
+      const subPageResult = await runNotionCLI([
+        'page',
+        'create',
+        '--workspace-id',
+        workspaceId,
+        '--parent',
+        containerId,
+        '--title',
+        `e2e-view-reorder-${testId}`,
+      ])
+      expect(subPageResult.exitCode).toBe(0)
+
+      const subPage = parseJSON<{ id: string }>(subPageResult.stdout)
+      expect(subPage?.id).toBeTruthy()
+      const subPageId = subPage!.id
+      testPageIds.push(subPageId)
+      await waitForRateLimit()
+
+      // Step 2: Create a database with 3 properties under the sub-page
+      const createResult = await runNotionCLI([
+        'database',
+        'create',
+        '--workspace-id',
+        workspaceId,
+        '--parent',
+        subPageId,
+        '--title',
+        `e2e-reorder-db-${testId}`,
+        '--properties',
+        JSON.stringify({
+          status_prop: { name: 'Status', type: 'select' },
+          priority_prop: { name: 'Priority', type: 'select' },
+        }),
+      ])
+      expect(createResult.exitCode).toBe(0)
+
+      const created = parseJSON<{ id: string }>(createResult.stdout)
+      expect(created?.id).toBeTruthy()
+      const dbCollectionId = created!.id
+      await waitForRateLimit()
+
+      // Step 3: Find the view ID via block children → block get
+      const childrenResult = await runNotionCLI([
+        'block',
+        'children',
+        '--workspace-id',
+        workspaceId,
+        subPageId,
+      ])
+      expect(childrenResult.exitCode).toBe(0)
+
+      const children = parseJSON<{
+        results: Array<{ id: string; type: string }>
+      }>(childrenResult.stdout)
+      expect(children?.results?.length).toBeGreaterThan(0)
+
+      const dbBlock = children!.results.find(
+        (b) => b.type === 'collection_view_page' || b.type === 'collection_view',
+      )
+      expect(dbBlock).toBeDefined()
+      await waitForRateLimit()
+
+      const blockGetResult = await runNotionCLI([
+        'block',
+        'get',
+        '--workspace-id',
+        workspaceId,
+        dbBlock!.id,
+      ])
+      expect(blockGetResult.exitCode).toBe(0)
+
+      const blockData = parseJSON<{
+        id: string
+        collection_id?: string
+        view_ids?: string[]
+      }>(blockGetResult.stdout)
+      expect(blockData?.collection_id).toBe(dbCollectionId)
+      expect(blockData?.view_ids?.length).toBeGreaterThan(0)
+
+      const viewId = blockData!.view_ids![0]
+      await waitForRateLimit()
+
+      // Step 4: view-get to confirm initial state has properties
+      const viewGetResult = await runNotionCLI([
+        'database',
+        'view-get',
+        '--workspace-id',
+        workspaceId,
+        viewId,
+      ])
+      expect(viewGetResult.exitCode).toBe(0)
+
+      const viewData = parseJSON<{
+        id: string
+        type: string
+        properties: Array<{ name: string; type: string; visible: boolean }>
+      }>(viewGetResult.stdout)
+      expect(viewData?.id).toBe(viewId)
+      expect(viewData?.properties?.length).toBeGreaterThanOrEqual(3)
+      await waitForRateLimit()
+
+      // Step 5: view-update --reorder to put Priority first, then Status, then Name
+      const reorderResult = await runNotionCLI([
+        'database',
+        'view-update',
+        '--workspace-id',
+        workspaceId,
+        viewId,
+        '--reorder',
+        'Priority,Status,Name',
+      ])
+      expect(reorderResult.exitCode).toBe(0)
+      await waitForRateLimit()
+
+      // Step 6: view-get again to verify new column order
+      const verifyResult = await runNotionCLI([
+        'database',
+        'view-get',
+        '--workspace-id',
+        workspaceId,
+        viewId,
+      ])
+      expect(verifyResult.exitCode).toBe(0)
+
+      const verifyData = parseJSON<{
+        id: string
+        properties: Array<{ name: string; type: string; visible: boolean }>
+      }>(verifyResult.stdout)
+      expect(verifyData?.properties?.length).toBeGreaterThanOrEqual(3)
+
+      const propNames = verifyData!.properties.map((p) => p.name)
+      expect(propNames[0]).toBe('Priority')
+      expect(propNames[1]).toBe('Status')
+      expect(propNames[2]).toBe('Name')
+
+      await waitForRateLimit()
+    }, 60000)
   })
 
   // ── block ─────────────────────────────────────────────────────────────

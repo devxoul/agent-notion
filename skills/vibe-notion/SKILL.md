@@ -204,6 +204,10 @@ vibe-notion database view-get <view_id> --workspace-id <workspace_id> --pretty
 vibe-notion database view-update <view_id> --workspace-id <workspace_id> --show "ID,Due" --pretty
 vibe-notion database view-update <view_id> --workspace-id <workspace_id> --hide "Assignee" --pretty
 vibe-notion database view-update <view_id> --workspace-id <workspace_id> --show "Status" --hide "Due" --pretty
+
+# Reorder columns (comma-separated names in desired order; unmentioned columns appended)
+vibe-notion database view-update <view_id> --workspace-id <workspace_id> --reorder "Name,Status,Priority,Date" --pretty
+vibe-notion database view-update <view_id> --workspace-id <workspace_id> --reorder "Name,Status" --show "Status" --pretty
 ```
 
 ### Block Commands
