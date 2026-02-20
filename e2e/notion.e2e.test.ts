@@ -708,6 +708,148 @@ describe('Notion E2E Tests', () => {
 
       await waitForRateLimit()
     }, 60000)
+
+    test('database update-row updates properties on existing rows', async () => {
+      const testId = generateTestId()
+
+      // Step 1: Create DB with select property only (no relation yet)
+      const createResult = await runNotionCLI([
+        'database',
+        'create',
+        '--workspace-id',
+        workspaceId,
+        '--parent',
+        containerId,
+        '--title',
+        `e2e-update-row-${testId}`,
+        '--properties',
+        '{"status_prop":{"name":"Status","type":"select"}}',
+      ])
+      expect(createResult.exitCode).toBe(0)
+
+      const created = parseJSON<{ id: string }>(createResult.stdout)
+      expect(created?.id).toBeTruthy()
+      const dbId = created!.id
+      testDatabaseIds.push(dbId)
+      await waitForRateLimit(500)
+
+      // Step 2: Add self-referencing relation via database update
+      const addRelResult = await runNotionCLI([
+        'database',
+        'update',
+        '--workspace-id',
+        workspaceId,
+        dbId,
+        '--properties',
+        JSON.stringify({
+          rel: { name: 'Depends On', type: 'relation', collection_id: dbId },
+        }),
+      ])
+      expect(addRelResult.exitCode).toBe(0)
+      await waitForRateLimit(500)
+
+      // Step 3: Add Row A
+      const addRowAResult = await runNotionCLI([
+        'database',
+        'add-row',
+        '--workspace-id',
+        workspaceId,
+        dbId,
+        '--title',
+        'Row A',
+      ])
+      expect(addRowAResult.exitCode).toBe(0)
+
+      const rowA = parseJSON<{ id: string }>(addRowAResult.stdout)
+      expect(rowA?.id).toBeTruthy()
+      const rowAId = rowA!.id
+      await waitForRateLimit(500)
+
+      // Step 4: Add Row B
+      const addRowBResult = await runNotionCLI([
+        'database',
+        'add-row',
+        '--workspace-id',
+        workspaceId,
+        dbId,
+        '--title',
+        'Row B',
+      ])
+      expect(addRowBResult.exitCode).toBe(0)
+
+      const rowB = parseJSON<{ id: string }>(addRowBResult.stdout)
+      expect(rowB?.id).toBeTruthy()
+      const rowBId = rowB!.id
+      await waitForRateLimit(500)
+
+      // Step 5: Update Row B — set relation to point to Row A
+      const updateRelResult = await runNotionCLI([
+        'database',
+        'update-row',
+        '--workspace-id',
+        workspaceId,
+        rowBId,
+        '--properties',
+        JSON.stringify({ 'Depends On': [rowAId] }),
+      ])
+      expect(updateRelResult.exitCode).toBe(0)
+      await waitForRateLimit(500)
+
+      // Step 6: Update Row A — set select to "Active"
+      const updateSelectResult = await runNotionCLI([
+        'database',
+        'update-row',
+        '--workspace-id',
+        workspaceId,
+        rowAId,
+        '--properties',
+        JSON.stringify({ Status: 'Active' }),
+      ])
+      expect(updateSelectResult.exitCode).toBe(0)
+      await waitForRateLimit(500)
+
+      // Step 7: Query the DB and verify both updates
+      const queryResult = await runNotionCLI([
+        'database',
+        'query',
+        '--workspace-id',
+        workspaceId,
+        dbId,
+      ])
+      expect(queryResult.exitCode).toBe(0)
+
+      const data = parseJSON<{
+        results: Array<{
+          id: string
+          properties: Record<string, { type: string; value: unknown }>
+        }>
+      }>(queryResult.stdout)
+      expect(Array.isArray(data?.results)).toBe(true)
+
+      // Verify Row B's relation points to Row A
+      const resultRowB = data?.results.find(
+        (r) => r.properties.Name?.value === 'Row B',
+      )
+      expect(resultRowB).toBeDefined()
+      const relationProp = resultRowB!.properties['Depends On']
+      expect(relationProp?.type).toBe('relation')
+      const relValue = relationProp?.value as Array<string | { id: string }>
+      expect(Array.isArray(relValue)).toBe(true)
+      const hasRowAId = relValue.some((v) => {
+        const id = typeof v === 'string' ? v : v.id
+        return id.replace(/-/g, '') === rowAId.replace(/-/g, '')
+      })
+      expect(hasRowAId).toBe(true)
+
+      // Verify Row A's select is "Active"
+      const resultRowA = data?.results.find(
+        (r) => r.properties.Name?.value === 'Row A',
+      )
+      expect(resultRowA).toBeDefined()
+      expect(resultRowA!.properties.Status?.value).toBe('Active')
+
+      await waitForRateLimit()
+    }, 60000)
   })
 
   // ── block ─────────────────────────────────────────────────────────────
