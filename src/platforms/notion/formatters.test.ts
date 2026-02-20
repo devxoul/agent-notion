@@ -20,6 +20,7 @@ import {
   formatQueryCollectionResponse,
   formatUserValue,
   simplifyCollectionSchema,
+  validateCollectionSchema,
 } from './formatters'
 
 describe('extractNotionTitle', () => {
@@ -600,6 +601,74 @@ describe('simplifyCollectionSchema', () => {
   })
 })
 
+describe('validateCollectionSchema', () => {
+  test('returns empty array for clean schema', () => {
+    const schema = {
+      title: { name: 'Name', type: 'title' },
+      prop1: { name: 'Status', type: 'select' },
+    }
+    expect(validateCollectionSchema(schema)).toEqual([])
+  })
+
+  test('detects dead properties', () => {
+    const schema = {
+      title: { name: 'Name', type: 'title' },
+      prop1: { name: 'Old Prop', type: 'text', alive: false },
+    }
+    const hints = validateCollectionSchema(schema)
+    expect(hints).toHaveLength(1)
+    expect(hints[0]).toContain('Old Prop')
+    expect(hints[0]).toContain('deleted')
+  })
+
+  test('detects rollup referencing non-existent relation', () => {
+    const schema = {
+      title: { name: 'Name', type: 'title' },
+      r1: { name: 'My Rollup', type: 'rollup', relation_property: 'missing_rel', target_property: 'x' },
+    }
+    const hints = validateCollectionSchema(schema)
+    expect(hints.some((h) => h.includes('My Rollup') && h.includes('non-existent'))).toBe(true)
+  })
+
+  test('detects rollup referencing dead relation', () => {
+    const schema = {
+      title: { name: 'Name', type: 'title' },
+      rel: { name: 'Source Rel', type: 'relation', collection_id: 'coll-1', alive: false },
+      r1: { name: 'My Rollup', type: 'rollup', relation_property: 'rel', target_property: 'x' },
+    }
+    const hints = validateCollectionSchema(schema)
+    expect(hints.some((h) => h.includes('My Rollup') && h.includes('deleted relation'))).toBe(true)
+  })
+
+  test('detects rollup without relation_property', () => {
+    const schema = {
+      title: { name: 'Name', type: 'title' },
+      r1: { name: 'Bad Rollup', type: 'rollup', target_property: 'x' },
+    }
+    const hints = validateCollectionSchema(schema)
+    expect(hints.some((h) => h.includes('Bad Rollup') && h.includes('no relation_property'))).toBe(true)
+  })
+
+  test('detects rollup without target_property', () => {
+    const schema = {
+      title: { name: 'Name', type: 'title' },
+      rel: { name: 'Source Rel', type: 'relation', collection_id: 'coll-1' },
+      r1: { name: 'Bad Rollup', type: 'rollup', relation_property: 'rel' },
+    }
+    const hints = validateCollectionSchema(schema)
+    expect(hints.some((h) => h.includes('Bad Rollup') && h.includes('no target_property'))).toBe(true)
+  })
+
+  test('detects relation without collection_id', () => {
+    const schema = {
+      title: { name: 'Name', type: 'title' },
+      rel: { name: 'Broken Rel', type: 'relation' },
+    }
+    const hints = validateCollectionSchema(schema)
+    expect(hints.some((h) => h.includes('Broken Rel') && h.includes('no target collection'))).toBe(true)
+  })
+})
+
 describe('extractCollectionName', () => {
   test('extracts collection name from one segment', () => {
     // Given
@@ -660,6 +729,45 @@ describe('formatCollectionValue', () => {
         Status: 'select',
       },
     })
+  })
+
+  test('includes $hints when schema has dead properties', () => {
+    // Given
+    const collection = {
+      id: 'collection-2',
+      name: [['Broken DB']],
+      schema: {
+        title: { name: 'Name', type: 'title' },
+        dead: { name: 'Old Prop', type: 'text', alive: false },
+      },
+    }
+
+    // When
+    const result = formatCollectionValue(collection)
+
+    // Then
+    expect(result.schema).toEqual({ Name: 'title' })
+    expect(result.$hints).toBeDefined()
+    expect(result.$hints!.length).toBe(1)
+    expect(result.$hints![0]).toContain('Old Prop')
+  })
+
+  test('omits $hints when schema is clean', () => {
+    // Given
+    const collection = {
+      id: 'collection-3',
+      name: [['Clean DB']],
+      schema: {
+        title: { name: 'Name', type: 'title' },
+        prop1: { name: 'Status', type: 'select' },
+      },
+    }
+
+    // When
+    const result = formatCollectionValue(collection)
+
+    // Then
+    expect(result.$hints).toBeUndefined()
   })
 })
 
@@ -754,7 +862,7 @@ describe('formatQueryCollectionResponse', () => {
               id: 'coll-1',
               schema: {
                 personKey: { name: '담당자', type: 'person' },
-                relationKey: { name: '연결', type: 'relation' },
+                relationKey: { name: '연결', type: 'relation', collection_id: 'coll-2' },
                 dateKey: { name: '일자', type: 'date' },
               },
             },
@@ -1313,6 +1421,77 @@ describe('formatQueryCollectionResponse', () => {
       has_more: false,
       next_cursor: null,
     })
+  })
+
+  test('includes $hints when schema has broken properties', () => {
+    // Given
+    const response = {
+      result: {
+        reducerResults: {
+          collection_group_results: { blockIds: ['row-1'], hasMore: false },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: { id: 'row-1', properties: { title: [['Row']] } },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              schema: {
+                title: { name: 'Name', type: 'title' },
+                dead: { name: 'Deleted', type: 'text', alive: false },
+                r1: { name: 'Bad Rollup', type: 'rollup', relation_property: 'dead', target_property: 'x' },
+              },
+            },
+          },
+        },
+      },
+    }
+
+    // When
+    const result = formatQueryCollectionResponse(response)
+
+    // Then
+    expect(result.$hints).toBeDefined()
+    expect(result.$hints!.some((h) => h.includes('Deleted') && h.includes('deleted'))).toBe(true)
+    expect(result.$hints!.some((h) => h.includes('Bad Rollup') && h.includes('deleted relation'))).toBe(true)
+    expect(result.results[0].properties.Name).toEqual({ type: 'title', value: 'Row' })
+  })
+
+  test('omits $hints when schema is clean', () => {
+    // Given
+    const response = {
+      result: {
+        reducerResults: {
+          collection_group_results: { blockIds: ['row-1'], hasMore: false },
+        },
+      },
+      recordMap: {
+        block: {
+          'row-1': {
+            value: { id: 'row-1', properties: { title: [['Row']] } },
+          },
+        },
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              schema: { title: { name: 'Name', type: 'title' } },
+            },
+          },
+        },
+      },
+    }
+
+    // When
+    const result = formatQueryCollectionResponse(response)
+
+    // Then
+    expect(result.$hints).toBeUndefined()
   })
 })
 

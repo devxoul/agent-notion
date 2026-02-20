@@ -264,18 +264,91 @@ export function formatCollectionValue(collection: Record<string, unknown>): {
   id: string
   name: string
   schema: Record<string, string>
+  $hints?: string[]
 } {
-  return {
+  const rawSchema = toRecordMap(collection.schema)
+  const hints = validateCollectionSchema(rawSchema)
+  const result: { id: string; name: string; schema: Record<string, string>; $hints?: string[] } = {
     id: toStringValue(collection.id),
     name: extractCollectionName(collection.name),
-    schema: simplifyCollectionSchema(toRecordMap(collection.schema)),
+    schema: simplifyCollectionSchema(rawSchema),
   }
+  if (hints.length > 0) {
+    result.$hints = hints
+  }
+  return result
+}
+
+export function validateCollectionSchema(rawSchema: Record<string, Record<string, unknown>>): string[] {
+  const hints: string[] = []
+
+  for (const [propId, entry] of Object.entries(rawSchema)) {
+    const name = toOptionalString(entry.name) ?? propId
+    const type = toOptionalString(entry.type) ?? 'unknown'
+
+    if (entry.alive === false) {
+      hints.push(
+        `Property '${name}' (${type}) is soft-deleted but still in raw schema. ` +
+          `It is hidden from output. No action needed unless you want to recreate the database cleanly.`,
+      )
+      continue
+    }
+
+    if (type === 'rollup') {
+      const relPropId = toOptionalString(entry.relation_property)
+      if (!relPropId) {
+        hints.push(
+          `Rollup '${name}' has no relation_property reference. ` +
+            `This is a malformed property that may crash the Notion app. ` +
+            `Fix: run \`database delete-property --property "${name}"\` to remove it.`,
+        )
+      } else {
+        const relProp = rawSchema[relPropId]
+        if (!relProp) {
+          hints.push(
+            `Rollup '${name}' references non-existent relation property '${relPropId}'. ` +
+              `This is a broken reference that may crash the Notion app. ` +
+              `Fix: run \`database delete-property --property "${name}"\` to remove it.`,
+          )
+        } else if (relProp.alive === false) {
+          const relName = toOptionalString(relProp.name) ?? relPropId
+          hints.push(
+            `Rollup '${name}' depends on deleted relation '${relName}'. ` +
+              `This rollup will return empty values. ` +
+              `Fix: run \`database delete-property --property "${name}"\` to remove it.`,
+          )
+        }
+      }
+
+      const targetPropId = toOptionalString(entry.target_property)
+      if (!targetPropId) {
+        hints.push(
+          `Rollup '${name}' has no target_property reference. ` +
+            `This is a malformed property that may crash the Notion app. ` +
+            `Fix: run \`database delete-property --property "${name}"\` to remove it.`,
+        )
+      }
+    }
+
+    if (type === 'relation') {
+      if (!entry.collection_id) {
+        hints.push(
+          `Relation '${name}' has no target collection reference. ` +
+            `This is a broken relation that may crash the Notion app. ` +
+            `Fix: run \`database delete-property --property "${name}"\` to remove it.`,
+        )
+      }
+    }
+  }
+
+  return hints
 }
 
 export function formatQueryCollectionResponse(response: Record<string, unknown>): {
   results: Array<{ id: string; properties: Record<string, PropertyValue> }>
   has_more: boolean
   next_cursor: null
+  $hints?: string[]
 } {
   const result = toRecord(response.result)
   const reducerResults = toRecord(result?.reducerResults)
@@ -286,6 +359,9 @@ export function formatQueryCollectionResponse(response: Record<string, unknown>)
   const recordMap = toRecord(response.recordMap)
   const blockMap = toRecordMap(recordMap?.block)
   const schemaMap = extractSchemaMap(recordMap)
+
+  const rawSchema = extractRawSchema(recordMap)
+  const hints = validateCollectionSchema(rawSchema)
 
   const results = blockIds
     .map((blockId) => {
@@ -301,11 +377,20 @@ export function formatQueryCollectionResponse(response: Record<string, unknown>)
     })
     .filter((entry): entry is { id: string; properties: Record<string, PropertyValue> } => entry !== undefined)
 
-  return {
+  const formatted: {
+    results: typeof results
+    has_more: boolean
+    next_cursor: null
+    $hints?: string[]
+  } = {
     results,
     has_more: hasMore,
     next_cursor: null,
   }
+  if (hints.length > 0) {
+    formatted.$hints = hints
+  }
+  return formatted
 }
 
 export function formatUserValue(user: Record<string, unknown>): {
@@ -495,17 +580,23 @@ function toOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
 }
 
-function extractSchemaMap(
-  recordMap: Record<string, unknown> | undefined,
-): Record<string, { name: string; type: string }> {
+function extractRawSchema(recordMap: Record<string, unknown> | undefined): Record<string, Record<string, unknown>> {
   if (!recordMap) return {}
   const collMap = toRecordMap(recordMap.collection)
   const firstColl = getRecordValue(Object.values(collMap)[0])
   if (!firstColl) return {}
+  return toRecordMap(firstColl.schema)
+}
 
-  const rawSchema = toRecordMap(firstColl.schema)
+function extractSchemaMap(
+  recordMap: Record<string, unknown> | undefined,
+): Record<string, { name: string; type: string }> {
+  const rawSchema = extractRawSchema(recordMap)
+  if (Object.keys(rawSchema).length === 0) return {}
   const result: Record<string, { name: string; type: string; prefix?: string }> = {}
   for (const [propId, entry] of Object.entries(rawSchema)) {
+    if (entry.alive === false) continue
+
     const name = toOptionalString(entry.name)
     const type = toOptionalString(entry.type)
     if (name && type) {
