@@ -10,6 +10,12 @@ A TypeScript CLI tool that enables AI agents and humans to interact with Notion 
 
 > **Note**: This skill uses Notion's internal/private API (`/api/v3/`), which is separate from the official public API. For official API access, use `vibe-notionbot`.
 
+## Important: CLI Only
+
+**Never call Notion's internal API directly.** Always use the `vibe-notion` CLI commands described in this skill. Do not make raw HTTP requests to `notion.so/api/v3/` or use any Notion client library. Direct API calls risk exposing credentials and may trigger Notion's abuse detection, getting the user's account blocked.
+
+If a feature you need is not supported by `vibe-notion`, let the user know and offer to file a feature request at [devxoul/vibe-notion](https://github.com/devxoul/vibe-notion/issues) on their behalf. Before submitting, strip out any real user data — IDs, names, emails, tokens, page content, or anything else that could identify the user or their workspace. Use generic placeholders instead and keep the issue focused on describing the missing capability.
+
 ## Quick Start
 
 ```bash

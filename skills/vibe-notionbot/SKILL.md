@@ -8,6 +8,12 @@ allowed-tools: Bash(vibe-notionbot:*)
 
 A TypeScript CLI tool that enables AI agents and humans to interact with Notion workspaces through the official Notion API. Supports pages, databases, blocks, users, comments, and search.
 
+## Important: CLI Only
+
+**Never call the Notion API directly.** Always use the `vibe-notionbot` CLI commands described in this skill. Do not make raw HTTP requests to the Notion API or use `@notionhq/client` directly. Direct API calls risk exposing credentials and may trigger Notion's abuse detection, getting the user's account blocked.
+
+If a feature you need is not supported by `vibe-notionbot`, let the user know and offer to file a feature request at [devxoul/vibe-notion](https://github.com/devxoul/vibe-notion/issues) on their behalf. Before submitting, strip out any real user data — IDs, names, emails, tokens, page content, or anything else that could identify the user or their workspace. Use generic placeholders instead and keep the issue focused on describing the missing capability.
+
 ## Quick Start
 
 ```bash
