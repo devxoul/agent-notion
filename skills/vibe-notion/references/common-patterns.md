@@ -23,16 +23,16 @@ Querying a database returns a list of page objects. You can filter, sort, and se
 
 ```bash
 # Query a database with a search keyword
-vibe-notion database query <collection_id> --workspace-id <workspace_id> --search-query "keyword" --pretty
+vibe-notion database query <database_id> --workspace-id <workspace_id> --search-query "keyword" --pretty
 
 # Query with a limit
-vibe-notion database query <collection_id> --workspace-id <workspace_id> --limit 10 --pretty
+vibe-notion database query <database_id> --workspace-id <workspace_id> --limit 10 --pretty
 
 # Query a specific view
-vibe-notion database query <collection_id> --workspace-id <workspace_id> --view-id <view_id> --pretty
+vibe-notion database query <database_id> --workspace-id <workspace_id> --view-id <view_id> --pretty
 
 # Query with timezone
-vibe-notion database query <collection_id> --workspace-id <workspace_id> --timezone "America/New_York" --pretty
+vibe-notion database query <database_id> --workspace-id <workspace_id> --timezone "America/New_York" --pretty
 ```
 
 > **Note**: The `--filter` and `--sort` options use property IDs from the database schema (retrieved via `database get`), not property names.
@@ -111,7 +111,7 @@ Many list and query commands support pagination.
 
 ```bash
 # Get the first 10 database results
-vibe-notion database query <collection_id> --workspace-id <workspace_id> --limit 10
+vibe-notion database query <database_id> --workspace-id <workspace_id> --limit 10
 
 # Block children use cursor-based pagination — pass next_cursor JSON from previous response
 vibe-notion block children <block_id> --workspace-id <workspace_id> --start-cursor '<next_cursor_json>'

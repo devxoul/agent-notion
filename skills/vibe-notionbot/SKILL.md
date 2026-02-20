@@ -122,7 +122,7 @@ vibe-notionbot block append <parent_id> --markdown-file ./content.md
 # Update a block's content
 vibe-notionbot block update <block_id> --content '{"paragraph": {"rich_text": [{"type": "text", "text": {"content": "Updated content"}}]}}'
 
-# Delete (trash) a block
+# Delete (archive) a block
 vibe-notionbot block delete <block_id>
 ```
 

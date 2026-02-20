@@ -165,14 +165,14 @@ vibe-notion page archive <page_id> --workspace-id <workspace_id> --pretty
 
 ```bash
 # Get database schema
-vibe-notion database get <collection_id> --workspace-id <workspace_id> --pretty
+vibe-notion database get <database_id> --workspace-id <workspace_id> --pretty
 
 # Query a database (auto-resolves default view)
-vibe-notion database query <collection_id> --workspace-id <workspace_id> --pretty
-vibe-notion database query <collection_id> --workspace-id <workspace_id> --limit 10 --pretty
-vibe-notion database query <collection_id> --workspace-id <workspace_id> --view-id <view_id> --pretty
-vibe-notion database query <collection_id> --workspace-id <workspace_id> --search-query "keyword" --pretty
-vibe-notion database query <collection_id> --workspace-id <workspace_id> --timezone "America/New_York" --pretty
+vibe-notion database query <database_id> --workspace-id <workspace_id> --pretty
+vibe-notion database query <database_id> --workspace-id <workspace_id> --limit 10 --pretty
+vibe-notion database query <database_id> --workspace-id <workspace_id> --view-id <view_id> --pretty
+vibe-notion database query <database_id> --workspace-id <workspace_id> --search-query "keyword" --pretty
+vibe-notion database query <database_id> --workspace-id <workspace_id> --timezone "America/New_York" --pretty
 
 # List all databases in workspace
 vibe-notion database list --workspace-id <workspace_id> --pretty
@@ -182,11 +182,11 @@ vibe-notion database create --workspace-id <workspace_id> --parent <page_id> --t
 vibe-notion database create --workspace-id <workspace_id> --parent <page_id> --title "Tasks" --properties '{"status":{"name":"Status","type":"select"}}' --pretty
 
 # Update database title or schema
-vibe-notion database update <collection_id> --workspace-id <workspace_id> --title "New Name" --pretty
+vibe-notion database update <database_id> --workspace-id <workspace_id> --title "New Name" --pretty
 
 # Add a row to a database
-vibe-notion database add-row <collection_id> --workspace-id <workspace_id> --title "Row title" --pretty
-vibe-notion database add-row <collection_id> --workspace-id <workspace_id> --title "Row title" --properties '{"Status":"In Progress","Due":{"start":"2025-03-01"}}' --pretty
+vibe-notion database add-row <database_id> --workspace-id <workspace_id> --title "Row title" --pretty
+vibe-notion database add-row <database_id> --workspace-id <workspace_id> --title "Row title" --properties '{"Status":"In Progress","Due":{"start":"2025-03-01"}}' --pretty
 
 # Update properties on an existing database row (row_id from database query)
 vibe-notion database update-row <row_id> --workspace-id <workspace_id> --properties '{"Status":"Done"}' --pretty
@@ -195,7 +195,7 @@ vibe-notion database update-row <row_id> --workspace-id <workspace_id> --propert
 vibe-notion database update-row <row_id> --workspace-id <workspace_id> --properties '{"Related":["<target_row_id>"]}' --pretty
 
 # Delete a property from a database (cannot delete the title property)
-vibe-notion database delete-property <collection_id> --workspace-id <workspace_id> --property "Status" --pretty
+vibe-notion database delete-property <database_id> --workspace-id <workspace_id> --property "Status" --pretty
 
 # Get view configuration and property visibility
 vibe-notion database view-get <view_id> --workspace-id <workspace_id> --pretty
@@ -367,7 +367,7 @@ vibe-notion search "Roadmap" --workspace-id <workspace_id>
 
 ```bash
 # Database query — properties use human-readable field names from the collection schema
-vibe-notion database query <collection_id> --workspace-id <workspace_id>
+vibe-notion database query <database_id> --workspace-id <workspace_id>
 ```
 ```json
 {
