@@ -384,6 +384,29 @@ vibe-notion database query <collection_id> --workspace-id <workspace_id>
 }
 ```
 
+### Schema Hints (`$hints`)
+
+`database get` and `database query` may include a `$hints` array when the database schema has issues. These are actionable warnings — follow the instructions in each hint to fix the problem.
+
+```json
+{
+  "id": "collection-uuid",
+  "name": "My Database",
+  "schema": { "Name": "title", "Status": "select" },
+  "$hints": [
+    "Rollup 'Revenue Sum' depends on deleted relation 'Deals'. This rollup will return empty values. Fix: run `database delete-property --property \"Revenue Sum\"` to remove it."
+  ]
+}
+```
+
+**When `$hints` is present**: Read each hint carefully and execute the suggested fix commands. Broken properties can crash the Notion app for the user. Common issues detected:
+
+- **Dead properties**: Soft-deleted but still in schema. Usually harmless but indicates past issues.
+- **Broken rollups**: Reference deleted or missing relations. Will return empty values and may crash Notion.
+- **Broken relations**: Missing target collection. May crash Notion.
+
+If `$hints` is absent, the schema is clean — no action needed.
+
 ```bash
 # Page get — returns page metadata with content blocks
 vibe-notion page get <page_id> --workspace-id <workspace_id>
