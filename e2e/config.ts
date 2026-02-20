@@ -46,6 +46,7 @@ export async function validateNotionBotEnvironment() {
 // ── notion (internal API) ───────────────────────────────────────────────
 
 export const NOTION_E2E_PAGE_ID = '305c0fcf-90b3-802a-aebc-db1e05bb6926'
+export const NOTION_E2E_WORKSPACE_NAME = 'Vibe Notion'
 
 export async function validateNotionEnvironment(): Promise<string> {
   const { runNotionCLI, parseJSON } = await import('./helpers')
@@ -80,5 +81,13 @@ export async function validateNotionEnvironment(): Promise<string> {
     throw new Error('No workspaces found. Please ensure your Notion account has at least one workspace.')
   }
 
-  return workspaces[0].id
+  const workspace = workspaces.find((w) => w.name === NOTION_E2E_WORKSPACE_NAME)
+  if (!workspace) {
+    throw new Error(
+      `Workspace "${NOTION_E2E_WORKSPACE_NAME}" not found. ` +
+      `Available: ${workspaces.map((w) => w.name).join(', ')}`,
+    )
+  }
+
+  return workspace.id
 }
