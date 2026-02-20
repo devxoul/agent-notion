@@ -395,6 +395,75 @@ describe('Notion E2E Tests', () => {
       await waitForRateLimit()
     }, 30000)
 
+    test('database delete-property truly removes property so same name can be recreated', async () => {
+      // given — create a DB with a text property
+      const testId = generateTestId()
+      const createResult = await runNotionCLI([
+        'database',
+        'create',
+        '--workspace-id',
+        workspaceId,
+        '--parent',
+        containerId,
+        '--title',
+        `e2e-reuse-name-${testId}`,
+        '--properties',
+        `{"rp":{"name":"Reuse Prop ${testId}","type":"text"}}`,
+      ])
+      expect(createResult.exitCode).toBe(0)
+
+      const created = parseJSON<{ id: string; schema: Record<string, string> }>(createResult.stdout)
+      expect(created?.id).toBeTruthy()
+      const dbId = created!.id
+      testDatabaseIds.push(dbId)
+      const propName = `Reuse Prop ${testId}`
+      expect(created?.schema?.[propName]).toBe('text')
+
+      await waitForRateLimit()
+
+      // when — delete the property
+      const deleteResult = await runNotionCLI([
+        'database',
+        'delete-property',
+        '--workspace-id',
+        workspaceId,
+        dbId,
+        '--property',
+        propName,
+      ])
+      expect(deleteResult.exitCode).toBe(0)
+
+      await waitForRateLimit()
+
+      // when — recreate with the exact same name
+      const readdResult = await runNotionCLI([
+        'database',
+        'update',
+        '--workspace-id',
+        workspaceId,
+        dbId,
+        '--properties',
+        JSON.stringify({ rp2: { name: propName, type: 'text' } }),
+      ])
+      expect(readdResult.exitCode).toBe(0)
+
+      await waitForRateLimit()
+
+      // then — the property name should be exactly the same, not suffixed
+      const getResult = await runNotionCLI(['database', 'get', '--workspace-id', workspaceId, dbId])
+      expect(getResult.exitCode).toBe(0)
+
+      const final = parseJSON<{ id: string; schema: Record<string, string> }>(getResult.stdout)
+      expect(final?.schema?.[propName]).toBe('text')
+
+      const suffixedKeys = Object.keys(final?.schema ?? {}).filter(
+        (k) => k.startsWith(propName) && k !== propName,
+      )
+      expect(suffixedKeys).toEqual([])
+
+      await waitForRateLimit()
+    }, 60000)
+
     test('database delete-property removes a rollup property from schema', async () => {
       // given — create source DB with a text property
       const testId = generateTestId()
