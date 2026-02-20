@@ -152,6 +152,7 @@ type ViewGetOptions = WorkspaceOptions
 type ViewUpdateOptions = WorkspaceOptions & {
   show?: string
   hide?: string
+  reorder?: string
 }
 
 function parseSchemaProperties(raw?: string): CollectionSchema {
@@ -1020,6 +1021,28 @@ async function resolveCollectionFromView(tokenV2: string, view: ViewRecord['valu
   return fetchCollection(tokenV2, blockCollectionId)
 }
 
+function buildOrderedProperties(
+  viewProps: ViewProperty[],
+  schema: CollectionSchema,
+): Array<{ name: string; type: string; visible: boolean }> {
+  const seen = new Set<string>()
+  const properties: Array<{ name: string; type: string; visible: boolean }> = []
+
+  for (const vp of viewProps) {
+    const prop = schema[vp.property]
+    if (!prop) continue
+    seen.add(vp.property)
+    properties.push({ name: prop.name, type: prop.type, visible: vp.visible })
+  }
+
+  for (const [propId, prop] of Object.entries(schema)) {
+    if (seen.has(propId)) continue
+    properties.push({ name: prop.name, type: prop.type, visible: propId === 'title' })
+  }
+
+  return properties
+}
+
 async function viewGetAction(rawViewId: string, options: ViewGetOptions): Promise<void> {
   const viewId = formatNotionId(rawViewId)
   try {
@@ -1036,14 +1059,7 @@ async function viewGetAction(rawViewId: string, options: ViewGetOptions): Promis
     const propsKey = viewPropertiesKey(viewType)
     const viewProps = (format[propsKey] ?? []) as ViewProperty[]
 
-    const properties = Object.entries(schema).map(([propId, prop]) => {
-      const viewProp = viewProps.find((vp) => vp.property === propId)
-      return {
-        name: prop.name,
-        type: prop.type,
-        visible: viewProp?.visible ?? propId === 'title',
-      }
-    })
+    const properties = buildOrderedProperties(viewProps, schema)
 
     const output = {
       id: viewId,
@@ -1065,8 +1081,8 @@ async function viewUpdateAction(rawViewId: string, options: ViewUpdateOptions): 
     const creds = await getCredentialsOrExit()
     await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
 
-    if (!options.show && !options.hide) {
-      throw new Error('Provide --show or --hide with comma-separated property names')
+    if (!options.show && !options.hide && !options.reorder) {
+      throw new Error('Provide --show, --hide, or --reorder with comma-separated property names')
     }
 
     const view = await fetchView(creds.token_v2, viewId)
@@ -1126,6 +1142,41 @@ async function viewUpdateAction(rawViewId: string, options: ViewUpdateOptions): 
       updatedProps.set(propId, entry)
     }
 
+    const reorderNames = options.reorder ? options.reorder.split(',').map((s) => s.trim()) : []
+
+    for (const name of reorderNames) {
+      const propId = nameToId[name]
+      if (!propId) {
+        throw new Error(
+          `Unknown property: "${name}". Available: ${Object.values(schema)
+            .map((p) => p.name)
+            .join(', ')}`,
+        )
+      }
+    }
+
+    if (reorderNames.length > 0) {
+      const reorderIds = reorderNames.map((name) => nameToId[name])
+      const reorderSet = new Set(reorderIds)
+      const reordered = new Map<string, ViewProperty>()
+
+      for (const id of reorderIds) {
+        const prop = updatedProps.get(id)
+        if (prop) reordered.set(id, prop)
+      }
+
+      for (const [id, prop] of updatedProps) {
+        if (!reorderSet.has(id)) {
+          reordered.set(id, prop)
+        }
+      }
+
+      updatedProps.clear()
+      for (const [id, prop] of reordered) {
+        updatedProps.set(id, prop)
+      }
+    }
+
     const newProps = Array.from(updatedProps.values())
 
     const spaceId = format.collection_pointer?.spaceId
@@ -1155,14 +1206,7 @@ async function viewUpdateAction(rawViewId: string, options: ViewUpdateOptions): 
     const updatedFormat = updatedView.format ?? {}
     const finalProps = (updatedFormat[propsKey] ?? []) as ViewProperty[]
 
-    const properties = Object.entries(schema).map(([propId, prop]) => {
-      const viewProp = finalProps.find((vp) => vp.property === propId)
-      return {
-        name: prop.name,
-        type: prop.type,
-        visible: viewProp?.visible ?? propId === 'title',
-      }
-    })
+    const properties = buildOrderedProperties(finalProps, schema)
 
     console.log(
       formatOutput(
@@ -1270,11 +1314,12 @@ export const databaseCommand = new Command('database')
   )
   .addCommand(
     new Command('view-update')
-      .description('Update property visibility on a view')
+      .description('Update property visibility and column order on a view')
       .argument('<view_id>')
       .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .option('--show <names>', 'Comma-separated property names to show')
       .option('--hide <names>', 'Comma-separated property names to hide')
+      .option('--reorder <names>', 'Comma-separated property names in desired column order')
       .option('--pretty')
       .action(viewUpdateAction),
   )
