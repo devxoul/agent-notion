@@ -781,7 +781,7 @@ describe('blockCommand', () => {
       const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token', space_id: 'space-123' }))
       const mockResolveSpaceId = mock(() => Promise.resolve('space-123'))
       const mockGenerateId = mock(() => 'new-block-id')
-      const mockReadFileSync = mock(() => '# From File\n\nParagraph text')
+      const _mockReadFileSync = mock(() => '# From File\n\nParagraph text')
 
       mock.module('../client', () => ({
         internalRequest: mockInternalRequest,
