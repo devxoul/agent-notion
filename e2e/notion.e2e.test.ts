@@ -236,7 +236,7 @@ describe('Notion E2E Tests', () => {
       ])
       expect(result.exitCode).toBe(0)
 
-      const data = parseJSON<{ id: string; name: string; schema: Record<string, string> }>(result.stdout)
+      const data = parseJSON<{ id: string; name: string; schema: Record<string, { type: string }> }>(result.stdout)
       expect(data?.id).toBeTruthy()
 
       createdDbId = data!.id
@@ -260,7 +260,7 @@ describe('Notion E2E Tests', () => {
       const result = await runNotionCLI(['database', 'get', '--workspace-id', workspaceId, createdDbId])
       expect(result.exitCode).toBe(0)
 
-      const data = parseJSON<{ id: string; name: string; schema: Record<string, string> }>(result.stdout)
+      const data = parseJSON<{ id: string; name: string; schema: Record<string, { type: string }> }>(result.stdout)
       expect(data?.id).toBe(createdDbId)
 
       await waitForRateLimit()
@@ -353,7 +353,7 @@ describe('Notion E2E Tests', () => {
       ])
       expect(result.exitCode).toBe(0)
 
-      const data = parseJSON<{ id: string; name: string; schema: Record<string, string> }>(result.stdout)
+      const data = parseJSON<{ id: string; name: string; schema: Record<string, { type: string }> }>(result.stdout)
       expect(data?.id).toBe(createdDbId)
 
       await waitForRateLimit()
@@ -373,8 +373,8 @@ describe('Notion E2E Tests', () => {
       ])
       expect(addResult.exitCode).toBe(0)
 
-      const added = parseJSON<{ id: string; schema: Record<string, string> }>(addResult.stdout)
-      expect(added?.schema?.['E2E Prop']).toBe('text')
+      const added = parseJSON<{ id: string; schema: Record<string, { type: string }> }>(addResult.stdout)
+      expect(added?.schema?.['E2E Prop']?.type).toBe('text')
 
       await waitForRateLimit()
 
@@ -389,7 +389,7 @@ describe('Notion E2E Tests', () => {
       ])
       expect(result.exitCode).toBe(0)
 
-      const data = parseJSON<{ id: string; schema: Record<string, string> }>(result.stdout)
+      const data = parseJSON<{ id: string; schema: Record<string, { type: string }> }>(result.stdout)
       expect(data?.id).toBe(createdDbId)
       expect(data?.schema?.['E2E Prop']).toBeUndefined()
 
@@ -413,12 +413,12 @@ describe('Notion E2E Tests', () => {
       ])
       expect(createResult.exitCode).toBe(0)
 
-      const created = parseJSON<{ id: string; schema: Record<string, string> }>(createResult.stdout)
+      const created = parseJSON<{ id: string; schema: Record<string, { type: string }> }>(createResult.stdout)
       expect(created?.id).toBeTruthy()
       const dbId = created!.id
       testDatabaseIds.push(dbId)
       const propName = `Reuse Prop ${testId}`
-      expect(created?.schema?.[propName]).toBe('text')
+      expect(created?.schema?.[propName]?.type).toBe('text')
 
       await waitForRateLimit()
 
@@ -454,8 +454,8 @@ describe('Notion E2E Tests', () => {
       const getResult = await runNotionCLI(['database', 'get', '--workspace-id', workspaceId, dbId])
       expect(getResult.exitCode).toBe(0)
 
-      const final = parseJSON<{ id: string; schema: Record<string, string> }>(getResult.stdout)
-      expect(final?.schema?.[propName]).toBe('text')
+      const final = parseJSON<{ id: string; schema: Record<string, { type: string }> }>(getResult.stdout)
+      expect(final?.schema?.[propName]?.type).toBe('text')
 
       const suffixedKeys = Object.keys(final?.schema ?? {}).filter(
         (k) => k.startsWith(propName) && k !== propName,
@@ -513,9 +513,9 @@ describe('Notion E2E Tests', () => {
       ])
       expect(tgtResult.exitCode).toBe(0)
 
-      const tgtDb = parseJSON<{ id: string; schema: Record<string, string> }>(tgtResult.stdout)
+      const tgtDb = parseJSON<{ id: string; schema: Record<string, { type: string }> }>(tgtResult.stdout)
       expect(tgtDb?.id).toBeTruthy()
-      expect(tgtDb?.schema?.['PRD Rollup']).toBe('rollup')
+      expect(tgtDb?.schema?.['PRD Rollup']?.type).toBe('rollup')
       const tgtDbId = tgtDb!.id
       testDatabaseIds.push(tgtDbId)
 
@@ -535,11 +535,11 @@ describe('Notion E2E Tests', () => {
       // then
       expect(result.exitCode).toBe(0)
 
-      const data = parseJSON<{ id: string; schema: Record<string, string> }>(result.stdout)
+      const data = parseJSON<{ id: string; schema: Record<string, { type: string }> }>(result.stdout)
       expect(data?.id).toBe(tgtDbId)
       expect(data?.schema?.['PRD Rollup']).toBeUndefined()
-      expect(data?.schema?.['Source Rel']).toBe('relation')
-      expect(data?.schema?.['Name']).toBe('title')
+      expect(data?.schema?.['Source Rel']?.type).toBe('relation')
+      expect(data?.schema?.['Name']?.type).toBe('title')
 
       await waitForRateLimit()
     }, 60000)
@@ -591,10 +591,10 @@ describe('Notion E2E Tests', () => {
       ])
       expect(tgtResult.exitCode).toBe(0)
 
-      const tgtDb = parseJSON<{ id: string; schema: Record<string, string> }>(tgtResult.stdout)
+      const tgtDb = parseJSON<{ id: string; schema: Record<string, { type: string }> }>(tgtResult.stdout)
       expect(tgtDb?.id).toBeTruthy()
-      expect(tgtDb?.schema?.['My Rollup']).toBe('rollup')
-      expect(tgtDb?.schema?.['Source Rel']).toBe('relation')
+      expect(tgtDb?.schema?.['My Rollup']?.type).toBe('rollup')
+      expect(tgtDb?.schema?.['Source Rel']?.type).toBe('relation')
       const tgtDbId = tgtDb!.id
       testDatabaseIds.push(tgtDbId)
 
@@ -610,8 +610,10 @@ describe('Notion E2E Tests', () => {
       ])
       expect(getResult.exitCode).toBe(0)
 
-      const getDb = parseJSON<{ id: string; schema: Record<string, string>; $hints?: string[] }>(getResult.stdout)
-      expect(getDb?.schema?.['My Rollup']).toBe('rollup')
+      const getDb = parseJSON<{ id: string; schema: Record<string, { type: string }>; $hints?: string[] }>(
+        getResult.stdout,
+      )
+      expect(getDb?.schema?.['My Rollup']?.type).toBe('rollup')
 
       const rollupHints = (getDb?.$hints ?? []).filter((h) => h.includes('My Rollup'))
       expect(rollupHints).toEqual([])
@@ -687,8 +689,8 @@ describe('Notion E2E Tests', () => {
       ])
       expect(updateResult.exitCode).toBe(0)
 
-      const updatedDb = parseJSON<{ id: string; schema: Record<string, string> }>(updateResult.stdout)
-      expect(updatedDb?.schema?.['My Rollup']).toBe('rollup')
+      const updatedDb = parseJSON<{ id: string; schema: Record<string, { type: string }> }>(updateResult.stdout)
+      expect(updatedDb?.schema?.['My Rollup']?.type).toBe('rollup')
 
       await waitForRateLimit()
 
@@ -702,8 +704,10 @@ describe('Notion E2E Tests', () => {
       ])
       expect(getResult.exitCode).toBe(0)
 
-      const getDb = parseJSON<{ id: string; schema: Record<string, string>; $hints?: string[] }>(getResult.stdout)
-      expect(getDb?.schema?.['My Rollup']).toBe('rollup')
+      const getDb = parseJSON<{ id: string; schema: Record<string, { type: string }>; $hints?: string[] }>(
+        getResult.stdout,
+      )
+      expect(getDb?.schema?.['My Rollup']?.type).toBe('rollup')
 
       const rollupHints = (getDb?.$hints ?? []).filter((h) => h.includes('My Rollup'))
       expect(rollupHints).toEqual([])
