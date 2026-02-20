@@ -515,7 +515,7 @@ export const pageCommand = new Command('page')
       .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .option('--limit <n>', 'Block limit')
       .option('--backlinks', 'Include backlinks (pages that link to this page)')
-      .option('--pretty')
+      .option('--pretty', 'Pretty print JSON output')
       .action(getAction),
   )
   .addCommand(
@@ -526,7 +526,7 @@ export const pageCommand = new Command('page')
       .requiredOption('--title <title>', 'Page title')
       .option('--markdown <text>', 'Markdown content for page body')
       .option('--markdown-file <path>', 'Path to markdown file for page body')
-      .option('--pretty')
+      .option('--pretty', 'Pretty print JSON output')
       .action(createAction),
   )
   .addCommand(
@@ -539,7 +539,7 @@ export const pageCommand = new Command('page')
       .option('--replace-content', 'Replace all page content')
       .option('--markdown <text>', 'Markdown content')
       .option('--markdown-file <path>', 'Path to markdown file')
-      .option('--pretty')
+      .option('--pretty', 'Pretty print JSON output')
       .action(updateAction),
   )
   .addCommand(
@@ -547,6 +547,6 @@ export const pageCommand = new Command('page')
       .description('Archive a page')
       .argument('<page_id>')
       .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
-      .option('--pretty')
+      .option('--pretty', 'Pretty print JSON output')
       .action(archiveAction),
   )

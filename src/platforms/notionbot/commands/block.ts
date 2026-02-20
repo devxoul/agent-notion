@@ -130,7 +130,7 @@ export const blockCommand = new Command('block')
   )
   .addCommand(
     new Command('delete')
-      .description('Delete (trash) a block')
+      .description('Delete (archive) a block')
       .argument('<block_id>', 'Block ID')
       .option('--pretty', 'Pretty print JSON output')
       .action(deleteAction),
