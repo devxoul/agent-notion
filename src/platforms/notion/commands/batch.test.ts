@@ -252,6 +252,16 @@ describe('batch command', () => {
     ).rejects.toThrow()
   })
 
+  test('missing operations arg and --file throws helpful error', async () => {
+    mock.restore()
+    setupDefaultMocks()
+    const { executeBatch } = await import('./batch')
+
+    await expect(executeBatch(undefined, { workspaceId: 'space-123' })).rejects.toThrow(
+      'Either provide operations JSON as argument or use --file <path>',
+    )
+  })
+
   test('--file option reads operations JSON from file path', async () => {
     mock.restore()
     setupDefaultMocks()

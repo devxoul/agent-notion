@@ -47,8 +47,12 @@ export const NOTION_ACTION_REGISTRY: ActionRegistry<NotionHandler> = {
     handleDatabaseUpdateRow(tokenV2, args as Parameters<typeof handleDatabaseUpdateRow>[1]),
 }
 
-function parseOperations(operationsArg: string, file?: string): BatchOperation[] {
-  const raw = file ? readFileSync(file, 'utf8') : operationsArg
+function parseOperations(operationsArg?: string, file?: string): BatchOperation[] {
+  if (!file && !operationsArg) {
+    throw new Error('Either provide operations JSON as argument or use --file <path>')
+  }
+
+  const raw = file ? readFileSync(file, 'utf8') : operationsArg!
   const parsed = JSON.parse(raw) as unknown
 
   if (!Array.isArray(parsed)) {
@@ -66,7 +70,7 @@ function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-export async function executeBatch(operationsArg: string, options: BatchCommandOptions): Promise<void> {
+export async function executeBatch(operationsArg: string | undefined, options: BatchCommandOptions): Promise<void> {
   const operations = parseOperations(operationsArg, options.file)
   validateOperations(operations, Object.keys(NOTION_ACTION_REGISTRY))
 
@@ -129,11 +133,11 @@ export async function executeBatch(operationsArg: string, options: BatchCommandO
 
 export const batchCommand = new Command('batch')
   .description('Execute multiple write actions sequentially')
-  .argument('<operations>', 'Operations as JSON array string')
+  .argument('[operations]', 'Operations as JSON array string')
   .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
   .option('--file <path>', 'Read operations JSON from file')
   .option('--pretty', 'Pretty print JSON output')
-  .action(async (operations: string, options: BatchCommandOptions) => {
+  .action(async (operations: string | undefined, options: BatchCommandOptions) => {
     try {
       await executeBatch(operations, options)
     } catch (error) {
