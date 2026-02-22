@@ -16,6 +16,17 @@ A TypeScript CLI tool that enables AI agents and humans to interact with Notion 
 
 If a feature you need is not supported by `vibe-notion`, let the user know and offer to file a feature request at [devxoul/vibe-notion](https://github.com/devxoul/vibe-notion/issues) on their behalf. Before submitting, strip out any real user data — IDs, names, emails, tokens, page content, or anything else that could identify the user or their workspace. Use generic placeholders instead and keep the issue focused on describing the missing capability.
 
+## Important: Never Write Scripts
+
+**Never write scripts (Python, TypeScript, Bash, etc.) to automate Notion operations.** The `batch` command already handles bulk operations of any size. Writing a script to loop through API calls is always wrong — use `batch` with `--file` instead.
+
+This applies even when:
+- You need to create 100+ rows
+- You need cross-references between newly created rows (use multi-pass batch — see [Bulk Operations Strategy](#bulk-operations-strategy))
+- The operation feels "too big" for a single command
+
+If you catch yourself thinking "I should write a script for this," stop and use `batch`.
+
 ## Quick Start
 
 ```bash
@@ -387,6 +398,29 @@ vibe-notion batch --workspace-id <workspace_id> --file ./operations.json '[]'
   "failed": 1
 }
 ```
+
+### Bulk Operations Strategy
+
+For large operations (tens or hundreds of items), use `--file` to avoid shell argument limits and keep things manageable.
+
+**Step 1**: Write the operations JSON to a file, then run batch with `--file`:
+
+```bash
+# Write operations to a file (using your Write tool), then:
+vibe-notion batch --workspace-id <workspace_id> --file ./operations.json '[]'
+```
+
+**Multi-pass pattern** — when new rows need to reference each other (e.g., relation properties linking row A → row B, where both are new):
+
+1. **Pass 1 — Create all rows** (without cross-references): Write a batch JSON file with all `database.add-row` operations, omitting relation properties that point to other new rows. Run it. Collect the returned IDs from the output.
+2. **Pass 2 — Set cross-references**: Write a second batch JSON file with `database.update-row` operations that set the relation properties using the IDs from Pass 1. Run it.
+
+```
+Pass 1: Create rows A, B, C (no cross-refs) → get IDs for A, B, C
+Pass 2: Update A.predecessor=B, C.related=A (using real IDs from Pass 1)
+```
+
+This is the same result as a script, but without writing any code. Just two batch calls.
 
 ### Search Command
 
