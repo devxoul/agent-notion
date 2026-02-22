@@ -35,6 +35,8 @@ Vibe Notion includes [Agent Skills](https://agentskills.io/) that teach your AI 
 - **`vibe-notion`** — For the unofficial private API (`token_v2`)
 - **`vibe-notionbot`** — For the official Integration API (`NOTION_TOKEN`)
 
+[![Available on SkillPad](https://badge.skillpad.dev/vibe-notion/dark.svg)](https://skillpad.dev/install/devxoul/vibe-notion/vibe-notion) [![Available on SkillPad](https://badge.skillpad.dev/vibe-notionbot/dark.svg)](https://skillpad.dev/install/devxoul/vibe-notion/vibe-notionbot)
+
 ### Skills CLI (OpenCode, Cline, etc.)
 
 ```bash
