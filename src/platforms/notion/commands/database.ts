@@ -1054,12 +1054,27 @@ export async function handleDatabaseUpdate(
 
   if (args.properties) {
     const parsedProperties = parseSchemaProperties(args.properties)
-    const mergedSchema: CollectionSchema = {
-      ...(current.schema ?? {}),
-      ...parsedProperties,
+    const existingSchema = current.schema ?? {}
+    const nameToKey = buildNameToKey(existingSchema)
+
+    // Resolve property names to their existing schema keys so updates
+    // target the correct entry instead of creating duplicates.
+    const resolvedProperties: CollectionSchema = {}
+    for (const [key, prop] of Object.entries(parsedProperties)) {
+      if (existingSchema[key]) {
+        resolvedProperties[key] = prop
+      } else if (nameToKey[key]) {
+        resolvedProperties[nameToKey[key]] = prop
+      } else {
+        resolvedProperties[key] = prop
+      }
     }
-    resolveRelationProperties(parsedProperties, mergedSchema, spaceId)
-    await resolveRollupReferences(parsedProperties, mergedSchema, tokenV2)
+    const mergedSchema: CollectionSchema = {
+      ...existingSchema,
+      ...resolvedProperties,
+    }
+    resolveRelationProperties(resolvedProperties, mergedSchema, spaceId)
+    await resolveRollupReferences(resolvedProperties, mergedSchema, tokenV2)
     updateArgs.schema = mergedSchema
   }
 

@@ -30,7 +30,22 @@ export async function internalRequest(
   })
 
   if (!response.ok) {
-    throw new Error(`Notion internal API error: ${response.status}`)
+    let detail = ''
+    try {
+      const text = await response.text()
+      if (text) {
+        try {
+          const json = JSON.parse(text)
+          detail = json.message || json.msg || json.error || ''
+        } catch {
+          detail = text
+        }
+      }
+    } catch {
+      // could not read response body
+    }
+    const suffix = detail ? `: ${detail}` : ''
+    throw new Error(`Notion internal API error: ${response.status}${suffix}`)
   }
 
   return response.json()

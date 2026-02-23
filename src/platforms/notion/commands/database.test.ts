@@ -1393,6 +1393,99 @@ describe('database update', () => {
     })
   })
 
+  test('resolves property names to existing schema keys when updating', async () => {
+    mock.restore()
+    // Given — existing schema has property "일정" under key "aB1c"
+    const mockGetResponse = {
+      recordMap: {
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              name: [['Test DB']],
+              schema: {
+                title: { name: 'Name', type: 'title' },
+                aB1c: { name: '일정', type: 'date' },
+              },
+              parent_id: 'block-1',
+              alive: true,
+              space_id: 'space-123',
+            },
+          },
+        },
+      },
+    }
+    const mockUpdateResponse = {
+      recordMap: {
+        collection: {
+          'coll-1': {
+            value: {
+              id: 'coll-1',
+              name: [['Test DB']],
+              schema: {
+                title: { name: 'Name', type: 'title' },
+                aB1c: { name: '일정', type: 'text' },
+              },
+              parent_id: 'block-1',
+              alive: true,
+              space_id: 'space-123',
+            },
+          },
+        },
+      },
+    }
+
+    let callCount = 0
+    const mockInternalRequest = mock(() => {
+      callCount++
+      if (callCount === 1) return Promise.resolve(mockGetResponse)
+      if (callCount === 2) return Promise.resolve({})
+      return Promise.resolve(mockUpdateResponse)
+    })
+    const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token' }))
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mock(() => 'mock-uuid'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-123'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    const { databaseCommand } = await import('./database')
+
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      // When — user passes property name "일정" as key (not the schema key "aB1c")
+      await databaseCommand.parseAsync(
+        ['update', 'coll-1', '--workspace-id', 'space-123', '--properties', '{"일정":{"name":"일정","type":"text"}}'],
+        { from: 'user' },
+      )
+    } finally {
+      console.log = originalLog
+    }
+
+    // Then — schema should use original key "aB1c", not property name "일정"
+    const saveTransactionCall = mockInternalRequest.mock.calls.find(
+      (call) => (call as unknown[])[1] === 'saveTransactions',
+    ) as unknown as [string, string, Record<string, unknown>] | undefined
+    expect(saveTransactionCall).toBeDefined()
+    const args = (saveTransactionCall?.[2] as any).transactions[0].operations[0].args
+    expect(args.schema).toEqual({
+      title: { name: 'Name', type: 'title' },
+      aB1c: { name: '일정', type: 'text' },
+    })
+    // Must NOT have the property name as a separate key
+    expect(args.schema).not.toHaveProperty('일정')
+  })
   test('outputs current collection when no options provided', async () => {
     mock.restore()
     // Given

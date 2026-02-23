@@ -362,6 +362,49 @@ describe('Notion E2E Tests', () => {
       await waitForRateLimit()
     }, 15000)
 
+    test('database update resolves property names to existing schema keys', async () => {
+      expect(createdDbId).toBeTruthy()
+
+      // Step 1: Add a text property using a schema key
+      const addResult = await runNotionCLI([
+        'database',
+        'update',
+        '--workspace-id',
+        workspaceId,
+        createdDbId,
+        '--properties',
+        '{"e2e_name_key":{"name":"NameKeyProp","type":"text"}}',
+      ])
+      expect(addResult.exitCode).toBe(0)
+
+      const added = parseJSON<{ id: string; schema: Record<string, { type: string }> }>(addResult.stdout)
+      expect(added?.schema?.['NameKeyProp']?.type).toBe('text')
+
+      await waitForRateLimit()
+
+      // Step 2: Update the same property using its DISPLAY NAME as key (not the schema key)
+      const updateResult = await runNotionCLI([
+        'database',
+        'update',
+        '--workspace-id',
+        workspaceId,
+        createdDbId,
+        '--properties',
+        '{"NameKeyProp":{"name":"NameKeyProp","type":"number"}}',
+      ])
+      expect(updateResult.exitCode).toBe(0)
+
+      const updated = parseJSON<{ id: string; schema: Record<string, { type: string }> }>(updateResult.stdout)
+      // Property should be updated in place, not duplicated
+      expect(updated?.schema?.['NameKeyProp']?.type).toBe('number')
+
+      // Verify there's exactly one property with this name (no duplicate)
+      const propCount = Object.values(updated?.schema ?? {}).filter((p) => p.type === 'number').length
+      expect(propCount).toBe(1)
+
+      await waitForRateLimit()
+    }, 30000)
+
     test('database delete-property removes a text property from schema', async () => {
       expect(createdDbId).toBeTruthy()
 
