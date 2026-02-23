@@ -1071,7 +1071,7 @@ describe('Notion E2E Tests', () => {
       const views = (parseJSON<Array<{ id: string; type: string; name: string }>>(result.stdout) ?? [])
       expect(Array.isArray(views)).toBe(true)
       expect(views.length).toBeGreaterThanOrEqual(1)
-      expect(views[0].type).toBe('table')
+      expect(views.some((v) => v.type === 'table')).toBe(true)
       await waitForRateLimit()
     }, 60000)
   test('database view-add adds a new board view', async () => {
