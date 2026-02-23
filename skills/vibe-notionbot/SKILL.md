@@ -18,6 +18,29 @@ metadata:
 
 A TypeScript CLI tool that enables AI agents and humans to interact with Notion workspaces through the official Notion API. Supports pages, databases, blocks, users, comments, and search.
 
+
+## Which CLI to Use
+
+This package ships two CLIs. Pick the right one based on your situation:
+
+| | `vibe-notion` | `vibe-notionbot` (this CLI) |
+|---|---|---|
+| API | Unofficial private API | Official Notion API |
+| Auth | `token_v2` auto-extracted from Notion desktop app | `NOTION_TOKEN` env var (Integration token) |
+| Identity | Acts as the user | Acts as a bot |
+| Setup | Zero — credentials extracted automatically | Manual — create Integration at notion.so/my-integrations |
+| Database rows | `add-row`, `update-row` | Create via `page create --database` |
+| View management | `view-get`, `view-update` | Not supported |
+| Workspace listing | Supported | Not supported |
+| Stability | Private API — may break on Notion changes | Official versioned API — stable |
+
+**Decision flow:**
+
+1. If the Notion desktop app is installed → use `vibe-notion`
+2. If `NOTION_TOKEN` is set but no desktop app → use `vibe-notionbot` (this CLI)
+3. If both are available → prefer `vibe-notion` (broader capabilities, zero setup)
+4. If neither → ask the user to set up one of the two
+
 ## Important: CLI Only
 
 **Never call the Notion API directly.** Always use the `vibe-notionbot` CLI commands described in this skill. Do not make raw HTTP requests to the Notion API or use `@notionhq/client` directly. Direct API calls risk exposing credentials and may trigger Notion's abuse detection, getting the user's account blocked.
