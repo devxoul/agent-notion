@@ -64,5 +64,12 @@ npm consumers run compiled JS via Node.js. The `prepublishOnly` script runs the 
 | Compilation | None (Bun runs TS) | `tsc` → `dist/` |
 
 ## Release
-
 Use the **Release** GitHub Actions workflow (`workflow_dispatch`). Enter the version (e.g., `0.2.0`) — it typechecks, lints, tests, bumps version in `package.json`, commits, tags, publishes to npm, and creates a GitHub Release. Tags have no `v` prefix.
+
+### Version Decision
+
+When asked to release without a specific version:
+- **Patch** (x.y.Z) — bug fixes, docs, refactors, non-breaking changes
+- **Minor** (x.Y.0) — new features, new commands, new options, expanded capabilities
+
+Decide automatically based on commits since last release. Do not ask the user. Never bump major unless the user explicitly requests it. If the user specifies a version, use it as-is.
