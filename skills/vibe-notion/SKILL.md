@@ -32,7 +32,7 @@ This package ships two CLIs. Pick the right one based on your situation:
 | Identity | Acts as the user | Acts as a bot |
 | Setup | Zero — credentials extracted automatically | Manual — create Integration at notion.so/my-integrations |
 | Database rows | `add-row`, `update-row` | Create via `page create --database` |
-| View management | `view-get`, `view-update` | Not supported |
+| View management | `view-get`, `view-update`, `view-list`, `view-add`, `view-delete` | Not supported |
 | Workspace listing | Supported | Not supported |
 | Stability | Private API — may break on Notion changes | Official versioned API — stable |
 
@@ -218,6 +218,10 @@ vibe-notion database query <database_id> --workspace-id <workspace_id> --view-id
 vibe-notion database query <database_id> --workspace-id <workspace_id> --search-query "keyword" --pretty
 vibe-notion database query <database_id> --workspace-id <workspace_id> --timezone "America/New_York" --pretty
 
+# Query with filter and sort (uses property IDs from database get schema)
+vibe-notion database query <database_id> --workspace-id <workspace_id> --filter '<filter_json>' --pretty
+vibe-notion database query <database_id> --workspace-id <workspace_id> --sort '<sort_json>' --pretty
+
 # List all databases in workspace
 vibe-notion database list --workspace-id <workspace_id> --pretty
 
@@ -256,6 +260,19 @@ vibe-notion database view-update <view_id> --workspace-id <workspace_id> --show 
 # Reorder columns (comma-separated names in desired order; unmentioned columns appended)
 vibe-notion database view-update <view_id> --workspace-id <workspace_id> --reorder "Name,Status,Priority,Date" --pretty
 vibe-notion database view-update <view_id> --workspace-id <workspace_id> --reorder "Name,Status" --show "Status" --pretty
+
+# Resize columns (JSON mapping property names to pixel widths)
+vibe-notion database view-update <view_id> --workspace-id <workspace_id> --resize '{"Name":200,"Status":150}' --pretty
+
+# List all views for a database
+vibe-notion database view-list <database_id> --workspace-id <workspace_id> --pretty
+
+# Add a new view to a database (default type: table)
+vibe-notion database view-add <database_id> --workspace-id <workspace_id> --pretty
+vibe-notion database view-add <database_id> --workspace-id <workspace_id> --type board --name "Board View" --pretty
+
+# Delete a view from a database (cannot delete the last view)
+vibe-notion database view-delete <view_id> --workspace-id <workspace_id> --pretty
 ```
 
 ### Block Commands

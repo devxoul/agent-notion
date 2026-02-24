@@ -30,7 +30,7 @@ This package ships two CLIs. Pick the right one based on your situation:
 | Identity | Acts as the user | Acts as a bot |
 | Setup | Zero — credentials extracted automatically | Manual — create Integration at notion.so/my-integrations |
 | Database rows | `add-row`, `update-row` | Create via `page create --database` |
-| View management | `view-get`, `view-update` | Not supported |
+| View management | `view-get`, `view-update`, `view-list`, `view-add`, `view-delete` | Not supported |
 | Workspace listing | Supported | Not supported |
 | Stability | Private API — may break on Notion changes | Official versioned API — stable |
 
