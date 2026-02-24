@@ -212,4 +212,65 @@ describe('markdownToBlocks', () => {
     expect(block.type).toBe('header')
     expect(block.properties).toBeDefined()
   })
+
+  test('nested bulleted list (2 levels)', () => {
+    const result = markdownToBlocks('- Parent\n  - Child')
+    expect(result).toEqual([
+      {
+        type: 'bulleted_list',
+        properties: { title: [['Parent']] },
+        children: [{ type: 'bulleted_list', properties: { title: [['Child']] } }],
+      },
+    ])
+  })
+
+  test('nested numbered list (2 levels)', () => {
+    const result = markdownToBlocks('1. First\n   1. Nested')
+    expect(result).toEqual([
+      {
+        type: 'numbered_list',
+        properties: { title: [['First']] },
+        children: [{ type: 'numbered_list', properties: { title: [['Nested']] } }],
+      },
+    ])
+  })
+
+  test('deeply nested bulleted list (3 levels)', () => {
+    const result = markdownToBlocks('- Level 1\n  - Level 2\n    - Level 3')
+    expect(result).toEqual([
+      {
+        type: 'bulleted_list',
+        properties: { title: [['Level 1']] },
+        children: [
+          {
+            type: 'bulleted_list',
+            properties: { title: [['Level 2']] },
+            children: [{ type: 'bulleted_list', properties: { title: [['Level 3']] } }],
+          },
+        ],
+      },
+    ])
+  })
+
+  test('nested todo/checkbox list', () => {
+    const result = markdownToBlocks('- [x] Task\n  - Sub-item')
+    expect(result).toEqual([
+      {
+        type: 'to_do',
+        properties: { title: [['Task']], checked: [['Yes']] },
+        children: [{ type: 'bulleted_list', properties: { title: [['Sub-item']] } }],
+      },
+    ])
+  })
+
+  test('mixed nesting (bulleted with nested numbered)', () => {
+    const result = markdownToBlocks('- Bullet\n  1. Numbered child')
+    expect(result).toEqual([
+      {
+        type: 'bulleted_list',
+        properties: { title: [['Bullet']] },
+        children: [{ type: 'numbered_list', properties: { title: [['Numbered child']] } }],
+      },
+    ])
+  })
 })

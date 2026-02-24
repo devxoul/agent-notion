@@ -60,22 +60,30 @@ function convertList(node: List): InternalBlockDefinition[] {
 }
 
 function convertListItem(node: ListItem, ordered: boolean): InternalBlockDefinition {
+  const nestedLists = node.children.filter((c) => c.type === 'list') as List[]
+  const children: InternalBlockDefinition[] = []
+  for (const nestedList of nestedLists) {
+    children.push(...convertList(nestedList))
+  }
   if (node.checked !== null && node.checked !== undefined) {
     const paragraph = node.children.find((c) => c.type === 'paragraph') as Paragraph | undefined
     const title = paragraph ? convertInlineContent(paragraph.children) : [[''] as RichTextSegment]
-    return {
+    const block: InternalBlockDefinition = {
       type: 'to_do',
       properties: {
         title,
         checked: [[node.checked ? 'Yes' : 'No']],
       },
     }
+    if (children.length > 0) block.children = children
+    return block
   }
-
   const type = ordered ? 'numbered_list' : 'bulleted_list'
   const paragraph = node.children.find((c) => c.type === 'paragraph') as Paragraph | undefined
   const title = paragraph ? convertInlineContent(paragraph.children) : [[''] as RichTextSegment]
-  return { type, properties: { title } }
+  const block: InternalBlockDefinition = { type, properties: { title } }
+  if (children.length > 0) block.children = children
+  return block
 }
 
 function convertBlockquote(node: Blockquote): InternalBlockDefinition {

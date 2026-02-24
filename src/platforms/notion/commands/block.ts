@@ -91,6 +91,7 @@ type UpdateOptions = WorkspaceOptions & {
 type BlockDefinition = {
   type: string
   properties?: Record<string, unknown>
+  children?: BlockDefinition[]
 }
 
 function getErrorMessage(error: unknown): string {
@@ -103,28 +104,38 @@ function parseBlockDefinitions(content: string): BlockDefinition[] {
     throw new Error('Content must be a JSON array of block definitions')
   }
 
-  return parsed.map((item) => {
-    if (!item || typeof item !== 'object' || Array.isArray(item)) {
-      throw new Error('Each block definition must be an object')
-    }
+  return parsed.map((item) => parseBlockDefinition(item))
+}
 
-    const def = item as Record<string, unknown>
-    if (typeof def.type !== 'string' || !def.type.trim()) {
-      throw new Error('Each block definition must include a non-empty string type')
-    }
+function parseBlockDefinition(item: unknown): BlockDefinition {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) {
+    throw new Error('Each block definition must be an object')
+  }
+  const def = item as Record<string, unknown>
+  if (typeof def.type !== 'string' || !def.type.trim()) {
+    throw new Error('Each block definition must include a non-empty string type')
+  }
 
-    if (
-      def.properties !== undefined &&
-      (typeof def.properties !== 'object' || def.properties === null || Array.isArray(def.properties))
-    ) {
-      throw new Error('Block definition properties must be an object when provided')
-    }
+  if (
+    def.properties !== undefined &&
+    (typeof def.properties !== 'object' || def.properties === null || Array.isArray(def.properties))
+  ) {
+    throw new Error('Block definition properties must be an object when provided')
+  }
 
-    return {
-      type: def.type,
-      properties: def.properties as Record<string, unknown> | undefined,
+  const result: BlockDefinition = {
+    type: def.type,
+    properties: def.properties as Record<string, unknown> | undefined,
+  }
+
+  if (def.children !== undefined) {
+    if (!Array.isArray(def.children)) {
+      throw new Error('Block definition children must be an array when provided')
     }
-  })
+    result.children = def.children.map((child) => parseBlockDefinition(child))
+  }
+
+  return result
 }
 
 function parseUpdateContent(content: string): Record<string, unknown> {
@@ -230,6 +241,45 @@ function parsePageChunkCursor(rawCursor: string | undefined): { stack: unknown[]
   return { stack: cursor.stack }
 }
 
+function appendBlockOperations(
+  operations: SaveOperation[],
+  def: BlockDefinition,
+  blockId: string,
+  parentId: string,
+  spaceId: string,
+): void {
+  operations.push(
+    {
+      pointer: { table: 'block', id: blockId, spaceId },
+      command: 'set',
+      path: [],
+      args: {
+        type: def.type,
+        id: blockId,
+        version: 1,
+        parent_id: parentId,
+        parent_table: 'block',
+        alive: true,
+        properties: def.properties ?? {},
+        space_id: spaceId,
+      },
+    },
+    {
+      pointer: { table: 'block', id: parentId, spaceId },
+      command: 'listAfter',
+      path: ['content'],
+      args: { id: blockId },
+    },
+  )
+
+  if (def.children) {
+    for (const child of def.children) {
+      const childBlockId = generateId()
+      appendBlockOperations(operations, child, childBlockId, blockId, spaceId)
+    }
+  }
+}
+
 export async function handleBlockAppend(
   tokenV2: string,
   args: { parent_id: string; content?: string; markdown?: string; markdownFile?: string; workspaceId: string },
@@ -258,47 +308,20 @@ export async function handleBlockAppend(
   if (defs.length === 0) {
     throw new Error('Content must include at least one block definition')
   }
-
   await resolveAndSetActiveUserId(tokenV2, args.workspaceId)
   const spaceId = await resolveSpaceId(tokenV2, parentId)
   const operations: SaveOperation[] = []
   const newBlockIds: string[] = []
-
   for (const def of defs) {
     const newBlockId = generateId()
     newBlockIds.push(newBlockId)
-
-    operations.push(
-      {
-        pointer: { table: 'block', id: newBlockId, spaceId },
-        command: 'set',
-        path: [],
-        args: {
-          type: def.type,
-          id: newBlockId,
-          version: 1,
-          parent_id: parentId,
-          parent_table: 'block',
-          alive: true,
-          properties: def.properties ?? {},
-          space_id: spaceId,
-        },
-      },
-      {
-        pointer: { table: 'block', id: parentId, spaceId },
-        command: 'listAfter',
-        path: ['content'],
-        args: { id: newBlockId },
-      },
-    )
+    appendBlockOperations(operations, def, newBlockId, parentId, spaceId)
   }
-
   const payload: SaveTransactionsRequest = {
     requestId: generateId(),
     transactions: [{ id: generateId(), spaceId, operations }],
   }
   await internalRequest(tokenV2, 'saveTransactions', payload)
-
   return { created: newBlockIds }
 }
 

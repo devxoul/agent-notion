@@ -396,6 +396,42 @@ describe('NotionBot E2E Tests', () => {
 
       await waitForRateLimit()
     }, 15000)
+
+    test('block append with nested markdown creates parent and child blocks', async () => {
+      // given
+      const markdown = '- Parent item\n  - Child item'
+
+      // when
+      const result = await runCLI([
+        'block', 'append', containerId,
+        '--markdown', markdown,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ results: Array<{ id: string; type: string; has_children: boolean }> }>(result.stdout)
+      expect(data?.results?.length).toBeGreaterThanOrEqual(1)
+
+      const parentBlock = data!.results[0]
+      testBlockIds.push(parentBlock.id)
+      expect(parentBlock.type).toBe('bulleted_list_item')
+      expect(parentBlock.has_children).toBe(true)
+
+      await waitForRateLimit()
+
+      // then - verify children exist
+      const childrenResult = await runCLI(['block', 'children', parentBlock.id])
+      expect(childrenResult.exitCode).toBe(0)
+
+      const children = parseJSON<{ results: Array<{ id: string; type: string }> }>(childrenResult.stdout)
+      expect(children?.results?.length).toBeGreaterThan(0)
+      expect(children?.results[0]?.type).toBe('bulleted_list_item')
+
+      for (const child of children?.results ?? []) {
+        testBlockIds.push(child.id)
+      }
+
+      await waitForRateLimit()
+    }, 30000)
   })
 
   // ── search ────────────────────────────────────────────────────────────

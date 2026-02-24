@@ -109,6 +109,7 @@ describe('Notion E2E Tests', () => {
 
       await waitForRateLimit()
     }, 15000)
+
   })
 
   // ── page ──────────────────────────────────────────────────────────────
@@ -217,6 +218,8 @@ describe('Notion E2E Tests', () => {
 
       await waitForRateLimit()
     }, 15000)
+
+
   })
 
   // ── database ──────────────────────────────────────────────────────────
@@ -1254,6 +1257,56 @@ describe('Notion E2E Tests', () => {
 
       await waitForRateLimit()
     }, 15000)
+
+    test('block append with nested markdown creates parent and child blocks', async () => {
+      // given
+      const markdown = '- Parent item\n  - Child item'
+
+      // when - append nested markdown
+      const result = await runNotionCLI([
+        'block', 'append',
+        '--workspace-id', workspaceId,
+        containerId,
+        '--markdown', markdown,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ created: string[] }>(result.stdout)
+      expect(data?.created?.length).toBe(1)  // only top-level IDs returned
+
+      const parentBlockId = data!.created[0]
+      testBlockIds.push(parentBlockId)
+      await waitForRateLimit()
+
+      // then - verify parent block exists
+      const parentResult = await runNotionCLI([
+        'block', 'get', '--workspace-id', workspaceId, parentBlockId,
+      ])
+      expect(parentResult.exitCode).toBe(0)
+
+      const parentBlock = parseJSON<{ id: string; type: string; content?: string[] }>(parentResult.stdout)
+      expect(parentBlock?.type).toBe('bulleted_list')
+      expect(parentBlock?.content?.length).toBeGreaterThan(0)  // has child content
+
+      await waitForRateLimit()
+
+      // then - verify child block exists under parent
+      const childrenResult = await runNotionCLI([
+        'block', 'children', '--workspace-id', workspaceId, parentBlockId,
+      ])
+      expect(childrenResult.exitCode).toBe(0)
+
+      const children = parseJSON<{ results: Array<{ id: string; type: string }> }>(childrenResult.stdout)
+      expect(children?.results?.length).toBeGreaterThan(0)
+      expect(children?.results[0]?.type).toBe('bulleted_list')
+
+      // cleanup: push child ids
+      for (const child of children?.results ?? []) {
+        testBlockIds.push(child.id)
+      }
+
+      await waitForRateLimit()
+    }, 30000)
   })
 
   // ── search ────────────────────────────────────────────────────────────
@@ -1270,6 +1323,8 @@ describe('Notion E2E Tests', () => {
 
       await waitForRateLimit()
     }, 15000)
+
+
   })
 
   // ── user ──────────────────────────────────────────────────────────────
@@ -1316,6 +1371,8 @@ describe('Notion E2E Tests', () => {
 
       await waitForRateLimit()
     }, 15000)
+
+
   })
 
   // ── batch ────────────────────────────────────────────────────────────
