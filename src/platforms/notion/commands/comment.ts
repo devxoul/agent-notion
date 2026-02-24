@@ -30,6 +30,7 @@ function getRecordValue(record: Record<string, unknown> | undefined): Record<str
 
 type ListOptions = CommandOptions & {
   page: string
+  block?: string
   workspaceId: string
 }
 
@@ -92,7 +93,15 @@ async function listAction(options: ListOptions): Promise<void> {
     const discussions = response.recordMap.discussion ?? {}
     const comments = response.recordMap.comment ?? {}
 
-    const result = formatDiscussionComments(discussions, comments, pageId, blocks)
+    let result = formatDiscussionComments(discussions, comments, pageId, blocks)
+    if (options.block) {
+      const blockId = formatNotionId(options.block)
+      result = {
+        results: result.results.filter((c) => c.parent_id === blockId),
+        total: 0,
+      }
+      result.total = result.results.length
+    }
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
     console.error(JSON.stringify({ error: (error as Error).message }))
@@ -293,8 +302,9 @@ export const commentCommand = new Command('comment')
   .description('Comment commands')
   .addCommand(
     new Command('list')
-      .description('List comments on a page')
+      .description('List comments on a page or block')
       .requiredOption('--page <page_id>', 'Page ID')
+      .option('--block <block_id>', 'Block ID (filter to inline comments on this block)')
       .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .option('--pretty', 'Pretty print JSON output')
       .action(listAction),

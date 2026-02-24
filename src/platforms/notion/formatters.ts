@@ -939,6 +939,7 @@ function extractCommentText(segments: unknown[]): string {
 type FormattedComment = {
   id: string
   discussion_id: string
+  parent_id: string
   text: string
   created_by: string
   created_time: number
@@ -954,6 +955,13 @@ export function formatDiscussionComments(
   results: FormattedComment[]
   total: number
 } {
+  const validParentIds = new Set<string>([pageId])
+  if (blocks) {
+    for (const blockId of Object.keys(blocks)) {
+      validParentIds.add(blockId)
+    }
+  }
+
   const results: FormattedComment[] = []
 
   for (const [discussionId, discussionRecord] of Object.entries(discussions)) {
@@ -961,7 +969,7 @@ export function formatDiscussionComments(
     if (!discussion) continue
 
     const parentId = toStringValue(discussion.parent_id)
-    if (parentId !== pageId) continue
+    if (!validParentIds.has(parentId)) continue
 
     const commentIds = toStringArray(discussion.comments)
     for (const commentId of commentIds) {
@@ -975,6 +983,7 @@ export function formatDiscussionComments(
       const entry: FormattedComment = {
         id: formatted.id,
         discussion_id: discussionId,
+        parent_id: parentId,
         text: formatted.text,
         created_by: formatted.created_by,
         created_time: formatted.created_time,
