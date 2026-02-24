@@ -775,6 +775,195 @@ describe('blockCommand', () => {
       )
     })
 
+    test('creates nested operations from markdown with sub-bullets', async () => {
+      // Given
+      let idCounter = 0
+      const mockInternalRequest = mock(() => Promise.resolve({}))
+      const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token', space_id: 'space-123' }))
+      const mockResolveSpaceId = mock(() => Promise.resolve('space-123'))
+      const mockGenerateId = mock(() => `block-${idCounter++}`)
+
+      mock.module('../client', () => ({
+        internalRequest: mockInternalRequest,
+      }))
+
+      mock.module('./helpers', () => ({
+        getCredentialsOrExit: mockGetCredentials,
+        generateId: mockGenerateId,
+        resolveSpaceId: mockResolveSpaceId,
+        resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
+        resolveBacklinkUsers: mock(async () => ({})),
+      }))
+
+      const { blockCommand } = await import('./block')
+      const output: string[] = []
+      const originalLog = console.log
+      console.log = (msg: string) => output.push(msg)
+
+      try {
+        // When
+        await blockCommand.parseAsync(
+          ['append', 'parent-1', '--workspace-id', 'space-123', '--markdown', '- Parent\n  - Child'],
+          { from: 'user' },
+        )
+      } catch {
+        // Expected to exit
+      }
+
+      console.log = originalLog
+
+      // Then
+      expect(output.length).toBeGreaterThan(0)
+      const result = JSON.parse(output[0])
+      expect(result.created).toBeDefined()
+      expect(result.created.length).toBe(1)
+
+      const saveCall = mockInternalRequest.mock.calls.find((call) => (call as any[])[1] === 'saveTransactions') as
+        | [unknown, unknown, { transactions: Array<{ operations: any[] }> }]
+        | undefined
+      expect(saveCall).toBeDefined()
+      const operations = saveCall?.[2].transactions[0]?.operations
+      expect(operations).toBeDefined()
+      const ops = operations!
+      expect(ops.length).toBe(4)
+
+      // Parent: set + listAfter
+      expect(ops[0].command).toBe('set')
+      expect(ops[0].args.type).toBe('bulleted_list')
+      expect(ops[1].command).toBe('listAfter')
+
+      // Child: set + listAfter with parent_id pointing to parent block
+      expect(ops[2].command).toBe('set')
+      expect(ops[2].args.type).toBe('bulleted_list')
+      expect(ops[2].args.parent_id).toBe(ops[0].args.id)
+      expect(ops[3].command).toBe('listAfter')
+      expect(ops[3].pointer.id).toBe(ops[0].args.id)
+    })
+
+    test('parses JSON content with nested children', async () => {
+      // Given
+      let idCounter = 0
+      const mockInternalRequest = mock(() => Promise.resolve({}))
+      const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token', space_id: 'space-123' }))
+      const mockResolveSpaceId = mock(() => Promise.resolve('space-123'))
+      const mockGenerateId = mock(() => `block-${idCounter++}`)
+
+      mock.module('../client', () => ({
+        internalRequest: mockInternalRequest,
+      }))
+
+      mock.module('./helpers', () => ({
+        getCredentialsOrExit: mockGetCredentials,
+        generateId: mockGenerateId,
+        resolveSpaceId: mockResolveSpaceId,
+        resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
+        resolveBacklinkUsers: mock(async () => ({})),
+      }))
+
+      const content = JSON.stringify([
+        {
+          type: 'bulleted_list',
+          properties: { title: [['Parent']] },
+          children: [{ type: 'bulleted_list', properties: { title: [['Child']] } }],
+        },
+      ])
+
+      const { blockCommand } = await import('./block')
+      const output: string[] = []
+      const originalLog = console.log
+      console.log = (msg: string) => output.push(msg)
+
+      try {
+        // When
+        await blockCommand.parseAsync(['append', 'parent-1', '--workspace-id', 'space-123', '--content', content], {
+          from: 'user',
+        })
+      } catch {
+        // Expected to exit
+      }
+
+      console.log = originalLog
+
+      // Then
+      expect(output.length).toBeGreaterThan(0)
+      const result = JSON.parse(output[0])
+      expect(result.created.length).toBe(1)
+
+      const saveCall = mockInternalRequest.mock.calls.find((call) => (call as any[])[1] === 'saveTransactions') as
+        | [unknown, unknown, { transactions: Array<{ operations: any[] }> }]
+        | undefined
+      expect(saveCall).toBeDefined()
+      const operations = saveCall?.[2].transactions[0]?.operations
+      expect(operations).toBeDefined()
+      const ops = operations!
+      expect(ops.length).toBe(4)
+
+      expect(ops[0].command).toBe('set')
+      expect(ops[0].args.type).toBe('bulleted_list')
+      expect(ops[2].command).toBe('set')
+      expect(ops[2].args.type).toBe('bulleted_list')
+      expect(ops[2].args.parent_id).toBe(ops[0].args.id)
+    })
+
+    test('errors when children is not an array in JSON content', async () => {
+      // Given
+      const mockInternalRequest = mock(() => Promise.resolve({}))
+      const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token', space_id: 'space-123' }))
+      const mockResolveSpaceId = mock(() => Promise.resolve('space-123'))
+      const mockGenerateId = mock(() => 'mock-uuid')
+
+      mock.module('../client', () => ({
+        internalRequest: mockInternalRequest,
+      }))
+
+      mock.module('./helpers', () => ({
+        getCredentialsOrExit: mockGetCredentials,
+        generateId: mockGenerateId,
+        resolveSpaceId: mockResolveSpaceId,
+        resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
+        resolveBacklinkUsers: mock(async () => ({})),
+      }))
+
+      const { blockCommand } = await import('./block')
+      const errors: string[] = []
+      const originalError = console.error
+      console.error = (msg: string) => errors.push(msg)
+
+      const mockExit = mock(() => {
+        throw new Error('process.exit called')
+      })
+      const originalExit = process.exit
+      process.exit = mockExit as any
+
+      try {
+        // When
+        await blockCommand.parseAsync(
+          [
+            'append',
+            'parent-1',
+            '--workspace-id',
+            'space-123',
+            '--content',
+            JSON.stringify([{ type: 'text', children: 'not-an-array' }]),
+          ],
+          { from: 'user' },
+        )
+      } catch {
+        // Expected
+      }
+
+      console.error = originalError
+      process.exit = originalExit
+
+      // Then
+      expect(errors.length).toBeGreaterThan(0)
+      const errorMsg = JSON.parse(errors[0])
+      expect(errorMsg.error).toContain('children must be an array')
+    })
+
     test('creates blocks from markdown file', async () => {
       // Given
       const mockInternalRequest = mock(() => Promise.resolve({}))
