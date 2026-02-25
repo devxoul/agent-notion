@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { internalRequest } from '@/platforms/notion/client'
+import { getActiveUserId, internalRequest } from '@/platforms/notion/client'
 import { formatCommentValue, formatDiscussionComments } from '@/platforms/notion/formatters'
 import { formatNotionId } from '@/shared/utils/id'
 import { formatOutput } from '@/shared/utils/output'
@@ -148,6 +148,8 @@ export async function handleCommentCreate(
                 comments: [commentId],
                 resolved: false,
                 space_id: spaceId,
+                created_by_id: getActiveUserId(),
+                created_by_table: 'notion_user',
               },
             },
             {
@@ -162,6 +164,10 @@ export async function handleCommentCreate(
                 text: [[args.text]],
                 alive: true,
                 space_id: spaceId,
+                created_by_id: getActiveUserId(),
+                created_by_table: 'notion_user',
+                created_time: Date.now(),
+                last_edited_time: Date.now(),
               },
             },
             {
@@ -221,6 +227,10 @@ export async function handleCommentCreate(
                 text: [[args.text]],
                 alive: true,
                 space_id: spaceId,
+                created_by_id: getActiveUserId(),
+                created_by_table: 'notion_user',
+                created_time: Date.now(),
+                last_edited_time: Date.now(),
               },
             },
             {
