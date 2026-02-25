@@ -7,18 +7,23 @@ import { formatOutput } from '@/shared/utils/output'
 
 async function listAction(options: {
   page?: string
+  block?: string
   pageSize?: number
   startCursor?: string
   pretty?: boolean
 }): Promise<void> {
   try {
-    if (!options.page) {
-      throw new Error('--page is required for listing comments')
+    if (!options.page && !options.block) {
+      throw new Error('--page or --block is required for listing comments')
+    }
+    if (options.page && options.block) {
+      throw new Error('Cannot specify both --page and --block')
     }
 
+    const blockId = options.block ?? options.page!
     const client = getClient()
     const result = await client.comments.list({
-      block_id: formatNotionId(options.page),
+      block_id: formatNotionId(blockId),
       page_size: options.pageSize,
       start_cursor: options.startCursor,
     })
@@ -99,8 +104,9 @@ export const commentCommand = new Command('comment')
   .description('Comment commands')
   .addCommand(
     new Command('list')
-      .description('List comments on a page')
-      .requiredOption('--page <page_id>', 'Page ID')
+      .description('List comments on a page or block')
+      .option('--page <page_id>', 'Page ID')
+      .option('--block <block_id>', 'Block ID (for inline comments)')
       .option('--page-size <n>', 'Number of results per page', (val) => parseInt(val, 10))
       .option('--start-cursor <cursor>', 'Pagination cursor')
       .option('--pretty', 'Pretty print JSON output')

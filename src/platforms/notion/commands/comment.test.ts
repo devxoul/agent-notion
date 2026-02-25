@@ -533,4 +533,283 @@ describe('CommentCommands', () => {
     const errorMsg = JSON.parse(errorOutput[0])
     expect(errorMsg.error).toBe('Comment not found')
   })
+
+  test('comment list includes inline (block-level) comments', async () => {
+    const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string, body: any) => {
+      if (endpoint === 'loadPageChunk') {
+        expect(body.pageId).toBe('page-123')
+        return {
+          cursor: { stack: [] },
+          recordMap: {
+            block: {
+              'page-123': {
+                value: {
+                  value: {
+                    id: 'page-123',
+                    type: 'page',
+                    content: ['block-1'],
+                  },
+                  role: 'editor',
+                },
+              },
+              'block-1': {
+                value: {
+                  value: {
+                    id: 'block-1',
+                    type: 'text',
+                    properties: { title: [['Hello world']] },
+                  },
+                  role: 'editor',
+                },
+              },
+            },
+            discussion: {
+              'disc-page': {
+                value: {
+                  value: {
+                    id: 'disc-page',
+                    parent_id: 'page-123',
+                    parent_table: 'block',
+                    comments: ['comment-page'],
+                    resolved: false,
+                    space_id: 'space-1',
+                  },
+                  role: 'editor',
+                },
+              },
+              'disc-inline': {
+                value: {
+                  value: {
+                    id: 'disc-inline',
+                    parent_id: 'block-1',
+                    parent_table: 'block',
+                    comments: ['comment-inline'],
+                    resolved: false,
+                    space_id: 'space-1',
+                  },
+                  role: 'editor',
+                },
+              },
+            },
+            comment: {
+              'comment-page': {
+                value: {
+                  value: {
+                    id: 'comment-page',
+                    text: [['Page-level comment']],
+                    parent_id: 'disc-page',
+                    parent_table: 'discussion',
+                    created_by_id: 'user-1',
+                    created_time: 1704067200000,
+                    alive: true,
+                    space_id: 'space-1',
+                  },
+                  role: 'editor',
+                },
+              },
+              'comment-inline': {
+                value: {
+                  value: {
+                    id: 'comment-inline',
+                    text: [['Inline block comment']],
+                    parent_id: 'disc-inline',
+                    parent_table: 'discussion',
+                    created_by_id: 'user-2',
+                    created_time: 1704067200000,
+                    alive: true,
+                    space_id: 'space-1',
+                  },
+                  role: 'editor',
+                },
+              },
+            },
+          },
+        }
+      }
+    })
+
+    const mockGetCredentials = mock(async () => ({
+      token_v2: 'test-token',
+    }))
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+      setActiveUserId: mock(),
+      getActiveUserId: mock(),
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mock(() => 'mock-uuid'),
+      resolveSpaceId: mock(async () => 'space-mock'),
+      resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    const { commentCommand } = await import('./comment')
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      await commentCommand.parseAsync(['list', '--page', 'page-123', '--workspace-id', 'space-123'], {
+        from: 'user',
+      })
+    } catch {
+      // Expected to exit
+    }
+
+    console.log = originalLog
+
+    expect(output.length).toBeGreaterThan(0)
+    const result = JSON.parse(output[0])
+    expect(result.results).toBeDefined()
+    expect(result.results.length).toBe(2)
+    expect(result.total).toBe(2)
+
+    const pageComment = result.results.find((c: any) => c.id === 'comment-page')
+    expect(pageComment).toBeDefined()
+    expect(pageComment.text).toBe('Page-level comment')
+    expect(pageComment.parent_id).toBe('page-123')
+
+    const inlineComment = result.results.find((c: any) => c.id === 'comment-inline')
+    expect(inlineComment).toBeDefined()
+    expect(inlineComment.text).toBe('Inline block comment')
+    expect(inlineComment.parent_id).toBe('block-1')
+  })
+
+  test('comment list with --block filters to specific block', async () => {
+    const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string, _body: any) => {
+      if (endpoint === 'loadPageChunk') {
+        return {
+          cursor: { stack: [] },
+          recordMap: {
+            block: {
+              'page-123': {
+                value: {
+                  value: {
+                    id: 'page-123',
+                    type: 'page',
+                    content: ['block-1'],
+                  },
+                  role: 'editor',
+                },
+              },
+              'block-1': {
+                value: {
+                  value: {
+                    id: 'block-1',
+                    type: 'text',
+                  },
+                  role: 'editor',
+                },
+              },
+            },
+            discussion: {
+              'disc-page': {
+                value: {
+                  value: {
+                    id: 'disc-page',
+                    parent_id: 'page-123',
+                    parent_table: 'block',
+                    comments: ['comment-page'],
+                    resolved: false,
+                    space_id: 'space-1',
+                  },
+                  role: 'editor',
+                },
+              },
+              'disc-inline': {
+                value: {
+                  value: {
+                    id: 'disc-inline',
+                    parent_id: 'block-1',
+                    parent_table: 'block',
+                    comments: ['comment-inline'],
+                    resolved: false,
+                    space_id: 'space-1',
+                  },
+                  role: 'editor',
+                },
+              },
+            },
+            comment: {
+              'comment-page': {
+                value: {
+                  value: {
+                    id: 'comment-page',
+                    text: [['Page comment']],
+                    parent_id: 'disc-page',
+                    parent_table: 'discussion',
+                    created_by_id: 'user-1',
+                    created_time: 1704067200000,
+                    alive: true,
+                    space_id: 'space-1',
+                  },
+                  role: 'editor',
+                },
+              },
+              'comment-inline': {
+                value: {
+                  value: {
+                    id: 'comment-inline',
+                    text: [['Inline comment']],
+                    parent_id: 'disc-inline',
+                    parent_table: 'discussion',
+                    created_by_id: 'user-2',
+                    created_time: 1704067200000,
+                    alive: true,
+                    space_id: 'space-1',
+                  },
+                  role: 'editor',
+                },
+              },
+            },
+          },
+        }
+      }
+    })
+
+    const mockGetCredentials = mock(async () => ({
+      token_v2: 'test-token',
+    }))
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+      setActiveUserId: mock(),
+      getActiveUserId: mock(),
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mock(() => 'mock-uuid'),
+      resolveSpaceId: mock(async () => 'space-mock'),
+      resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    const { commentCommand } = await import('./comment')
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      await commentCommand.parseAsync(
+        ['list', '--page', 'page-123', '--block', 'block-1', '--workspace-id', 'space-123'],
+        { from: 'user' },
+      )
+    } catch {
+      // Expected to exit
+    }
+
+    console.log = originalLog
+
+    expect(output.length).toBeGreaterThan(0)
+    const result = JSON.parse(output[0])
+    expect(result.results.length).toBe(1)
+    expect(result.results[0].id).toBe('comment-inline')
+    expect(result.results[0].parent_id).toBe('block-1')
+  })
 })
