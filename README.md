@@ -20,6 +20,11 @@ A full-coverage, agent-friendly CLI for the Notion API. Ships two CLIs — `vibe
 - [Quick Start](#-quick-start)
 - [Command Overview](#-command-overview)
 - [Use Cases](#-use-cases)
+  - [Research & Discovery](#research--discovery)
+  - [Project Tracking](#project-tracking)
+  - [Creating & Writing](#creating--writing)
+  - [Automation & Pipelines](#automation--pipelines)
+  - [...and More](#and-more)
 - [Philosophy](#-philosophy)
 - [Contributing](#-contributing)
 - [License](#-license)
@@ -93,16 +98,13 @@ Add to your `opencode.jsonc`:
 ### `vibe-notion` (Private API — act as yourself)
 
 ```bash
-# 1. Extract token_v2 from Notion desktop app
-vibe-notion auth extract
-
-# 2. List your workspaces
+# 1. List your workspaces
 vibe-notion workspace list --pretty
 
-# 3. Search for something
+# 2. Search for something
 vibe-notion search "Roadmap" --workspace-id <workspace-id> --pretty
 
-# 4. Get page details
+# 3. Get page details
 vibe-notion page get <page-id> --workspace-id <workspace-id> --pretty
 ```
 
@@ -155,21 +157,65 @@ vibe-notionbot page get <page-id> --pretty
 
 ## 💡 Use Cases
 
-**🤖 For AI Agents**
-- Give Claude, GPT, or your custom agent the ability to manage Notion content
-- Automate documentation and project tracking
-- Build knowledge base integrations with simple CLI commands
+### Research & Discovery
 
-**👩‍💻 For Developers**
-- Quick Notion operations from terminal
-- Scripted page creation and database querying
-- Workspace data extraction for debugging
+Pull context from Notion before you start working — no tab-switching, no skimming.
 
-**👥 For Teams**
-- Automate report generation in Notion
-- Sync data from other tools to Notion databases
-- Build custom notification and logging pipelines
+> "Gather all context from the BUG-1234 page — read the description, comments, and any linked pages so I can start fixing it."
 
+> "Search our Engineering Wiki for any existing discussion about rate limiting before I write a new proposal."
+
+> "Look up our Onboarding Guide page and answer: what's the process for requesting AWS access?"
+
+> "Search across all workspaces for any page mentioning 'API deprecation' so I know if this was discussed before."
+
+> "Read the API Design Principles page and the REST Conventions page, then tell me if our current approach violates any of them."
+
+### Project Tracking
+
+Let your agent check, update, and clean up project boards without leaving your editor.
+
+> "Query the Sprint 24 database and tell me which tasks are still in progress or blocked."
+
+> "Update the status of task INFRA-42 in the Sprint database to Done and set the completed date to today."
+
+> "Find all tasks in the Q1 Roadmap database with status Done and archive them."
+
+> "List everything assigned to me across the Backend and Infrastructure databases that's due this week."
+
+> "Move all P0 bugs from the Triage database to the Sprint 25 database and set their status to To Do."
+
+### Creating & Writing
+
+Create pages, file reports, and post updates — all from a prompt.
+
+> "Create a meeting notes page under the Team Meetings database with today's date, attendees, and an empty agenda section."
+
+> "I found a crash in production. Create a bug report page in the Bug Tracker database with this stack trace, set priority to P1, and assign it to me."
+
+> "Post a comment on the Project Alpha page summarizing what the team shipped today."
+
+> "Write an RFC page in the Engineering Proposals database with the title 'Migrate to gRPC' and scaffold the Problem, Proposal, Alternatives, and Open Questions sections."
+
+> "Add a new row to the Interview Scorecard database for the candidate I just talked to, with my notes and a Strong Hire recommendation."
+
+### Automation & Pipelines
+
+Wire Notion into your CI, scripts, or agent workflows as a read/write layer.
+
+> "A new user just signed up. Add a row to the Leads database with their name, email, and source."
+
+> "Append today's deploy results to the Deploy Log page — include the commit hash, status, and timestamp."
+
+> "Read the content of the v2.3 Release page and draft a changelog from it."
+
+> "Every time a GitHub issue is labeled 'needs-design', create a page in the Design Requests database with the issue title, link, and reporter."
+
+> "Query the On-Call Schedule database for this week's rotation and post the name in our Slack channel."
+
+### ...and More
+
+These are just starting points. Your agent has full read/write access to Notion — the real limit is your creativity. If you build something amazing with Vibe Notion, [let me know](https://x.com/devxoul)!
 ## 🧠 Philosophy
 
 **Why not MCP?** MCP servers expose all tools at once, bloating context and confusing agents. **[Agent Skills](https://agentskills.io/) + agent-friendly CLI** offer a better approach—load what you need, when you need it. Fewer tokens, cleaner context, better output.
