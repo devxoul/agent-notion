@@ -29,6 +29,16 @@ const mockChildrenList = mock(() =>
   Promise.resolve({ results: [{ id: 'child-1' }], has_more: false, next_cursor: null } as any),
 )
 const mockAppendBlockChildren = mock(() => Promise.resolve([{ results: [] }] as any))
+const mockUploadFile = mock(() =>
+  Promise.resolve({
+    id: 'uploaded-block-1',
+    type: 'image' as const,
+    url: 'https://www.notion.so/file-uploads/upload-123',
+  }),
+)
+const mockPreprocessMarkdownImages = mock(
+  (markdown: string, _uploadFn: (filePath: string) => Promise<string>, _basePath: string) => Promise.resolve(markdown),
+)
 
 mock.module('../client', () => ({
   getClient: () => ({
@@ -50,6 +60,14 @@ mock.module('@/shared/markdown/read-input', () => ({
     if (options.markdownFile) return '# File content'
     throw new Error('No markdown provided')
   },
+}))
+
+mock.module('@/platforms/notionbot/upload', () => ({
+  uploadFile: mockUploadFile,
+}))
+
+mock.module('@/shared/markdown/preprocess-images', () => ({
+  preprocessMarkdownImages: mockPreprocessMarkdownImages,
 }))
 
 const { blockCommand } = await import('./block')
@@ -79,6 +97,19 @@ describe('block commands', () => {
     mockBlockDelete.mockReset()
     mockChildrenList.mockReset()
     mockAppendBlockChildren.mockReset()
+    mockUploadFile.mockReset()
+    mockUploadFile.mockImplementation(() =>
+      Promise.resolve({
+        id: 'uploaded-block-1',
+        type: 'image' as const,
+        url: 'https://www.notion.so/file-uploads/upload-123',
+      }),
+    )
+    mockPreprocessMarkdownImages.mockReset()
+    mockPreprocessMarkdownImages.mockImplementation(
+      (markdown: string, _uploadFn: (filePath: string) => Promise<string>, _basePath: string) =>
+        Promise.resolve(markdown),
+    )
   })
 
   afterEach(() => {
@@ -246,6 +277,48 @@ describe('block commands', () => {
     expect(output.results[0].id).toBe('new-block-1')
   })
 
+  test('append with --markdown preprocesses markdown without images unchanged', async () => {
+    // Given
+    mockAppendBlockChildren.mockResolvedValue([
+      { results: [{ id: 'new-block-1', type: 'heading_1', has_children: false }] },
+    ] as any)
+
+    // When
+    await blockCommand.parseAsync(['append', 'parent-456', '--markdown', '# Hello'], {
+      from: 'user',
+    })
+
+    // Then
+    expect(mockPreprocessMarkdownImages).toHaveBeenCalledWith('# Hello', expect.any(Function), process.cwd())
+    expect(mockUploadFile).not.toHaveBeenCalled()
+  })
+
+  test('append with --markdown uses upload wrapper during preprocessing', async () => {
+    // Given
+    mockPreprocessMarkdownImages.mockImplementation(
+      async (markdown: string, uploadFn: (filePath: string) => Promise<string>, _basePath: string) => {
+        const uploadedUrl = await uploadFn('/tmp/local-image.png')
+        return markdown.replace('/tmp/local-image.png', uploadedUrl)
+      },
+    )
+    mockAppendBlockChildren.mockResolvedValue([
+      { results: [{ id: 'new-block-1', type: 'image', has_children: false }] },
+    ] as any)
+
+    // When
+    await blockCommand.parseAsync(['append', 'parent-456', '--markdown', '![local](/tmp/local-image.png)'], {
+      from: 'user',
+    })
+
+    // Then
+    expect(mockPreprocessMarkdownImages).toHaveBeenCalledWith(
+      '![local](/tmp/local-image.png)',
+      expect.any(Function),
+      process.cwd(),
+    )
+    expect(mockUploadFile).toHaveBeenCalledWith(expect.anything(), 'parent-456', '/tmp/local-image.png')
+  })
+
   test('append with --markdown-file reads and converts markdown file', async () => {
     // Given
     const resultBlock = { id: 'new-block-2', type: 'paragraph', has_children: false }
@@ -346,5 +419,40 @@ describe('block commands', () => {
     // Then
     const allOutput = [...consoleOutput, ...consoleErrors].join('\n')
     expect(allOutput).toContain('Not found')
+  })
+
+  test('upload calls uploadFile and outputs result', async () => {
+    // Given
+    mockUploadFile.mockResolvedValue({
+      id: 'uploaded-block-1',
+      type: 'image',
+      url: 'https://www.notion.so/file-uploads/upload-123',
+    })
+
+    // When
+    await blockCommand.parseAsync(['upload', 'parent-123', '--file', './test.png'], { from: 'user' })
+
+    // Then
+    expect(mockUploadFile).toHaveBeenCalledWith(expect.anything(), 'parent-123', './test.png')
+    const output = JSON.parse(consoleOutput[0])
+    expect(output.id).toBe('uploaded-block-1')
+    expect(output.type).toBe('image')
+    expect(output.url).toContain('file-uploads')
+  })
+
+  test('upload handles errors', async () => {
+    // Given
+    mockUploadFile.mockRejectedValue(new Error('Upload failed'))
+
+    // When
+    try {
+      await blockCommand.parseAsync(['upload', 'parent-123', '--file', './bad.png'], { from: 'user' })
+    } catch {
+      // handleError calls process.exit which our mock throws
+    }
+
+    // Then
+    const allOutput = [...consoleOutput, ...consoleErrors].join('\n')
+    expect(allOutput).toContain('Upload failed')
   })
 })
