@@ -10,7 +10,7 @@ export class NotionClient {
     if (!token) {
       throw new Error('NOTION_TOKEN is required. Create an integration at https://www.notion.so/profile/integrations')
     }
-    this.sdk = new Client({ auth: token, notionVersion: '2022-06-28' })
+    this.sdk = new Client({ auth: token, notionVersion: '2025-09-03' })
   }
 
   get pages() {
@@ -44,6 +44,10 @@ export class NotionClient {
 
   get comments() {
     return this.sdk.comments
+  }
+
+  get fileUploads() {
+    return this.sdk.fileUploads
   }
 
   async appendBlockChildren(blockId: string, children: BlockObjectRequest[]): Promise<AppendBlockChildrenResponse[]> {

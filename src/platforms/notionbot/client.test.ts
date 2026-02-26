@@ -38,6 +38,12 @@ const mockComments = {
   retrieve: mock(() => Promise.resolve({})),
 }
 
+const mockFileUploads = {
+  create: mock(() => Promise.resolve({ id: 'file_upload_123' })),
+  send: mock(() => Promise.resolve({})),
+  complete: mock(() => Promise.resolve({})),
+}
+
 const mockSearch = mock(() => Promise.resolve({ results: [] }))
 
 function createMockSDK() {
@@ -47,12 +53,13 @@ function createMockSDK() {
     databases: mockDatabases,
     users: mockUsers,
     comments: mockComments,
+    fileUploads: mockFileUploads,
     search: mockSearch,
   } as unknown as NotionSDK
 }
 
 function resetMocks() {
-  for (const group of [mockBlocks, mockPages, mockDatabases, mockUsers, mockComments]) {
+  for (const group of [mockBlocks, mockPages, mockDatabases, mockUsers, mockComments, mockFileUploads]) {
     for (const val of Object.values(group)) {
       if (typeof val === 'object' && val !== null) {
         for (const fn of Object.values(val)) {
@@ -83,7 +90,7 @@ describe('NotionClient', () => {
   })
 
   describe('exposed SDK methods', () => {
-    test('exposes pages, databases, blocks, users, search, comments', () => {
+    test('exposes pages, databases, blocks, users, search, comments, fileUploads', () => {
       // Given
       const client = new NotionClient('ntn_test123')
 
@@ -94,6 +101,17 @@ describe('NotionClient', () => {
       expect(client.users).toBeDefined()
       expect(client.search).toBeDefined()
       expect(client.comments).toBeDefined()
+      expect(client.fileUploads).toBeDefined()
+    })
+
+    test('fileUploads has create, send, complete methods', () => {
+      // Given
+      const client = new NotionClient('ntn_test123')
+
+      // Then
+      expect(client.fileUploads.create).toBeDefined()
+      expect(client.fileUploads.send).toBeDefined()
+      expect(client.fileUploads.complete).toBeDefined()
     })
   })
 
