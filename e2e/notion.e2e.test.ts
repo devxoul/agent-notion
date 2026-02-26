@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { runNotionCLI, parseJSON, generateTestId, waitForRateLimit } from './helpers'
-import { NOTION_E2E_PAGE_ID, validateNotionEnvironment } from './config'
+import { validateNotionEnvironment } from './config'
 
 let containerId = ''
 let containerTitle = ''
@@ -26,8 +26,6 @@ describe('Notion E2E Tests', () => {
       'create',
       '--workspace-id',
       workspaceId,
-      '--parent',
-      NOTION_E2E_PAGE_ID,
       '--title',
       containerTitle,
     ])
@@ -72,27 +70,6 @@ describe('Notion E2E Tests', () => {
       } catch {}
     }
 
-    try {
-      const result = await runNotionCLI(['block', 'children', '--workspace-id', workspaceId, NOTION_E2E_PAGE_ID])
-      const data = parseJSON<{
-        results: Array<{ id: string; type: string; text: string }>
-      }>(result.stdout)
-
-      if (data?.results) {
-        for (const block of data.results) {
-          const createdThisRun =
-            block.id === containerId
-            || block.text.includes(containerTitle)
-
-          if (createdThisRun) {
-            await runNotionCLI(['block', 'delete', '--workspace-id', workspaceId, block.id])
-            await waitForRateLimit()
-          }
-        }
-      }
-
-      await waitForRateLimit()
-    } catch {}
   }, 60000)
 
   // ── auth ──────────────────────────────────────────────────────────────
@@ -219,7 +196,100 @@ describe('Notion E2E Tests', () => {
       await waitForRateLimit()
     }, 15000)
 
+    test('page create with --markdown creates page with content blocks', async () => {
+      const testId = generateTestId()
+      const result = await runNotionCLI([
+        'page',
+        'create',
+        '--workspace-id',
+        workspaceId,
+        '--parent',
+        containerId,
+        '--title',
+        `e2e-markdown-${testId}`,
+        '--markdown',
+        '# Heading\n\nParagraph text',
+      ])
+      expect(result.exitCode).toBe(0)
 
+      const data = parseJSON<{ id: string; type: string }>(result.stdout)
+      expect(data?.id).toBeTruthy()
+      expect(data?.type).toBe('page')
+
+      const markdownPageId = data!.id
+      testPageIds.push(markdownPageId)
+      await waitForRateLimit()
+
+      // Verify blocks were created from markdown
+      const childrenResult = await runNotionCLI([
+        'block',
+        'children',
+        '--workspace-id',
+        workspaceId,
+        markdownPageId,
+      ])
+      expect(childrenResult.exitCode).toBe(0)
+
+      const children = parseJSON<{ results: unknown[]; has_more: boolean }>(childrenResult.stdout)
+      expect(Array.isArray(children?.results)).toBe(true)
+      expect((children?.results?.length ?? 0)).toBeGreaterThan(0)
+
+      await waitForRateLimit()
+    }, 30000)
+
+
+  })
+
+  // ── root page ────────────────────────────────────────────────────────
+
+  describe('root page', () => {
+    let rootPageId = ''
+
+    test('page create without --parent creates a root page', async () => {
+      const testId = generateTestId()
+      const result = await runNotionCLI([
+        'page',
+        'create',
+        '--workspace-id',
+        workspaceId,
+        '--title',
+        `e2e-root-${testId}`,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ id: string; type: string }>(result.stdout)
+      expect(data?.id).toBeTruthy()
+      expect(data?.type).toBe('page')
+
+      rootPageId = data!.id
+      testPageIds.push(rootPageId)
+      await waitForRateLimit()
+    }, 15000)
+
+    test('page get retrieves the root page', async () => {
+      expect(rootPageId).toBeTruthy()
+
+      const result = await runNotionCLI(['page', 'get', '--workspace-id', workspaceId, rootPageId])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ id: string }>(result.stdout)
+      expect(data?.id).toBe(rootPageId)
+
+      await waitForRateLimit()
+    }, 15000)
+
+    test('page archive archives the root page', async () => {
+      expect(rootPageId).toBeTruthy()
+
+      const result = await runNotionCLI(['page', 'archive', '--workspace-id', workspaceId, rootPageId])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ archived: boolean; id: string }>(result.stdout)
+      expect(data?.archived).toBe(true)
+      expect(data?.id).toBe(rootPageId)
+
+      await waitForRateLimit()
+    }, 15000)
   })
 
   // ── database ──────────────────────────────────────────────────────────
@@ -1325,6 +1395,98 @@ describe('Notion E2E Tests', () => {
     }, 15000)
 
 
+  })
+
+  // ── comment ──────────────────────────────────────────────────────────
+
+  describe('comment', () => {
+    let commentPageId = ''
+    let createdCommentId = ''
+
+    beforeAll(async () => {
+      await waitForRateLimit(2000)
+      const testId = generateTestId()
+      const result = await runNotionCLI([
+        'page',
+        'create',
+        '--workspace-id',
+        workspaceId,
+        '--parent',
+        containerId,
+        '--title',
+        `e2e-comment-page-${testId}`,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ id: string }>(result.stdout)
+      expect(data?.id).toBeTruthy()
+      commentPageId = data!.id
+      testPageIds.push(commentPageId)
+      await waitForRateLimit()
+    }, 30000)
+
+    test('comment create adds a comment to a page', async () => {
+      expect(commentPageId).toBeTruthy()
+
+      const testId = generateTestId()
+      const result = await runNotionCLI([
+        'comment',
+        'create',
+        `e2e-comment-${testId}`,
+        '--page',
+        commentPageId,
+        '--workspace-id',
+        workspaceId,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ id: string; discussion_id: string; text: string }>(result.stdout)
+      expect(data?.id).toBeTruthy()
+      expect(data?.discussion_id).toBeTruthy()
+      expect(data?.text).toContain('e2e-comment')
+
+      createdCommentId = data!.id
+      await waitForRateLimit()
+    }, 15000)
+
+    test('comment list returns comments on the page', async () => {
+      expect(commentPageId).toBeTruthy()
+
+      const result = await runNotionCLI([
+        'comment',
+        'list',
+        '--page',
+        commentPageId,
+        '--workspace-id',
+        workspaceId,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ results: Array<{ id: string; text: string }>; total: number }>(result.stdout)
+      expect(Array.isArray(data?.results)).toBe(true)
+      expect((data?.results?.length ?? 0)).toBeGreaterThan(0)
+
+      await waitForRateLimit()
+    }, 15000)
+
+    test('comment get retrieves a specific comment', async () => {
+      expect(createdCommentId).toBeTruthy()
+
+      const result = await runNotionCLI([
+        'comment',
+        'get',
+        createdCommentId,
+        '--workspace-id',
+        workspaceId,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ id: string; text: string; discussion_id: string }>(result.stdout)
+      expect(data?.id).toBe(createdCommentId)
+      expect(data?.text).toBeTruthy()
+
+      await waitForRateLimit()
+    }, 15000)
   })
 
   // ── user ──────────────────────────────────────────────────────────────
