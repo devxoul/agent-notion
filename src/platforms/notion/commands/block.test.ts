@@ -787,6 +787,87 @@ describe('blockCommand', () => {
       )
     })
 
+    test('preprocesses markdown images before converting blocks', async () => {
+      // Given
+      const mockInternalRequest = mock(() => Promise.resolve({}))
+      const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token', space_id: 'space-123' }))
+      const mockResolveSpaceId = mock(() => Promise.resolve('space-123'))
+      const mockGenerateId = mock(() => 'new-block-id')
+      const mockPreprocessMarkdownImages = mock(async (markdown: string) => markdown)
+
+      mock.module('../client', () => ({
+        internalRequest: mockInternalRequest,
+      }))
+
+      mock.module('./helpers', () => ({
+        getCredentialsOrExit: mockGetCredentials,
+        generateId: mockGenerateId,
+        resolveSpaceId: mockResolveSpaceId,
+        resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
+        resolveBacklinkUsers: mock(async () => ({})),
+        resolveDefaultTeamId: mock(async () => undefined),
+      }))
+
+      mock.module('@/shared/markdown/preprocess-images', () => ({
+        preprocessMarkdownImages: mockPreprocessMarkdownImages,
+      }))
+
+      const { blockCommand } = await import('./block')
+
+      // When
+      await blockCommand.parseAsync(
+        ['append', 'parent-1', '--workspace-id', 'space-123', '--markdown', '![Local](./images/cat.png)'],
+        { from: 'user' },
+      )
+
+      // Then
+      expect(mockPreprocessMarkdownImages).toHaveBeenCalledTimes(1)
+      expect(mockPreprocessMarkdownImages).toHaveBeenCalledWith(
+        '![Local](./images/cat.png)',
+        expect.any(Function),
+        process.cwd(),
+      )
+    })
+
+    test('skips markdown image preprocessing when markdown has no images', async () => {
+      // Given
+      const mockInternalRequest = mock(() => Promise.resolve({}))
+      const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token', space_id: 'space-123' }))
+      const mockResolveSpaceId = mock(() => Promise.resolve('space-123'))
+      const mockGenerateId = mock(() => 'new-block-id')
+      const mockPreprocessMarkdownImages = mock(async () => '# Should not be called')
+
+      mock.module('../client', () => ({
+        internalRequest: mockInternalRequest,
+      }))
+
+      mock.module('./helpers', () => ({
+        getCredentialsOrExit: mockGetCredentials,
+        generateId: mockGenerateId,
+        resolveSpaceId: mockResolveSpaceId,
+        resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
+        resolveBacklinkUsers: mock(async () => ({})),
+        resolveDefaultTeamId: mock(async () => undefined),
+      }))
+
+      mock.module('@/shared/markdown/preprocess-images', () => ({
+        preprocessMarkdownImages: mockPreprocessMarkdownImages,
+      }))
+
+      const { blockCommand } = await import('./block')
+
+      // When
+      await blockCommand.parseAsync(
+        ['append', 'parent-1', '--workspace-id', 'space-123', '--markdown', '# No images here'],
+        { from: 'user' },
+      )
+
+      // Then
+      expect(mockPreprocessMarkdownImages).not.toHaveBeenCalled()
+    })
+
     test('creates nested operations from markdown with sub-bullets', async () => {
       // Given
       let idCounter = 0
@@ -1548,6 +1629,111 @@ describe('blockCommand', () => {
       expect(errors.length).toBeGreaterThan(0)
       const errorMsg = JSON.parse(errors[0])
       expect(errorMsg.error).toContain('parent_id')
+    })
+  })
+
+  describe('block upload', () => {
+    test('uploads file and outputs result', async () => {
+      // Given
+      const mockUploadFile = mock(() =>
+        Promise.resolve({ id: 'file-block-1', type: 'image', url: 'https://s3.us-west-2.amazonaws.com/file.png' }),
+      )
+      const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token', space_id: 'space-123' }))
+      const mockResolveSpaceId = mock(() => Promise.resolve('space-123'))
+      const mockResolveAndSetActiveUserId = mock(() => Promise.resolve())
+
+      mock.module('../client', () => ({
+        internalRequest: mock(() => Promise.resolve({})),
+      }))
+
+      mock.module('./helpers', () => ({
+        getCredentialsOrExit: mockGetCredentials,
+        generateId: mock(() => 'mock-uuid'),
+        resolveSpaceId: mockResolveSpaceId,
+        resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mockResolveAndSetActiveUserId,
+        resolveBacklinkUsers: mock(async () => ({})),
+        resolveDefaultTeamId: mock(async () => undefined),
+      }))
+
+      mock.module('@/platforms/notion/upload', () => ({
+        uploadFile: mockUploadFile,
+      }))
+
+      const { blockCommand } = await import('./block')
+      const output: string[] = []
+      const originalLog = console.log
+      console.log = (msg: string) => output.push(msg)
+
+      try {
+        // When
+        await blockCommand.parseAsync(['upload', 'parent-123', '--workspace-id', 'ws-123', '--file', './test.png'], {
+          from: 'user',
+        })
+      } catch {
+        // Expected to exit
+      }
+
+      console.log = originalLog
+
+      // Then
+      expect(output.length).toBeGreaterThan(0)
+      const result = JSON.parse(output[0])
+      expect(result.id).toBe('file-block-1')
+      expect(result.type).toBe('image')
+      expect(result.url).toBe('https://s3.us-west-2.amazonaws.com/file.png')
+      expect(mockResolveAndSetActiveUserId).toHaveBeenCalledWith('test-token', 'ws-123')
+      expect(mockResolveSpaceId).toHaveBeenCalledWith('test-token', expect.any(String))
+      expect(mockUploadFile).toHaveBeenCalledWith('test-token', expect.any(String), './test.png', 'space-123')
+    })
+
+    test('errors when --file is missing', async () => {
+      // Given
+      mock.module('../client', () => ({
+        internalRequest: mock(() => Promise.resolve({})),
+      }))
+
+      mock.module('./helpers', () => ({
+        getCredentialsOrExit: mock(() => Promise.resolve({ token_v2: 'test-token' })),
+        generateId: mock(() => 'mock-uuid'),
+        resolveSpaceId: mock(() => Promise.resolve('space-123')),
+        resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
+        resolveBacklinkUsers: mock(async () => ({})),
+        resolveDefaultTeamId: mock(async () => undefined),
+      }))
+
+      mock.module('@/platforms/notion/upload', () => ({
+        uploadFile: mock(() => Promise.resolve({})),
+      }))
+
+      const { blockCommand } = await import('./block')
+      const stderrOutput: string[] = []
+      const originalWrite = process.stderr.write
+      process.stderr.write = ((chunk: any) => {
+        stderrOutput.push(String(chunk))
+        return true
+      }) as any
+
+      const mockExit = mock(() => {
+        throw new Error('process.exit called')
+      })
+      const originalExit = process.exit
+      process.exit = mockExit as any
+
+      try {
+        // When
+        await blockCommand.parseAsync(['upload', 'parent-123', '--workspace-id', 'ws-123'], { from: 'user' })
+      } catch {
+        // Expected
+      }
+
+      process.stderr.write = originalWrite
+      process.exit = originalExit
+
+      // Then
+      expect(mockExit).toHaveBeenCalled()
+      expect(stderrOutput.some((s) => s.includes('--file'))).toBe(true)
     })
   })
 })

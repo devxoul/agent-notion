@@ -1,6 +1,9 @@
+import path from 'node:path'
 import { Command } from 'commander'
 import { internalRequest } from '@/platforms/notion/client'
 import { formatBacklinks, formatBlockChildren, formatBlockValue } from '@/platforms/notion/formatters'
+import { uploadFile } from '@/platforms/notion/upload'
+import { preprocessMarkdownImages } from '@/shared/markdown/preprocess-images'
 import { readMarkdownInput } from '@/shared/markdown/read-input'
 import { markdownToBlocks } from '@/shared/markdown/to-notion-internal'
 import { formatNotionId } from '@/shared/utils/id'
@@ -93,6 +96,8 @@ type BlockDefinition = {
   properties?: Record<string, unknown>
   children?: BlockDefinition[]
 }
+
+const LOCAL_MARKDOWN_IMAGE_PATTERN = /!\[[^\]]*\]\((?![^)]+:\/\/)[^)]+\)/
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error'
@@ -299,7 +304,17 @@ export async function handleBlockAppend(
   let defs: BlockDefinition[]
 
   if (hasMarkdown) {
-    const markdown = readMarkdownInput({ markdown: args.markdown, markdownFile: args.markdownFile })
+    const rawMarkdown = readMarkdownInput({ markdown: args.markdown, markdownFile: args.markdownFile })
+    const basePath = args.markdownFile ? path.dirname(path.resolve(args.markdownFile)) : process.cwd()
+    const uploadFn = async (filePath: string): Promise<string> => {
+      await resolveAndSetActiveUserId(tokenV2, args.workspaceId)
+      const spaceId = await resolveSpaceId(tokenV2, parentId)
+      const result = await uploadFile(tokenV2, parentId, filePath, spaceId)
+      return result.url
+    }
+    const markdown = LOCAL_MARKDOWN_IMAGE_PATTERN.test(rawMarkdown)
+      ? await preprocessMarkdownImages(rawMarkdown, uploadFn, basePath)
+      : rawMarkdown
     defs = markdownToBlocks(markdown)
   } else {
     defs = parseBlockDefinitions(args.content!)
@@ -455,6 +470,23 @@ async function deleteAction(rawBlockId: string, options: WorkspaceOptions): Prom
   }
 }
 
+async function uploadAction(
+  rawParentId: string,
+  options: { file: string; workspaceId: string; pretty?: boolean },
+): Promise<void> {
+  try {
+    const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
+    const parentId = formatNotionId(rawParentId)
+    const spaceId = await resolveSpaceId(creds.token_v2, parentId)
+    const result = await uploadFile(creds.token_v2, parentId, options.file, spaceId)
+    console.log(formatOutput(result, options.pretty))
+  } catch (error) {
+    console.error(JSON.stringify({ error: getErrorMessage(error) }))
+    process.exit(1)
+  }
+}
+
 export const blockCommand = new Command('block')
   .description('Block commands')
   .addCommand(
@@ -503,4 +535,13 @@ export const blockCommand = new Command('block')
       .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .option('--pretty', 'Pretty print JSON output')
       .action(deleteAction),
+  )
+  .addCommand(
+    new Command('upload')
+      .description('Upload a file as a block')
+      .argument('<parent_id>', 'Parent block ID')
+      .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
+      .requiredOption('--file <path>', 'Path to file to upload')
+      .option('--pretty', 'Pretty print JSON output')
+      .action(uploadAction),
   )
