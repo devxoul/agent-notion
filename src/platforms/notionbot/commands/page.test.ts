@@ -7,6 +7,16 @@ const mockPagePropertyRetrieve = mock(() => Promise.resolve({}))
 const mockAppendBlockChildren = mock(() => Promise.resolve([{ results: [] }] as any))
 const mockBlockChildrenList = mock(() => Promise.resolve({ results: [], has_more: false, next_cursor: null }))
 const mockBlockDelete = mock(() => Promise.resolve({}))
+const mockUploadFile = mock(() =>
+  Promise.resolve({
+    id: 'uploaded-block-1',
+    type: 'image' as const,
+    url: 'https://www.notion.so/file-uploads/upload-123',
+  }),
+)
+const mockPreprocessMarkdownImages = mock(
+  (markdown: string, _uploadFn: (filePath: string) => Promise<string>, _basePath: string) => Promise.resolve(markdown),
+)
 
 mock.module('../client', () => ({
   getClient: () => ({
@@ -22,6 +32,14 @@ mock.module('../client', () => ({
     },
     appendBlockChildren: mockAppendBlockChildren,
   }),
+}))
+
+mock.module('@/platforms/notionbot/upload', () => ({
+  uploadFile: mockUploadFile,
+}))
+
+mock.module('@/shared/markdown/preprocess-images', () => ({
+  preprocessMarkdownImages: mockPreprocessMarkdownImages,
 }))
 
 const { pageCommand } = await import('./page')
@@ -53,6 +71,19 @@ describe('page commands', () => {
     mockAppendBlockChildren.mockReset()
     mockBlockChildrenList.mockReset()
     mockBlockDelete.mockReset()
+    mockUploadFile.mockReset()
+    mockUploadFile.mockImplementation(() =>
+      Promise.resolve({
+        id: 'uploaded-block-1',
+        type: 'image' as const,
+        url: 'https://www.notion.so/file-uploads/upload-123',
+      }),
+    )
+    mockPreprocessMarkdownImages.mockReset()
+    mockPreprocessMarkdownImages.mockImplementation(
+      (markdown: string, _uploadFn: (filePath: string) => Promise<string>, _basePath: string) =>
+        Promise.resolve(markdown),
+    )
   })
 
   afterEach(() => {
@@ -195,10 +226,55 @@ describe('page commands', () => {
           title: { title: [{ text: { content: 'Page with Markdown' } }] },
         },
       })
+      expect(mockPreprocessMarkdownImages).toHaveBeenCalledWith('# Hello\n\nWorld', expect.any(Function), process.cwd())
+      expect(mockUploadFile).not.toHaveBeenCalled()
       expect(mockAppendBlockChildren).toHaveBeenCalled()
       const output = JSON.parse(consoleOutput[0])
       expect(output.id).toBe('new-page-md')
       expect(output.title).toBe('Page with Markdown')
+    })
+
+    test('create markdown preprocessing can upload local images', async () => {
+      // Given
+      mockPageCreate.mockResolvedValue({
+        id: 'new-page-md',
+        object: 'page',
+        url: 'https://notion.so/new-page-md',
+        archived: false,
+        last_edited_time: '2024-01-01T00:00:00.000Z',
+        parent: { type: 'page_id', page_id: 'parent-123' },
+        properties: {
+          title: { id: 'title', type: 'title', title: [{ plain_text: 'Page with Markdown' }] },
+        },
+      })
+      mockPreprocessMarkdownImages.mockImplementation(
+        async (markdown: string, uploadFn: (filePath: string) => Promise<string>, _basePath: string) => {
+          const uploadedUrl = await uploadFn('/tmp/local-image.png')
+          return markdown.replace('/tmp/local-image.png', uploadedUrl)
+        },
+      )
+
+      // When
+      await pageCommand.parseAsync(
+        [
+          'create',
+          '--parent',
+          'parent-123',
+          '--title',
+          'Page with Markdown',
+          '--markdown',
+          '![local](/tmp/local-image.png)',
+        ],
+        { from: 'user' },
+      )
+
+      // Then
+      expect(mockPreprocessMarkdownImages).toHaveBeenCalledWith(
+        '![local](/tmp/local-image.png)',
+        expect.any(Function),
+        process.cwd(),
+      )
+      expect(mockUploadFile).toHaveBeenCalledWith(expect.anything(), 'new-page-md', '/tmp/local-image.png')
     })
   })
 
@@ -307,9 +383,53 @@ describe('page commands', () => {
       expect(mockBlockDelete).toHaveBeenCalledTimes(2)
       expect(mockBlockDelete).toHaveBeenCalledWith({ block_id: 'old-block-1' })
       expect(mockBlockDelete).toHaveBeenCalledWith({ block_id: 'old-block-2' })
+      expect(mockPreprocessMarkdownImages).toHaveBeenCalledWith('# New Content', expect.any(Function), process.cwd())
+      expect(mockUploadFile).not.toHaveBeenCalled()
       expect(mockAppendBlockChildren).toHaveBeenCalled()
       const output = JSON.parse(consoleOutput[0])
       expect(output.id).toBe('page-123')
+    })
+
+    test('replace-content preprocessing can upload local images', async () => {
+      // Given
+      mockBlockChildrenList.mockResolvedValue({
+        results: [],
+        has_more: false,
+        next_cursor: null,
+      } as any)
+      mockPageRetrieve.mockResolvedValue({
+        id: 'page-123',
+        object: 'page',
+        url: 'https://notion.so/page-123',
+        archived: false,
+        last_edited_time: '2024-01-01T00:00:00.000Z',
+        parent: { type: 'page_id', page_id: 'parent-1' },
+        properties: {
+          Name: { id: 'title', type: 'title', title: [{ plain_text: 'Test Page' }] },
+        },
+      })
+      mockPreprocessMarkdownImages.mockImplementation(
+        async (markdown: string, uploadFn: (filePath: string) => Promise<string>, _basePath: string) => {
+          const uploadedUrl = await uploadFn('/tmp/local-image.png')
+          return markdown.replace('/tmp/local-image.png', uploadedUrl)
+        },
+      )
+
+      // When
+      await pageCommand.parseAsync(
+        ['update', 'page-123', '--replace-content', '--markdown', '![local](/tmp/local-image.png)'],
+        {
+          from: 'user',
+        },
+      )
+
+      // Then
+      expect(mockPreprocessMarkdownImages).toHaveBeenCalledWith(
+        '![local](/tmp/local-image.png)',
+        expect.any(Function),
+        process.cwd(),
+      )
+      expect(mockUploadFile).toHaveBeenCalledWith(expect.anything(), 'page-123', '/tmp/local-image.png')
     })
 
     test('replace-content without --markdown errors', async () => {

@@ -1,6 +1,9 @@
+import path from 'node:path'
 import { Command } from 'commander'
 import { getClient } from '@/platforms/notionbot/client'
 import { formatPage } from '@/platforms/notionbot/formatters'
+import { uploadFile } from '@/platforms/notionbot/upload'
+import { preprocessMarkdownImages } from '@/shared/markdown/preprocess-images'
 import { readMarkdownInput } from '@/shared/markdown/read-input'
 import { markdownToOfficialBlocks } from '@/shared/markdown/to-notion-official'
 import { handleError } from '@/shared/utils/error-handler'
@@ -115,7 +118,13 @@ export async function handlePageCreate(
   })
 
   if (args.markdown || args.markdownFile) {
-    const markdown = readMarkdownInput({ markdown: args.markdown, markdownFile: args.markdownFile })
+    const rawMarkdown = readMarkdownInput({ markdown: args.markdown, markdownFile: args.markdownFile })
+    const basePath = args.markdownFile ? path.dirname(path.resolve(args.markdownFile)) : process.cwd()
+    const uploadFn = async (filePath: string): Promise<string> => {
+      const result = await uploadFile(client, page.id, filePath)
+      return result.url
+    }
+    const markdown = await preprocessMarkdownImages(rawMarkdown, uploadFn, basePath)
     const blocks = markdownToOfficialBlocks(markdown)
     if (blocks.length > 0) {
       await client.appendBlockChildren(page.id, blocks)
@@ -155,7 +164,13 @@ export async function handlePageUpdate(
       throw new Error('--replace-content requires --markdown or --markdown-file')
     }
 
-    const md = readMarkdownInput({ markdown: args.markdown, markdownFile: args.markdownFile })
+    const rawMarkdown = readMarkdownInput({ markdown: args.markdown, markdownFile: args.markdownFile })
+    const basePath = args.markdownFile ? path.dirname(path.resolve(args.markdownFile)) : process.cwd()
+    const uploadFn = async (filePath: string): Promise<string> => {
+      const result = await uploadFile(client, pageId, filePath)
+      return result.url
+    }
+    const md = await preprocessMarkdownImages(rawMarkdown, uploadFn, basePath)
     const newBlocks = markdownToOfficialBlocks(md)
 
     let cursor: string | undefined
