@@ -22,6 +22,16 @@ type BatchCommandOptions = {
   pretty?: boolean
 }
 
+type BatchDeps = {
+  actionRegistry: ActionRegistry<NotionBotHandler>
+  getClientOrThrow: () => unknown
+  validateOperations: (ops: unknown[], actions: string[]) => void
+  normalizeOperationArgs: (op: BatchOperation) => Record<string, unknown>
+  readFileSync: (path: string, encoding: string) => string
+  log: (...args: unknown[]) => void
+  exit: (code?: number) => never | undefined
+}
+
 export const NOTIONBOT_ACTION_REGISTRY: ActionRegistry<NotionBotHandler> = {
   'page.create': (client, args) => handlePageCreate(client, args as Parameters<typeof handlePageCreate>[1]),
   'page.update': (client, args) => handlePageUpdate(client, args as Parameters<typeof handlePageUpdate>[1]),
@@ -36,12 +46,26 @@ export const NOTIONBOT_ACTION_REGISTRY: ActionRegistry<NotionBotHandler> = {
     handleDatabaseDeleteProperty(client, args as Parameters<typeof handleDatabaseDeleteProperty>[1]),
 }
 
-function parseOperations(operationsArg?: string, file?: string): BatchOperation[] {
+const defaultDeps: BatchDeps = {
+  actionRegistry: NOTIONBOT_ACTION_REGISTRY,
+  getClientOrThrow,
+  validateOperations,
+  normalizeOperationArgs,
+  readFileSync: (path: string, encoding: string) => readFileSync(path, encoding as BufferEncoding),
+  log: (...args: unknown[]) => console.log(...args),
+  exit: (code?: number) => process.exit(code),
+}
+
+function parseOperations(
+  operationsArg: string | undefined,
+  file: string | undefined,
+  deps: BatchDeps,
+): BatchOperation[] {
   if (!file && !operationsArg) {
     throw new Error('Either provide operations JSON as argument or use --file <path>')
   }
 
-  const raw = file ? readFileSync(file, 'utf8') : operationsArg!
+  const raw = file ? deps.readFileSync(file, 'utf8') : operationsArg!
   const parsed = JSON.parse(raw) as unknown
 
   if (!Array.isArray(parsed)) {
@@ -59,18 +83,23 @@ function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-export async function executeBatch(operationsArg: string | undefined, options: BatchCommandOptions): Promise<void> {
-  const operations = parseOperations(operationsArg, options.file)
-  validateOperations(operations, Object.keys(NOTIONBOT_ACTION_REGISTRY))
+export async function executeBatch(
+  operationsArg: string | undefined,
+  options: BatchCommandOptions,
+  overrideDeps?: Partial<BatchDeps>,
+): Promise<void> {
+  const deps = { ...defaultDeps, ...overrideDeps }
+  const operations = parseOperations(operationsArg, options.file, deps)
+  deps.validateOperations(operations, Object.keys(deps.actionRegistry))
 
-  const client = getClientOrThrow()
+  const client = deps.getClientOrThrow()
   const results: BatchResult[] = []
   let failed = false
 
   for (let index = 0; index < operations.length; index++) {
     const operation = operations[index]
     const action = operation.action
-    const handler = NOTIONBOT_ACTION_REGISTRY[action]
+    const handler = deps.actionRegistry[action]
 
     if (!handler) {
       results.push({
@@ -84,7 +113,7 @@ export async function executeBatch(operationsArg: string | undefined, options: B
     }
 
     try {
-      const data = await handler(client, normalizeOperationArgs(operation))
+      const data = await handler(client, deps.normalizeOperationArgs(operation))
       results.push({ index, action, success: true, data })
     } catch (error) {
       results.push({
@@ -105,8 +134,8 @@ export async function executeBatch(operationsArg: string | undefined, options: B
     failed: results.filter((result) => !result.success).length,
   }
 
-  console.log(formatOutput(output, options.pretty))
-  process.exit(failed ? 1 : 0)
+  deps.log(formatOutput(output, options.pretty))
+  deps.exit(failed ? 1 : 0)
 }
 
 export const batchCommand = new Command('batch')

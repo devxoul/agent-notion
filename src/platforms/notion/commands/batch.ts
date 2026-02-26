@@ -28,6 +28,17 @@ type BatchCommandOptions = {
   pretty?: boolean
 }
 
+type BatchDeps = {
+  actionRegistry: ActionRegistry<NotionHandler>
+  getCredentialsOrThrow: () => Promise<{ token_v2: string }>
+  resolveAndSetActiveUserId: (token: string, workspaceId: string) => Promise<void>
+  validateOperations: (ops: unknown[], actions: string[]) => void
+  normalizeOperationArgs: (op: BatchOperation) => Record<string, unknown>
+  readFileSync: (path: string, encoding: string) => string
+  log: (...args: unknown[]) => void
+  exit: (code?: number) => never | undefined
+}
+
 export const NOTION_ACTION_REGISTRY: ActionRegistry<NotionHandler> = {
   'page.create': (tokenV2, args) => handlePageCreate(tokenV2, args as Parameters<typeof handlePageCreate>[1]),
   'page.update': (tokenV2, args) => handlePageUpdate(tokenV2, args as Parameters<typeof handlePageUpdate>[1]),
@@ -48,12 +59,38 @@ export const NOTION_ACTION_REGISTRY: ActionRegistry<NotionHandler> = {
     handleDatabaseUpdateRow(tokenV2, args as Parameters<typeof handleDatabaseUpdateRow>[1]),
 }
 
-function parseOperations(operationsArg?: string, file?: string): BatchOperation[] {
+const defaultDeps: BatchDeps = {
+  actionRegistry: NOTION_ACTION_REGISTRY,
+  getCredentialsOrThrow: async () => {
+    const fn = helpers.getCredentialsOrThrow ?? helpers.getCredentialsOrExit
+    if (!fn) {
+      throw new Error('getCredentialsOrThrow is not available')
+    }
+    return fn()
+  },
+  resolveAndSetActiveUserId: async (token: string, workspaceId: string) => {
+    if (!helpers.resolveAndSetActiveUserId) {
+      throw new Error('resolveAndSetActiveUserId is not available')
+    }
+    await helpers.resolveAndSetActiveUserId(token, workspaceId)
+  },
+  validateOperations,
+  normalizeOperationArgs,
+  readFileSync: (path: string, encoding: string) => readFileSync(path, encoding as BufferEncoding),
+  log: (...args: unknown[]) => console.log(...args),
+  exit: (code?: number) => process.exit(code),
+}
+
+function parseOperations(
+  operationsArg: string | undefined,
+  file: string | undefined,
+  deps: BatchDeps,
+): BatchOperation[] {
   if (!file && !operationsArg) {
     throw new Error('Either provide operations JSON as argument or use --file <path>')
   }
 
-  const raw = file ? readFileSync(file, 'utf8') : operationsArg!
+  const raw = file ? deps.readFileSync(file, 'utf8') : operationsArg!
   const parsed = JSON.parse(raw) as unknown
 
   if (!Array.isArray(parsed)) {
@@ -71,21 +108,17 @@ function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-export async function executeBatch(operationsArg: string | undefined, options: BatchCommandOptions): Promise<void> {
-  const operations = parseOperations(operationsArg, options.file)
-  validateOperations(operations, Object.keys(NOTION_ACTION_REGISTRY))
+export async function executeBatch(
+  operationsArg: string | undefined,
+  options: BatchCommandOptions,
+  overrideDeps?: Partial<BatchDeps>,
+): Promise<void> {
+  const deps = { ...defaultDeps, ...overrideDeps }
+  const operations = parseOperations(operationsArg, options.file, deps)
+  deps.validateOperations(operations, Object.keys(deps.actionRegistry))
 
-  const getCredentialsOrThrow = helpers.getCredentialsOrThrow ?? helpers.getCredentialsOrExit
-  const resolveAndSetActiveUserId = helpers.resolveAndSetActiveUserId
-  if (!getCredentialsOrThrow) {
-    throw new Error('getCredentialsOrThrow is not available')
-  }
-  if (!resolveAndSetActiveUserId) {
-    throw new Error('resolveAndSetActiveUserId is not available')
-  }
-
-  const creds = await getCredentialsOrThrow()
-  await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
+  const creds = await deps.getCredentialsOrThrow()
+  await deps.resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
 
   const results: BatchResult[] = []
   let failed = false
@@ -93,7 +126,7 @@ export async function executeBatch(operationsArg: string | undefined, options: B
   for (let index = 0; index < operations.length; index++) {
     const operation = operations[index]
     const action = operation.action
-    const handler = NOTION_ACTION_REGISTRY[action]
+    const handler = deps.actionRegistry[action]
 
     if (!handler) {
       results.push({
@@ -107,7 +140,7 @@ export async function executeBatch(operationsArg: string | undefined, options: B
     }
 
     try {
-      const args = { ...normalizeOperationArgs(operation), workspaceId: options.workspaceId }
+      const args = { ...deps.normalizeOperationArgs(operation), workspaceId: options.workspaceId }
       const data = await handler(creds.token_v2, args)
       results.push({ index, action, success: true, data })
     } catch (error) {
@@ -129,8 +162,8 @@ export async function executeBatch(operationsArg: string | undefined, options: B
     failed: results.filter((result) => !result.success).length,
   }
 
-  console.log(formatOutput(output, options.pretty))
-  process.exit(failed ? 1 : 0)
+  deps.log(formatOutput(output, options.pretty))
+  deps.exit(failed ? 1 : 0)
 }
 
 export const batchCommand = new Command('batch')
