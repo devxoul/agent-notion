@@ -184,8 +184,10 @@ vibe-notion page get <page_id> --workspace-id <workspace_id> --pretty
 vibe-notion page get <page_id> --workspace-id <workspace_id> --limit 50
 vibe-notion page get <page_id> --workspace-id <workspace_id> --backlinks --pretty
 
-# Create a new page under a parent
+# Create a new page (--parent is optional; omit to create at workspace root)
 vibe-notion page create --workspace-id <workspace_id> --parent <parent_id> --title "My Page" --pretty
+vibe-notion page create --workspace-id <workspace_id> --title "New Root Page" --pretty
+
 
 # Create a page with markdown content
 vibe-notion page create --workspace-id <workspace_id> --parent <parent_id> --title "My Doc" --markdown '# Hello\n\nThis is **bold** text.'

@@ -1233,4 +1233,303 @@ describe('PageCommand', () => {
     expect(output.length).toBeGreaterThan(0)
     expect(saveTransactionsCalls).toBe(2)
   })
+
+  test('page create without --parent creates root page at workspace root', async () => {
+    const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string, body: any) => {
+      if (endpoint === 'saveTransactions') {
+        expect(body.transactions[0].operations.length).toBe(2)
+        expect(body.transactions[0].operations[0].command).toBe('set')
+        expect(body.transactions[0].operations[0].args.type).toBe('page')
+        expect(body.transactions[0].operations[0].args.parent_table).toBe('space')
+        expect(body.transactions[0].operations[0].args.parent_id).toBe('space-123')
+        expect(body.transactions[0].operations[1].command).toBe('listAfter')
+        expect(body.transactions[0].operations[1].pointer.table).toBe('space')
+        expect(body.transactions[0].operations[1].path).toEqual(['pages'])
+        return {}
+      }
+      if (endpoint === 'syncRecordValues') {
+        return {
+          recordMap: {
+            block: {
+              'uuid-1': {
+                value: {
+                  id: 'uuid-1',
+                  type: 'page',
+                  parent_id: 'space-123',
+                  parent_table: 'space',
+                  space_id: 'space-123',
+                  properties: {
+                    title: [['Root Page']],
+                  },
+                },
+                role: 'editor',
+              },
+            },
+          },
+        }
+      }
+      return {}
+    })
+
+    const mockGetCredentials = mock(async () => ({
+      token_v2: 'test-token',
+    }))
+
+    const mockGenerateId = mock(() => 'uuid-1')
+
+    const mockResolveSpaceId = mock(async () => 'space-123')
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mockGenerateId,
+      resolveSpaceId: mockResolveSpaceId,
+      resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    const { pageCommand } = await import('./page')
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      await pageCommand.parseAsync(['create', '--workspace-id', 'space-123', '--title', 'Root Page'], { from: 'user' })
+    } catch {
+      // Expected to exit
+    }
+
+    console.log = originalLog
+
+    expect(output.length).toBeGreaterThan(0)
+    const result = JSON.parse(output[0])
+    expect(result.id).toBe('uuid-1')
+  })
+
+  test('page create with --parent creates child page in parent block', async () => {
+    const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string, body: any) => {
+      if (endpoint === 'saveTransactions') {
+        expect(body.transactions[0].operations.length).toBe(2)
+        expect(body.transactions[0].operations[0].command).toBe('set')
+        expect(body.transactions[0].operations[0].args.type).toBe('page')
+        expect(body.transactions[0].operations[0].args.parent_table).toBe('block')
+        expect(body.transactions[0].operations[0].args.parent_id).toBe('parent-page')
+        expect(body.transactions[0].operations[1].command).toBe('listAfter')
+        expect(body.transactions[0].operations[1].pointer.table).toBe('block')
+        expect(body.transactions[0].operations[1].path).toEqual(['content'])
+        return {}
+      }
+      if (endpoint === 'syncRecordValues') {
+        return {
+          recordMap: {
+            block: {
+              'uuid-1': {
+                value: {
+                  id: 'uuid-1',
+                  type: 'page',
+                  parent_id: 'parent-page',
+                  parent_table: 'block',
+                  space_id: 'space-123',
+                  properties: {
+                    title: [['Child Page']],
+                  },
+                },
+                role: 'editor',
+              },
+            },
+          },
+        }
+      }
+      return {}
+    })
+
+    const mockGetCredentials = mock(async () => ({
+      token_v2: 'test-token',
+    }))
+
+    const mockGenerateId = mock(() => 'uuid-1')
+
+    const mockResolveSpaceId = mock(async () => 'space-123')
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mockGenerateId,
+      resolveSpaceId: mockResolveSpaceId,
+      resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    const { pageCommand } = await import('./page')
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      await pageCommand.parseAsync(
+        ['create', '--workspace-id', 'space-123', '--parent', 'parent-page', '--title', 'Child Page'],
+        { from: 'user' },
+      )
+    } catch {
+      // Expected to exit
+    }
+
+    console.log = originalLog
+
+    expect(output.length).toBeGreaterThan(0)
+    const result = JSON.parse(output[0])
+    expect(result.id).toBe('uuid-1')
+  })
+
+  test('page archive for root page removes from space pages', async () => {
+    const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string, body: any) => {
+      if (endpoint === 'syncRecordValues') {
+        return {
+          recordMap: {
+            block: {
+              'page-1': {
+                value: {
+                  id: 'page-1',
+                  type: 'page',
+                  parent_id: 'space-123',
+                  parent_table: 'space',
+                  space_id: 'space-123',
+                  alive: true,
+                },
+                role: 'editor',
+              },
+            },
+          },
+        }
+      }
+      if (endpoint === 'saveTransactions') {
+        expect(body.transactions[0].operations.length).toBe(2)
+        expect(body.transactions[0].operations[0].command).toBe('update')
+        expect(body.transactions[0].operations[0].args.alive).toBe(false)
+        expect(body.transactions[0].operations[1].command).toBe('listRemove')
+        expect(body.transactions[0].operations[1].pointer.table).toBe('space')
+        expect(body.transactions[0].operations[1].path).toEqual(['pages'])
+        return {}
+      }
+      return {}
+    })
+
+    const mockGetCredentials = mock(async () => ({
+      token_v2: 'test-token',
+    }))
+
+    const mockGenerateId = mock(() => 'uuid-1')
+
+    const mockResolveSpaceId = mock(async () => 'space-123')
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mockGenerateId,
+      resolveSpaceId: mockResolveSpaceId,
+      resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    const { pageCommand } = await import('./page')
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      await pageCommand.parseAsync(['archive', 'page-1', '--workspace-id', 'space-123'], { from: 'user' })
+    } catch {
+      // Expected to exit
+    }
+
+    console.log = originalLog
+
+    expect(output.length).toBeGreaterThan(0)
+    const result = JSON.parse(output[0])
+    expect(result.archived).toBe(true)
+  })
+
+  test('page archive for child page removes from block content', async () => {
+    const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string, body: any) => {
+      if (endpoint === 'syncRecordValues') {
+        return {
+          recordMap: {
+            block: {
+              'page-1': {
+                value: {
+                  id: 'page-1',
+                  type: 'page',
+                  parent_id: 'parent-page',
+                  parent_table: 'block',
+                  space_id: 'space-123',
+                  alive: true,
+                },
+                role: 'editor',
+              },
+            },
+          },
+        }
+      }
+      if (endpoint === 'saveTransactions') {
+        expect(body.transactions[0].operations.length).toBe(2)
+        expect(body.transactions[0].operations[0].command).toBe('update')
+        expect(body.transactions[0].operations[0].args.alive).toBe(false)
+        expect(body.transactions[0].operations[1].command).toBe('listRemove')
+        expect(body.transactions[0].operations[1].pointer.table).toBe('block')
+        expect(body.transactions[0].operations[1].path).toEqual(['content'])
+        return {}
+      }
+      return {}
+    })
+
+    const mockGetCredentials = mock(async () => ({
+      token_v2: 'test-token',
+    }))
+
+    const mockGenerateId = mock(() => 'uuid-1')
+
+    const mockResolveSpaceId = mock(async () => 'space-123')
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mockGetCredentials,
+      generateId: mockGenerateId,
+      resolveSpaceId: mockResolveSpaceId,
+      resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+    }))
+
+    const { pageCommand } = await import('./page')
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      await pageCommand.parseAsync(['archive', 'page-1', '--workspace-id', 'space-123'], { from: 'user' })
+    } catch {
+      // Expected to exit
+    }
+
+    console.log = originalLog
+
+    expect(output.length).toBeGreaterThan(0)
+    const result = JSON.parse(output[0])
+    expect(result.archived).toBe(true)
+  })
 })

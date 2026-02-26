@@ -17,7 +17,7 @@ import {
 type WorkspaceOptions = CommandOptions & { workspaceId: string }
 type ListPageOptions = WorkspaceOptions & { depth?: string }
 type LoadPageChunkOptions = WorkspaceOptions & { limit?: string; backlinks?: boolean }
-type CreatePageOptions = WorkspaceOptions & { parent: string; title: string; markdown?: string; markdownFile?: string }
+type CreatePageOptions = WorkspaceOptions & { parent?: string; title: string; markdown?: string; markdownFile?: string }
 type UpdatePageOptions = WorkspaceOptions & {
   title?: string
   icon?: string
@@ -55,7 +55,7 @@ type SyncRecordValuesResponse = {
 
 type Operation = {
   pointer: {
-    table: 'block' | 'collection'
+    table: 'block' | 'collection' | 'space'
     id: string
     spaceId: string
   }
@@ -219,12 +219,34 @@ async function getAction(rawPageId: string, options: LoadPageChunkOptions): Prom
 
 export async function handlePageCreate(
   tokenV2: string,
-  args: { parent: string; title: string; markdown?: string; markdownFile?: string; workspaceId: string },
+  args: { parent?: string; title: string; markdown?: string; markdownFile?: string; workspaceId: string },
 ): Promise<unknown> {
-  const parent = formatNotionId(args.parent)
   await resolveAndSetActiveUserId(tokenV2, args.workspaceId)
-  const spaceId = await resolveSpaceId(tokenV2, parent)
   const newPageId = generateId()
+  const isRootPage = !args.parent
+
+  let spaceId: string
+  let parentId: string
+  let parentTable: 'block' | 'space'
+  let listAfterPath: string[]
+  let listAfterTable: 'block' | 'space'
+
+  if (isRootPage) {
+    // Root page: parent is the workspace (space)
+    spaceId = args.workspaceId
+    parentId = args.workspaceId
+    parentTable = 'space'
+    listAfterPath = ['pages']
+    listAfterTable = 'space'
+  } else {
+    // Child page: parent is a block
+    const parent = formatNotionId(args.parent!)
+    spaceId = await resolveSpaceId(tokenV2, parent)
+    parentId = parent
+    parentTable = 'block'
+    listAfterPath = ['content']
+    listAfterTable = 'block'
+  }
 
   const operations: Operation[] = [
     {
@@ -235,17 +257,17 @@ export async function handlePageCreate(
         type: 'page',
         id: newPageId,
         version: 1,
-        parent_id: parent,
-        parent_table: 'block',
+        parent_id: parentId,
+        parent_table: parentTable,
         alive: true,
         properties: { title: [[args.title]] },
         space_id: spaceId,
       },
     },
     {
-      pointer: { table: 'block', id: parent, spaceId },
+      pointer: { table: listAfterTable, id: parentId, spaceId },
       command: 'listAfter',
-      path: ['content'],
+      path: listAfterPath,
       args: { id: newPageId },
     },
   ]
@@ -505,10 +527,26 @@ export async function handlePageArchive(
   const pageBlock = pickBlock(pageResponse, pageId)
   const parentId = pageBlock?.value.parent_id
   const spaceId = pageBlock?.value.space_id
+  const parentTable = pageBlock?.value.parent_table as string | undefined
 
   if (!parentId || !spaceId) {
     throw new Error(`Could not determine parent_id or space_id for page: ${pageId}`)
   }
+
+  const listRemoveOp: Operation =
+    parentTable === 'space'
+      ? {
+          pointer: { table: 'space', id: parentId, spaceId },
+          command: 'listRemove',
+          path: ['pages'],
+          args: { id: pageId },
+        }
+      : {
+          pointer: { table: 'block', id: parentId, spaceId },
+          command: 'listRemove',
+          path: ['content'],
+          args: { id: pageId },
+        }
 
   const operations: Operation[] = [
     {
@@ -517,12 +555,7 @@ export async function handlePageArchive(
       path: [],
       args: { alive: false },
     },
-    {
-      pointer: { table: 'block', id: parentId, spaceId },
-      command: 'listRemove',
-      path: ['content'],
-      args: { id: pageId },
-    },
+    listRemoveOp,
   ]
 
   await internalRequest(tokenV2, 'saveTransactions', {
@@ -571,7 +604,7 @@ export const pageCommand = new Command('page')
     new Command('create')
       .description('Create a new page')
       .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
-      .requiredOption('--parent <id>', 'Parent page or block ID')
+      .option('--parent <id>', 'Parent page or block ID (optional, creates at workspace root if omitted)')
       .requiredOption('--title <title>', 'Page title')
       .option('--markdown <text>', 'Markdown content for page body')
       .option('--markdown-file <path>', 'Path to markdown file for page body')
