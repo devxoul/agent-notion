@@ -141,6 +141,13 @@ export async function handleBlockDelete(
   return { deleted: true, id: args.block_id }
 }
 
+export async function handleBlockUpload(
+  client: ReturnType<typeof getClient>,
+  args: { parent_id: string; file: string },
+): Promise<unknown> {
+  return uploadFile(client, formatNotionId(args.parent_id), args.file)
+}
+
 export const blockCommand = new Command('block')
   .description('Block commands')
   .addCommand(

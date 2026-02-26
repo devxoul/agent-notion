@@ -14,6 +14,7 @@ const validActions = [
   'database.delete-property',
   'database.add-row',
   'database.update-row',
+  'block.upload',
 ]
 
 function createMockHandlers() {
@@ -33,6 +34,7 @@ function createMockHandlers() {
     mockDatabaseDeleteProperty: createHandlerMock(),
     mockDatabaseAddRow: createHandlerMock(),
     mockDatabaseUpdateRow: createHandlerMock(),
+    mockBlockUpload: createHandlerMock(),
   }
 }
 
@@ -50,6 +52,7 @@ function createMockRegistry(handlers: ReturnType<typeof createMockHandlers>): Ac
     'database.delete-property': handlers.mockDatabaseDeleteProperty,
     'database.add-row': handlers.mockDatabaseAddRow,
     'database.update-row': handlers.mockDatabaseUpdateRow,
+    'block.upload': handlers.mockBlockUpload,
   }
 }
 
@@ -272,7 +275,35 @@ describe('batch command', () => {
     expect(getExitCode()).toBe(0)
   })
 
-  test('registry includes all 12 notion action names', async () => {
+  test('block.upload action calls upload handler with correct args', async () => {
+    const handlers = createMockHandlers()
+    const { deps, output, getExitCode } = createDefaultDeps(handlers)
+    handlers.mockBlockUpload.mockImplementationOnce(async () => ({ id: 'file-1', type: 'image', url: 'https://example.com/file.png' }))
+
+    const { executeBatch } = await import('./batch')
+    await executeBatch(
+      '[{"action":"block.upload","parent_id":"block-1","file":"/tmp/image.png"}]',
+      { workspaceId: 'space-123' },
+      deps,
+    )
+
+    expect(handlers.mockBlockUpload).toHaveBeenCalledTimes(1)
+    const callArgs = handlers.mockBlockUpload.mock.calls[0] as unknown[]
+    expect(callArgs[0]).toBe('test-token')
+    const handlerArgs = callArgs[1] as Record<string, unknown>
+    expect(handlerArgs.parent_id).toBe('block-1')
+    expect(handlerArgs.file).toBe('/tmp/image.png')
+    expect(handlerArgs.workspaceId).toBe('space-123')
+    expect(JSON.parse(output[0])).toEqual({
+      results: [{ index: 0, action: 'block.upload', success: true, data: { id: 'file-1', type: 'image', url: 'https://example.com/file.png' } }],
+      total: 1,
+      succeeded: 1,
+      failed: 0,
+    })
+    expect(getExitCode()).toBe(0)
+  })
+
+  test('registry includes all 13 notion action names', async () => {
     const { NOTION_ACTION_REGISTRY } = await import('./batch')
 
     expect(Object.keys(NOTION_ACTION_REGISTRY).sort()).toEqual([...validActions].sort())

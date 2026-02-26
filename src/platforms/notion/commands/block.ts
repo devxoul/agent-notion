@@ -424,6 +424,16 @@ export async function handleBlockDelete(
   return { deleted: true, id: blockId }
 }
 
+export async function handleBlockUpload(
+  tokenV2: string,
+  args: { parent_id: string; file: string; workspaceId: string },
+): Promise<unknown> {
+  const parentId = formatNotionId(args.parent_id)
+  await resolveAndSetActiveUserId(tokenV2, args.workspaceId)
+  const spaceId = await resolveSpaceId(tokenV2, parentId)
+  return uploadFile(tokenV2, parentId, args.file, spaceId)
+}
+
 async function appendAction(rawParentId: string, options: AppendOptions): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()

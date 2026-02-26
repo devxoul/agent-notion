@@ -34,6 +34,7 @@ export const NOTION_ACTIONS: string[] = [
   'database.delete-property',
   'database.add-row',
   'database.update-row',
+  'block.upload',
 ]
 
 export const NOTIONBOT_ACTIONS: string[] = [
@@ -47,7 +48,8 @@ export const NOTIONBOT_ACTIONS: string[] = [
   'database.create',
   'database.update',
   'database.delete-property',
-]
+  'block.upload',
+  ]
 
 // Batch JSON input parses nested objects (e.g. `properties: {Status: "P0"}`) into
 // JS objects, but handlers expect CLI-style string args and call JSON.parse internally.

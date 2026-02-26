@@ -12,7 +12,7 @@ import {
 } from '@/shared/batch/types'
 import { handleError } from '@/shared/utils/error-handler'
 import { formatOutput } from '@/shared/utils/output'
-import { handleBlockAppend, handleBlockDelete, handleBlockUpdate } from './block'
+import { handleBlockAppend, handleBlockDelete, handleBlockUpdate, handleBlockUpload } from './block'
 import { handleCommentCreate } from './comment'
 import { handleDatabaseCreate, handleDatabaseDeleteProperty, handleDatabaseUpdate } from './database'
 import { handlePageArchive, handlePageCreate, handlePageUpdate } from './page'
@@ -39,6 +39,7 @@ export const NOTIONBOT_ACTION_REGISTRY: ActionRegistry<NotionBotHandler> = {
   'block.append': (client, args) => handleBlockAppend(client, args as Parameters<typeof handleBlockAppend>[1]),
   'block.update': (client, args) => handleBlockUpdate(client, args as Parameters<typeof handleBlockUpdate>[1]),
   'block.delete': (client, args) => handleBlockDelete(client, args as Parameters<typeof handleBlockDelete>[1]),
+  'block.upload': (client, args) => handleBlockUpload(client, args as Parameters<typeof handleBlockUpload>[1]),
   'comment.create': (client, args) => handleCommentCreate(client, args as Parameters<typeof handleCommentCreate>[1]),
   'database.create': (client, args) => handleDatabaseCreate(client, args as Parameters<typeof handleDatabaseCreate>[1]),
   'database.update': (client, args) => handleDatabaseUpdate(client, args as Parameters<typeof handleDatabaseUpdate>[1]),

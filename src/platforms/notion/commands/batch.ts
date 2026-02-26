@@ -10,7 +10,7 @@ import {
   validateOperations,
 } from '@/shared/batch/types'
 import { formatOutput } from '@/shared/utils/output'
-import { handleBlockAppend, handleBlockDelete, handleBlockUpdate } from './block'
+import { handleBlockAppend, handleBlockDelete, handleBlockUpdate, handleBlockUpload } from './block'
 import { handleCommentCreate } from './comment'
 import {
   handleDatabaseAddRow,
@@ -46,6 +46,7 @@ export const NOTION_ACTION_REGISTRY: ActionRegistry<NotionHandler> = {
   'block.append': (tokenV2, args) => handleBlockAppend(tokenV2, args as Parameters<typeof handleBlockAppend>[1]),
   'block.update': (tokenV2, args) => handleBlockUpdate(tokenV2, args as Parameters<typeof handleBlockUpdate>[1]),
   'block.delete': (tokenV2, args) => handleBlockDelete(tokenV2, args as Parameters<typeof handleBlockDelete>[1]),
+  'block.upload': (tokenV2, args) => handleBlockUpload(tokenV2, args as Parameters<typeof handleBlockUpload>[1]),
   'comment.create': (tokenV2, args) => handleCommentCreate(tokenV2, args as Parameters<typeof handleCommentCreate>[1]),
   'database.create': (tokenV2, args) =>
     handleDatabaseCreate(tokenV2, args as Parameters<typeof handleDatabaseCreate>[1]),
