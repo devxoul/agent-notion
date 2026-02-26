@@ -105,6 +105,9 @@ vibe-notionbot page create --parent <parent_id> --title "My Doc" --markdown '# H
 # Create a page with markdown from a file
 vibe-notionbot page create --parent <parent_id> --title "My Doc" --markdown-file ./content.md
 
+# Create a page with markdown containing local images (auto-uploaded to Notion)
+vibe-notionbot page create --parent <parent_id> --title "My Doc" --markdown-file ./doc-with-images.md
+
 # Update page properties
 vibe-notionbot page update <page_id> --set "Status=In Progress" --set "Priority=High"
 
@@ -163,6 +166,9 @@ vibe-notionbot block append <parent_id> --markdown '# Hello\n\nThis is **bold** 
 # Append markdown from a file
 vibe-notionbot block append <parent_id> --markdown-file ./content.md
 
+# Append markdown with local images (auto-uploaded to Notion)
+vibe-notionbot block append <parent_id> --markdown-file ./doc-with-images.md
+
 # Append nested markdown (indented lists become nested children blocks)
 vibe-notionbot block append <parent_id> --markdown '- Parent item\n  - Child item\n    - Grandchild item'
 
@@ -171,6 +177,10 @@ vibe-notionbot block update <block_id> --content '{"paragraph": {"rich_text": [{
 
 # Delete (archive) a block
 vibe-notionbot block delete <block_id>
+
+# Upload a file as a block (image or file block)
+vibe-notionbot block upload <parent_id> --file ./image.png --pretty
+vibe-notionbot block upload <parent_id> --file ./document.pdf --pretty
 ```
 
 ### User Commands
@@ -236,7 +246,7 @@ vibe-notionbot batch '<operations_json>'
 vibe-notionbot batch --file ./operations.json '[]'
 ```
 
-**Supported actions** (10 total):
+**Supported actions** (11 total):
 
 | Action | Description |
 |--------|-------------|
@@ -250,6 +260,7 @@ vibe-notionbot batch --file ./operations.json '[]'
 | `database.create` | Create a database |
 | `database.update` | Update database title or schema |
 | `database.delete-property` | Delete a database property |
+| `block.upload` | Upload a file as an image or file block |
 
 **Operation format**: Each operation is an object with `action` plus the same fields you'd pass to the individual command handler. Example with mixed actions:
 
@@ -368,5 +379,5 @@ If you already know the user's preferred package runner, use it directly instead
 
 - Supports Notion API version 2022-06-28.
 - Does not support OAuth (token only).
-- Does not support file uploads in v1.
+- ~~Does not support file uploads in v1.~~ File uploads are now supported via `block upload`.
 - Page property updates are limited to simple key=value pairs unless using raw JSON.

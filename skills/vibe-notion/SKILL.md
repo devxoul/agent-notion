@@ -195,6 +195,9 @@ vibe-notion page create --workspace-id <workspace_id> --parent <parent_id> --tit
 # Create a page with markdown from a file
 vibe-notion page create --workspace-id <workspace_id> --parent <parent_id> --title "My Doc" --markdown-file ./content.md
 
+# Create a page with markdown containing local images (auto-uploaded to Notion)
+vibe-notion page create --workspace-id <workspace_id> --parent <parent_id> --title "My Doc" --markdown-file ./doc-with-images.md
+
 # Replace all content on a page with new markdown
 vibe-notion page update <page_id> --workspace-id <workspace_id> --replace-content --markdown '# New Content'
 vibe-notion page update <page_id> --workspace-id <workspace_id> --replace-content --markdown-file ./updated.md
@@ -298,6 +301,9 @@ vibe-notion block append <parent_id> --workspace-id <workspace_id> --markdown '#
 # Append markdown from a file
 vibe-notion block append <parent_id> --workspace-id <workspace_id> --markdown-file ./content.md
 
+# Append markdown with local images (auto-uploaded to Notion)
+vibe-notion block append <parent_id> --workspace-id <workspace_id> --markdown-file ./doc-with-images.md
+
 # Append nested markdown (indented lists become nested children blocks)
 vibe-notion block append <parent_id> --workspace-id <workspace_id> --markdown '- Parent item\n  - Child item\n    - Grandchild item'
 
@@ -306,6 +312,10 @@ vibe-notion block update <block_id> --workspace-id <workspace_id> --content '{"p
 
 # Delete a block
 vibe-notion block delete <block_id> --workspace-id <workspace_id> --pretty
+
+# Upload a file as a block (image or file block)
+vibe-notion block upload <parent_id> --workspace-id <workspace_id> --file ./image.png --pretty
+vibe-notion block upload <parent_id> --workspace-id <workspace_id> --file ./document.pdf --pretty
 ```
 
 ### Block Types Reference
@@ -413,7 +423,7 @@ vibe-notion batch --workspace-id <workspace_id> '<operations_json>'
 vibe-notion batch --workspace-id <workspace_id> --file ./operations.json '[]'
 ```
 
-**Supported actions** (12 total):
+**Supported actions** (13 total):
 
 | Action | Description |
 |--------|-------------|
@@ -429,6 +439,7 @@ vibe-notion batch --workspace-id <workspace_id> --file ./operations.json '[]'
 | `database.delete-property` | Delete a database property |
 | `database.add-row` | Add a row to a database |
 | `database.update-row` | Update properties on a database row |
+| `block.upload` | Upload a file as an image or file block |
 
 **Operation format**: Each operation is an object with `action` plus the same fields you'd pass to the individual command handler. Example with mixed actions:
 
