@@ -771,4 +771,119 @@ describe('NotionBot E2E Tests', () => {
       await waitForRateLimit()
     }, 30000)
   })
+
+  // ── upload ────────────────────────────────────────────────────────────
+
+  describe('upload', () => {
+    const MINIMAL_PNG = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+      0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, 0x00, 0x00, 0x00,
+      0x0c, 0x49, 0x44, 0x41, 0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00,
+      0x00, 0x00, 0x02, 0x00, 0x01, 0xe2, 0x21, 0xbc, 0x33, 0x00, 0x00, 0x00,
+      0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+    ])
+
+    let tmpPng = ''
+    let tmpTxt = ''
+    let tmpMdDir = ''
+    let tmpMdPng = ''
+    let tmpMdFile = ''
+
+    beforeAll(async () => {
+      await waitForRateLimit(2000)
+
+      const prefix = join(tmpdir(), `e2e-notionbot-upload-${Date.now()}`)
+      tmpPng = `${prefix}.png`
+      tmpTxt = `${prefix}.txt`
+      tmpMdDir = `${prefix}-md`
+
+      writeFileSync(tmpPng, MINIMAL_PNG)
+      writeFileSync(tmpTxt, 'e2e upload test content')
+
+      // Create a directory for markdown-file test
+      const { mkdirSync } = require('node:fs')
+      mkdirSync(tmpMdDir, { recursive: true })
+      tmpMdPng = join(tmpMdDir, 'e2e-test-img.png')
+      tmpMdFile = join(tmpMdDir, 'e2e-test.md')
+      writeFileSync(tmpMdPng, MINIMAL_PNG)
+      writeFileSync(tmpMdFile, '![test](./e2e-test-img.png)')
+    })
+
+    afterAll(() => {
+      const { rmSync } = require('node:fs')
+      for (const f of [tmpPng, tmpTxt]) {
+        try { unlinkSync(f) } catch { /* best-effort */ }
+      }
+      try { rmSync(tmpMdDir, { recursive: true }) } catch { /* best-effort */ }
+    })
+
+    test('block upload with image file returns image type', async () => {
+      const result = await runCLI([
+        'block', 'upload', containerId,
+        '--file', tmpPng,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ id: string; type: string; url: string }>(result.stdout)
+      expect(data?.id).toBeTruthy()
+      expect(data?.type).toBe('image')
+      expect(data?.url).toBeTruthy()
+
+      testBlockIds.push(data!.id)
+      await waitForRateLimit()
+    }, 30000)
+
+    test('block upload with non-image file returns file type', async () => {
+      const result = await runCLI([
+        'block', 'upload', containerId,
+        '--file', tmpTxt,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ id: string; type: string; url: string }>(result.stdout)
+      expect(data?.id).toBeTruthy()
+      expect(data?.type).toBe('file')
+      expect(data?.url).toBeTruthy()
+
+      testBlockIds.push(data!.id)
+      await waitForRateLimit()
+    }, 30000)
+
+    test('block append --markdown with local image reference creates blocks', async () => {
+      const markdown = `![test](${tmpPng})`
+
+      const result = await runCLI([
+        'block', 'append', containerId,
+        '--markdown', markdown,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ results: Array<{ id: string; type: string }> }>(result.stdout)
+      expect(data?.results?.length).toBeGreaterThanOrEqual(1)
+
+      for (const block of data?.results ?? []) {
+        testBlockIds.push(block.id)
+      }
+
+      await waitForRateLimit()
+    }, 60000)
+
+    test('block append --markdown-file with local image reference creates blocks', async () => {
+      const result = await runCLI([
+        'block', 'append', containerId,
+        '--markdown-file', tmpMdFile,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ results: Array<{ id: string; type: string }> }>(result.stdout)
+      expect(data?.results?.length).toBeGreaterThanOrEqual(1)
+
+      for (const block of data?.results ?? []) {
+        testBlockIds.push(block.id)
+      }
+
+      await waitForRateLimit()
+    }, 60000)
+  })
 })

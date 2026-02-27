@@ -1799,4 +1799,137 @@ describe('Notion E2E Tests', () => {
       await waitForRateLimit()
     }, 30000)
   })
+
+  describe('upload', () => {
+    const MINIMAL_PNG = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+      0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, 0x00, 0x00, 0x00,
+      0x0c, 0x49, 0x44, 0x41, 0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00,
+      0x00, 0x00, 0x02, 0x00, 0x01, 0xe2, 0x21, 0xbc, 0x33, 0x00, 0x00, 0x00,
+      0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+    ])
+
+    let tmpPngPath = ''
+    let tmpTxtPath = ''
+    let tmpMdPngPath = ''
+    let tmpMdFilePath = ''
+
+    beforeAll(async () => {
+      await waitForRateLimit(2000)
+
+      const testId = generateTestId()
+      tmpPngPath = join(tmpdir(), `e2e-upload-${testId}.png`)
+      tmpTxtPath = join(tmpdir(), `e2e-upload-${testId}.txt`)
+      tmpMdPngPath = join(tmpdir(), `e2e-test-img-${testId}.png`)
+      tmpMdFilePath = join(tmpdir(), `e2e-upload-${testId}.md`)
+
+      writeFileSync(tmpPngPath, MINIMAL_PNG)
+      writeFileSync(tmpTxtPath, 'e2e upload test content')
+      writeFileSync(tmpMdPngPath, MINIMAL_PNG)
+      writeFileSync(tmpMdFilePath, `![test](./e2e-test-img-${testId}.png)`)
+    })
+
+    afterAll(() => {
+      try { unlinkSync(tmpPngPath) } catch {}
+      try { unlinkSync(tmpTxtPath) } catch {}
+      try { unlinkSync(tmpMdPngPath) } catch {}
+      try { unlinkSync(tmpMdFilePath) } catch {}
+    })
+
+    test('block upload with image file returns image type', async () => {
+      await waitForRateLimit(2000)
+
+      const result = await runNotionCLI([
+        'block',
+        'upload',
+        '--workspace-id',
+        workspaceId,
+        containerId,
+        '--file',
+        tmpPngPath,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ id: string; type: string; url: string }>(result.stdout)
+      expect(data?.id).toBeTruthy()
+      expect(data?.type).toBe('image')
+      expect(data?.url).toBeTruthy()
+
+      testBlockIds.push(data!.id)
+      await waitForRateLimit()
+    }, 30000)
+
+    test('block upload with non-image file returns file type', async () => {
+      await waitForRateLimit(2000)
+
+      const result = await runNotionCLI([
+        'block',
+        'upload',
+        '--workspace-id',
+        workspaceId,
+        containerId,
+        '--file',
+        tmpTxtPath,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ id: string; type: string; url: string }>(result.stdout)
+      expect(data?.id).toBeTruthy()
+      expect(data?.type).toBe('file')
+      expect(data?.url).toBeTruthy()
+
+      testBlockIds.push(data!.id)
+      await waitForRateLimit()
+    }, 30000)
+
+    test('block append --markdown with local image reference creates blocks', async () => {
+      await waitForRateLimit(2000)
+
+      const markdown = `![e2e-test](${tmpPngPath})`
+      const result = await runNotionCLI([
+        'block',
+        'append',
+        '--workspace-id',
+        workspaceId,
+        containerId,
+        '--markdown',
+        markdown,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ created: string[] }>(result.stdout)
+      expect(Array.isArray(data?.created)).toBe(true)
+      expect((data?.created?.length ?? 0)).toBeGreaterThan(0)
+
+      for (const id of data!.created) {
+        testBlockIds.push(id)
+      }
+      await waitForRateLimit()
+    }, 60000)
+
+    test('block append --markdown-file with local image reference creates blocks', async () => {
+      await waitForRateLimit(2000)
+
+      const result = await runNotionCLI([
+        'block',
+        'append',
+        '--workspace-id',
+        workspaceId,
+        containerId,
+        '--markdown-file',
+        tmpMdFilePath,
+      ])
+      expect(result.exitCode).toBe(0)
+
+      const data = parseJSON<{ created: string[] }>(result.stdout)
+      expect(Array.isArray(data?.created)).toBe(true)
+      expect((data?.created?.length ?? 0)).toBeGreaterThan(0)
+
+      for (const id of data!.created) {
+        testBlockIds.push(id)
+      }
+      await waitForRateLimit()
+    }, 60000)
+  })
 })
