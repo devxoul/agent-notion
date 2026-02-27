@@ -40,12 +40,14 @@ describe('upload', () => {
     )
     uploadDeps.internalRequest = mockInternalRequest
 
-    const result = await getUploadUrl('token-v2', 'sample.png', 'image/png')
+    const record = { table: 'block', id: 'block-123', spaceId: 'space-456' }
+    const result = await getUploadUrl('token-v2', 'sample.png', 'image/png', record)
 
     expect(mockInternalRequest).toHaveBeenCalledWith('token-v2', 'getUploadFileUrl', {
       bucket: 'secure',
       contentType: 'image/png',
       name: 'sample.png',
+      record: { table: 'block', id: 'block-123', spaceId: 'space-456' },
     })
     expect(result).toEqual({
       fileId: '11111111-2222-3333-4444-555555555555',

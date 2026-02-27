@@ -47,11 +47,13 @@ export async function getUploadUrl(
   tokenV2: string,
   fileName: string,
   contentType: string,
+  record: { table: string; id: string; spaceId: string },
 ): Promise<{ url: string; signedPutUrl: string; fileId: string }> {
   const response = (await uploadDeps.internalRequest(tokenV2, 'getUploadFileUrl', {
     bucket: 'secure',
     contentType,
     name: fileName,
+    record,
   })) as UploadFileUrlResponse
 
   const sourceUrl = response.url
@@ -86,7 +88,8 @@ export async function uploadFile(
   spaceId: string,
 ): Promise<UploadedBlock> {
   const fileInfo = uploadDeps.resolveFileInfo(filePath)
-  const uploadInfo = await getUploadUrl(tokenV2, fileInfo.name, fileInfo.contentType)
+  const record = { table: 'block', id: parentId, spaceId }
+  const uploadInfo = await getUploadUrl(tokenV2, fileInfo.name, fileInfo.contentType, record)
   const fileBuffer = uploadDeps.readFileSync(fileInfo.path)
   await uploadToS3(uploadInfo.signedPutUrl, fileBuffer, fileInfo.contentType)
 
@@ -149,6 +152,16 @@ export function formatFileSize(bytes: number): string {
 }
 
 function extractFileId(url: string): string {
+  // New format: attachment:{fileId}:{filename}
+  if (url.startsWith('attachment:')) {
+    const fileId = url.split(':')[1]
+    if (!fileId) {
+      throw new Error('Failed to extract file ID from attachment URL')
+    }
+    return fileId
+  }
+
+  // Legacy format: https://.../{fileId}/{filename}
   const pathname = new URL(url).pathname
   const [firstPathSegment] = pathname.split('/').filter(Boolean)
   if (!firstPathSegment) {
