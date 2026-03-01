@@ -1326,6 +1326,170 @@ describe('blockCommand', () => {
       expect(listAfterOps[0].args).toEqual(expect.objectContaining({ id: 'block-0', after: 'sibling-1' }))
       expect(listAfterOps[1].args).toEqual(expect.objectContaining({ id: 'block-1', after: 'block-0' }))
     })
+
+    test('includes before in listBefore args when --before is provided', async () => {
+      // Given
+      const mockInternalRequest = mock(() => Promise.resolve({}))
+      const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token', space_id: 'space-123' }))
+      const mockResolveSpaceId = mock(() => Promise.resolve('space-123'))
+      const mockGenerateId = mock(() => 'new-block-id')
+
+      mock.module('../client', () => ({
+        internalRequest: mockInternalRequest,
+      }))
+
+      mock.module('./helpers', () => ({
+        getCredentialsOrExit: mockGetCredentials,
+        generateId: mockGenerateId,
+        resolveSpaceId: mockResolveSpaceId,
+        resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
+        resolveBacklinkUsers: mock(async () => ({})),
+        resolveDefaultTeamId: mock(async () => undefined),
+      }))
+
+      const { blockCommand } = await import('./block')
+
+      // When
+      await blockCommand.parseAsync(
+        [
+          'append',
+          'parent-1',
+          '--workspace-id',
+          'space-123',
+          '--before',
+          'sibling-1',
+          '--content',
+          JSON.stringify([{ type: 'text' }]),
+        ],
+        { from: 'user' },
+      )
+
+      // Then
+      const saveCall = mockInternalRequest.mock.calls.find((call) => (call as any[])[1] === 'saveTransactions') as
+        | [unknown, unknown, { transactions: Array<{ operations: any[] }> }]
+        | undefined
+      expect(saveCall).toBeDefined()
+      const operations = saveCall?.[2].transactions[0]?.operations
+      const listBeforeOp = operations?.find((op) => op.command === 'listBefore')
+      expect(listBeforeOp).toBeDefined()
+      expect(listBeforeOp.args).toEqual(expect.objectContaining({ id: 'new-block-id', before: 'sibling-1' }))
+    })
+
+    test('chains multiple appended blocks with listAfter when --before is provided', async () => {
+      // Given
+      let idCounter = 0
+      const mockInternalRequest = mock(() => Promise.resolve({}))
+      const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token', space_id: 'space-123' }))
+      const mockResolveSpaceId = mock(() => Promise.resolve('space-123'))
+      const mockGenerateId = mock(() => `block-${idCounter++}`)
+
+      mock.module('../client', () => ({
+        internalRequest: mockInternalRequest,
+      }))
+
+      mock.module('./helpers', () => ({
+        getCredentialsOrExit: mockGetCredentials,
+        generateId: mockGenerateId,
+        resolveSpaceId: mockResolveSpaceId,
+        resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
+        resolveBacklinkUsers: mock(async () => ({})),
+        resolveDefaultTeamId: mock(async () => undefined),
+      }))
+
+      const { blockCommand } = await import('./block')
+
+      // When
+      await blockCommand.parseAsync(
+        [
+          'append',
+          'parent-1',
+          '--workspace-id',
+          'space-123',
+          '--before',
+          'sibling-1',
+          '--content',
+          JSON.stringify([{ type: 'text' }, { type: 'text' }]),
+        ],
+        { from: 'user' },
+      )
+
+      // Then
+      const saveCall = mockInternalRequest.mock.calls.find((call) => (call as any[])[1] === 'saveTransactions') as
+        | [unknown, unknown, { transactions: Array<{ operations: any[] }> }]
+        | undefined
+      expect(saveCall).toBeDefined()
+      const operations = saveCall?.[2].transactions[0]?.operations
+      const listBeforeOps = operations?.filter((op) => op.command === 'listBefore') ?? []
+      const listAfterOps = operations?.filter((op) => op.command === 'listAfter') ?? []
+      expect(listBeforeOps.length).toBe(1)
+      expect(listAfterOps.length).toBe(1)
+      expect(listBeforeOps[0].args).toEqual(expect.objectContaining({ id: 'block-0', before: 'sibling-1' }))
+      expect(listAfterOps[0].args).toEqual(expect.objectContaining({ id: 'block-1', after: 'block-0' }))
+    })
+
+    test('errors when both --after and --before are provided', async () => {
+      // Given
+      const mockInternalRequest = mock(() => Promise.resolve({}))
+      const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token', space_id: 'space-123' }))
+      const mockResolveSpaceId = mock(() => Promise.resolve('space-123'))
+      const mockGenerateId = mock(() => 'mock-uuid')
+
+      mock.module('../client', () => ({
+        internalRequest: mockInternalRequest,
+      }))
+
+      mock.module('./helpers', () => ({
+        getCredentialsOrExit: mockGetCredentials,
+        generateId: mockGenerateId,
+        resolveSpaceId: mockResolveSpaceId,
+        resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
+        resolveBacklinkUsers: mock(async () => ({})),
+        resolveDefaultTeamId: mock(async () => undefined),
+      }))
+
+      const { blockCommand } = await import('./block')
+      const errors: string[] = []
+      const originalError = console.error
+      console.error = (msg: string) => errors.push(msg)
+
+      const mockExit = mock(() => {
+        throw new Error('process.exit called')
+      })
+      const originalExit = process.exit
+      process.exit = mockExit as any
+
+      try {
+        // When
+        await blockCommand.parseAsync(
+          [
+            'append',
+            'parent-1',
+            '--workspace-id',
+            'space-123',
+            '--after',
+            'sibling-1',
+            '--before',
+            'sibling-2',
+            '--content',
+            JSON.stringify([{ type: 'text' }]),
+          ],
+          { from: 'user' },
+        )
+      } catch {
+        // Expected
+      }
+
+      console.error = originalError
+      process.exit = originalExit
+
+      // Then
+      expect(errors.length).toBeGreaterThan(0)
+      const errorMsg = JSON.parse(errors[0])
+      expect(errorMsg.error).toContain('mutually exclusive')
+    })
   })
 
   describe('block update', () => {
@@ -1798,6 +1962,7 @@ describe('blockCommand', () => {
         './test.png',
         'space-123',
         undefined,
+        undefined,
       )
     })
 
@@ -2001,6 +2166,67 @@ describe('blockCommand', () => {
       const listAfterOp = operations?.find((op) => op.command === 'listAfter')
       expect(listAfterOp).toBeDefined()
       expect(listAfterOp.args).toEqual(expect.objectContaining({ id: 'block-123', after: 'after-block' }))
+    })
+
+    test('moves block with --before using listBefore', async () => {
+      // Given
+      const mockInternalRequest = mock((_token: string, endpoint: string) => {
+        if (endpoint === 'syncRecordValues') {
+          return Promise.resolve({
+            recordMap: {
+              block: {
+                'block-123': {
+                  value: {
+                    id: 'block-123',
+                    type: 'text',
+                    parent_id: 'old-parent',
+                    space_id: 'space-123',
+                    alive: true,
+                    version: 1,
+                  },
+                  role: 'editor',
+                },
+              },
+            },
+          })
+        }
+        return Promise.resolve({})
+      })
+      const mockGetCredentials = mock(() => Promise.resolve({ token_v2: 'test-token', space_id: 'space-123' }))
+      const mockResolveSpaceId = mock(() => Promise.resolve('space-123'))
+      const mockGenerateId = mock(() => 'mock-uuid')
+
+      mock.module('../client', () => ({
+        internalRequest: mockInternalRequest,
+      }))
+
+      mock.module('./helpers', () => ({
+        getCredentialsOrExit: mockGetCredentials,
+        generateId: mockGenerateId,
+        resolveSpaceId: mockResolveSpaceId,
+        resolveCollectionViewId: mock(() => Promise.resolve('view-123')),
+        resolveAndSetActiveUserId: mock(() => Promise.resolve()),
+        resolveBacklinkUsers: mock(async () => ({})),
+        resolveDefaultTeamId: mock(async () => undefined),
+      }))
+
+      const { blockCommand } = await import('./block')
+
+      // When
+      await blockCommand.parseAsync(
+        ['move', 'block-123', '--workspace-id', 'space-123', '--parent', 'new-parent', '--before', 'before-block'],
+        { from: 'user' },
+      )
+
+      // Then
+      const saveCall = mockInternalRequest.mock.calls.find((call) => (call as any[])[1] === 'saveTransactions') as
+        | [unknown, unknown, { transactions: Array<{ operations: any[] }> }]
+        | undefined
+      expect(saveCall).toBeDefined()
+      const operations = saveCall?.[2].transactions[0]?.operations
+      const listBeforeOp = operations?.find((op) => op.command === 'listBefore')
+      expect(listBeforeOp).toBeDefined()
+      expect(listBeforeOp.args).toEqual(expect.objectContaining({ id: 'block-123', before: 'before-block' }))
     })
 
     test('reorders block within same parent without update operation', async () => {

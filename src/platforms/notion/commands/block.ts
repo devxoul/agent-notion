@@ -62,7 +62,7 @@ type SaveOperation = {
     id: string
     spaceId: string
   }
-  command: 'set' | 'listAfter' | 'update' | 'listRemove'
+  command: 'set' | 'listAfter' | 'listBefore' | 'update' | 'listRemove'
   path: string[]
   args: Record<string, unknown>
 }
@@ -86,6 +86,7 @@ type AppendOptions = WorkspaceOptions & {
   markdown?: string
   markdownFile?: string
   after?: string
+  before?: string
 }
 
 type UpdateOptions = WorkspaceOptions & {
@@ -254,6 +255,7 @@ function appendBlockOperations(
   parentId: string,
   spaceId: string,
   afterId?: string,
+  beforeId?: string,
 ): void {
   operations.push(
     {
@@ -273,9 +275,9 @@ function appendBlockOperations(
     },
     {
       pointer: { table: 'block', id: parentId, spaceId },
-      command: 'listAfter',
+      command: beforeId ? 'listBefore' : 'listAfter',
       path: ['content'],
-      args: afterId ? { id: blockId, after: afterId } : { id: blockId },
+      args: beforeId ? { id: blockId, before: beforeId } : afterId ? { id: blockId, after: afterId } : { id: blockId },
     },
   )
   if (def.children) {
@@ -294,6 +296,7 @@ export async function handleBlockAppend(
     markdown?: string
     markdownFile?: string
     after?: string
+    before?: string
     workspaceId: string
   },
 ): Promise<unknown> {
@@ -307,6 +310,10 @@ export async function handleBlockAppend(
 
   if (!hasContent && !hasMarkdown) {
     throw new Error('Provide either --content or --markdown/--markdown-file')
+  }
+
+  if (args.after && args.before) {
+    throw new Error('--after and --before are mutually exclusive')
   }
 
   let defs: BlockDefinition[]
@@ -336,11 +343,13 @@ export async function handleBlockAppend(
   const operations: SaveOperation[] = []
   const newBlockIds: string[] = []
   let afterId = args.after ? formatNotionId(args.after) : undefined
+  let beforeId = args.before ? formatNotionId(args.before) : undefined
   for (const def of defs) {
     const newBlockId = generateId()
     newBlockIds.push(newBlockId)
-    appendBlockOperations(operations, def, newBlockId, parentId, spaceId, afterId)
+    appendBlockOperations(operations, def, newBlockId, parentId, spaceId, afterId, beforeId)
     afterId = newBlockId
+    beforeId = undefined
   }
   const payload: SaveTransactionsRequest = {
     requestId: generateId(),
@@ -436,22 +445,28 @@ export async function handleBlockDelete(
 
 export async function handleBlockUpload(
   tokenV2: string,
-  args: { parent_id: string; file: string; after?: string; workspaceId: string },
+  args: { parent_id: string; file: string; after?: string; before?: string; workspaceId: string },
 ): Promise<unknown> {
   const parentId = formatNotionId(args.parent_id)
   const afterId = args.after ? formatNotionId(args.after) : undefined
+  const beforeId = args.before ? formatNotionId(args.before) : undefined
   await resolveAndSetActiveUserId(tokenV2, args.workspaceId)
   const spaceId = await resolveSpaceId(tokenV2, parentId)
-  return uploadFile(tokenV2, parentId, args.file, spaceId, afterId)
+  return uploadFile(tokenV2, parentId, args.file, spaceId, afterId, beforeId)
 }
 
 export async function handleBlockMove(
   tokenV2: string,
-  args: { block_id: string; parent_id: string; after?: string; workspaceId: string },
+  args: { block_id: string; parent_id: string; after?: string; before?: string; workspaceId: string },
 ): Promise<unknown> {
   const blockId = formatNotionId(args.block_id)
   const targetParentId = formatNotionId(args.parent_id)
   const afterId = args.after ? formatNotionId(args.after) : undefined
+  const beforeId = args.before ? formatNotionId(args.before) : undefined
+
+  if (afterId && beforeId) {
+    throw new Error('--after and --before are mutually exclusive')
+  }
 
   await resolveAndSetActiveUserId(tokenV2, args.workspaceId)
 
@@ -476,9 +491,9 @@ export async function handleBlockMove(
     },
     {
       pointer: { table: 'block', id: targetParentId, spaceId },
-      command: 'listAfter',
+      command: beforeId ? 'listBefore' : 'listAfter',
       path: ['content'],
-      args: afterId ? { id: blockId, after: afterId } : { id: blockId },
+      args: beforeId ? { id: blockId, before: beforeId } : afterId ? { id: blockId, after: afterId } : { id: blockId },
     },
   ]
 
@@ -510,6 +525,7 @@ async function appendAction(rawParentId: string, options: AppendOptions): Promis
       markdown: options.markdown,
       markdownFile: options.markdownFile,
       after: options.after,
+      before: options.before,
       workspaceId: options.workspaceId,
     })
     console.log(formatOutput(result, options.pretty))
@@ -550,7 +566,7 @@ async function deleteAction(rawBlockId: string, options: WorkspaceOptions): Prom
 
 async function uploadAction(
   rawParentId: string,
-  options: { file: string; after?: string; workspaceId: string; pretty?: boolean },
+  options: { file: string; after?: string; before?: string; workspaceId: string; pretty?: boolean },
 ): Promise<void> {
   try {
     const creds = await getCredentialsOrExit()
@@ -558,6 +574,7 @@ async function uploadAction(
       parent_id: rawParentId,
       file: options.file,
       after: options.after,
+      before: options.before,
       workspaceId: options.workspaceId,
     })
     console.log(formatOutput(result, options.pretty))
@@ -567,7 +584,7 @@ async function uploadAction(
   }
 }
 
-type MoveOptions = WorkspaceOptions & { parent: string; after?: string }
+type MoveOptions = WorkspaceOptions & { parent: string; after?: string; before?: string }
 
 async function moveAction(rawBlockId: string, options: MoveOptions): Promise<void> {
   try {
@@ -576,6 +593,7 @@ async function moveAction(rawBlockId: string, options: MoveOptions): Promise<voi
       block_id: formatNotionId(rawBlockId),
       parent_id: options.parent,
       after: options.after,
+      before: options.before,
       workspaceId: options.workspaceId,
     })
     console.log(formatOutput(result, options.pretty))
@@ -615,6 +633,7 @@ export const blockCommand = new Command('block')
       .option('--markdown <text>', 'Markdown content to convert to blocks')
       .option('--markdown-file <path>', 'Path to markdown file')
       .option('--after <block_id>', 'Insert after this block ID')
+      .option('--before <block_id>', 'Insert before this block ID')
       .option('--pretty', 'Pretty print JSON output')
       .action(appendAction),
   )
@@ -642,6 +661,7 @@ export const blockCommand = new Command('block')
       .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .requiredOption('--file <path>', 'Path to file to upload')
       .option('--after <block_id>', 'Insert after this block ID')
+      .option('--before <block_id>', 'Insert before this block ID')
       .option('--pretty', 'Pretty print JSON output')
       .action(uploadAction),
   )
@@ -651,7 +671,8 @@ export const blockCommand = new Command('block')
       .argument('<block_id>', 'Block ID to move')
       .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .requiredOption('--parent <parent_id>', 'Target parent block ID')
-      .option('--after <block_id>', 'Place after this block ID (omit to append at end)')
+      .option('--after <block_id>', 'Place after this block ID')
+      .option('--before <block_id>', 'Place before this block ID')
       .option('--pretty', 'Pretty print JSON output')
       .action(moveAction),
   )
