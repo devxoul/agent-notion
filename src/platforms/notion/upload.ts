@@ -15,7 +15,7 @@ type SaveOperation = {
     id: string
     spaceId: string
   }
-  command: 'set' | 'listAfter'
+  command: 'set' | 'listAfter' | 'listBefore'
   path: string[]
   args: Record<string, unknown>
 }
@@ -105,6 +105,8 @@ export async function uploadFile(
   parentId: string,
   filePath: string,
   spaceId: string,
+  afterId?: string,
+  beforeId?: string,
 ): Promise<UploadedBlock> {
   const upload = await uploadFileOnly(tokenV2, filePath, parentId, spaceId)
 
@@ -131,9 +133,9 @@ export async function uploadFile(
     },
     {
       pointer: { table: 'block', id: parentId, spaceId },
-      command: 'listAfter',
+      command: beforeId ? 'listBefore' : 'listAfter',
       path: ['content'],
-      args: { id: blockId },
+      args: beforeId ? { id: blockId, before: beforeId } : afterId ? { id: blockId, after: afterId } : { id: blockId },
     },
     {
       pointer: { table: 'block', id: blockId, spaceId },

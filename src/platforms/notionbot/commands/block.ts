@@ -42,7 +42,14 @@ async function childrenAction(
 
 async function appendAction(
   rawParentId: string,
-  options: { pretty?: boolean; content?: string; markdown?: string; markdownFile?: string },
+  options: {
+    pretty?: boolean
+    content?: string
+    markdown?: string
+    markdownFile?: string
+    after?: string
+    before?: string
+  },
 ): Promise<void> {
   try {
     const client = getClient()
@@ -51,6 +58,8 @@ async function appendAction(
       content: options.content,
       markdown: options.markdown,
       markdownFile: options.markdownFile,
+      after: options.after,
+      before: options.before,
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
@@ -83,10 +92,18 @@ async function deleteAction(rawBlockId: string, options: { pretty?: boolean }): 
   }
 }
 
-async function uploadAction(rawParentId: string, options: { file: string; pretty?: boolean }): Promise<void> {
+async function uploadAction(
+  rawParentId: string,
+  options: { file: string; after?: string; before?: string; pretty?: boolean },
+): Promise<void> {
   try {
     const client = getClient()
-    const result = await uploadFile(client, formatNotionId(rawParentId), options.file)
+    const result = await handleBlockUpload(client, {
+      parent_id: rawParentId,
+      file: options.file,
+      after: options.after,
+      before: options.before,
+    })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
     handleError(error as Error)
@@ -95,13 +112,24 @@ async function uploadAction(rawParentId: string, options: { file: string; pretty
 
 export async function handleBlockAppend(
   client: ReturnType<typeof getClient>,
-  args: { parent_id: string; content?: string; markdown?: string; markdownFile?: string },
+  args: {
+    parent_id: string
+    content?: string
+    markdown?: string
+    markdownFile?: string
+    after?: string
+    before?: string
+  },
 ): Promise<unknown> {
   let children: BlockObjectRequest[]
 
   const hasMarkdown = args.markdown || args.markdownFile
   if (args.content && hasMarkdown) {
     throw new Error('Provide either --markdown or --markdown-file, not both')
+  }
+
+  if (args.after && args.before) {
+    throw new Error('--after and --before are mutually exclusive')
   }
 
   if (!args.content && !hasMarkdown) {
@@ -123,7 +151,9 @@ export async function handleBlockAppend(
     children = JSON.parse(args.content!)
   }
 
-  const results = await client.appendBlockChildren(args.parent_id, children)
+  const afterId = args.after ? formatNotionId(args.after) : undefined
+  const beforeId = args.before ? formatNotionId(args.before) : undefined
+  const results = await client.appendBlockChildren(args.parent_id, children, afterId, beforeId)
   return formatAppendResponse(results)
 }
 
@@ -146,9 +176,11 @@ export async function handleBlockDelete(
 
 export async function handleBlockUpload(
   client: ReturnType<typeof getClient>,
-  args: { parent_id: string; file: string },
+  args: { parent_id: string; file: string; after?: string; before?: string },
 ): Promise<unknown> {
-  return uploadFile(client, formatNotionId(args.parent_id), args.file)
+  const afterId = args.after ? formatNotionId(args.after) : undefined
+  const beforeId = args.before ? formatNotionId(args.before) : undefined
+  return uploadFile(client, formatNotionId(args.parent_id), args.file, afterId, beforeId)
 }
 
 export const blockCommand = new Command('block')
@@ -176,6 +208,8 @@ export const blockCommand = new Command('block')
       .option('--content <json>', 'Block children as JSON array')
       .option('--markdown <text>', 'Markdown content to convert to blocks')
       .option('--markdown-file <path>', 'Path to markdown file')
+      .option('--after <block_id>', 'Insert after this block ID')
+      .option('--before <block_id>', 'Insert before this block ID')
       .option('--pretty', 'Pretty print JSON output')
       .action(appendAction),
   )
@@ -199,6 +233,8 @@ export const blockCommand = new Command('block')
       .description('Upload a file as a block')
       .argument('<parent_id>', 'Parent block ID')
       .requiredOption('--file <path>', 'Path to file to upload')
+      .option('--after <block_id>', 'Insert after this block ID')
+      .option('--before <block_id>', 'Insert before this block ID')
       .option('--pretty', 'Pretty print JSON output')
       .action(uploadAction),
   )

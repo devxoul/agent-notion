@@ -15,6 +15,7 @@ const validActions = [
   'database.add-row',
   'database.update-row',
   'block.upload',
+  'block.move',
 ]
 
 function createMockHandlers() {
@@ -35,6 +36,7 @@ function createMockHandlers() {
     mockDatabaseAddRow: createHandlerMock(),
     mockDatabaseUpdateRow: createHandlerMock(),
     mockBlockUpload: createHandlerMock(),
+    mockBlockMove: createHandlerMock(),
   }
 }
 
@@ -53,6 +55,7 @@ function createMockRegistry(handlers: ReturnType<typeof createMockHandlers>): Ac
     'database.add-row': handlers.mockDatabaseAddRow,
     'database.update-row': handlers.mockDatabaseUpdateRow,
     'block.upload': handlers.mockBlockUpload,
+    'block.move': handlers.mockBlockMove,
   }
 }
 
@@ -314,7 +317,7 @@ describe('batch command', () => {
     expect(getExitCode()).toBe(0)
   })
 
-  test('registry includes all 13 notion action names', async () => {
+  test('registry includes all 14 notion action names', async () => {
     const { NOTION_ACTION_REGISTRY } = await import('./batch')
 
     expect(Object.keys(NOTION_ACTION_REGISTRY).sort()).toEqual([...validActions].sort())

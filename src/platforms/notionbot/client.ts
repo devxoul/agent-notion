@@ -50,16 +50,72 @@ export class NotionClient {
     return this.sdk.fileUploads
   }
 
-  async appendBlockChildren(blockId: string, children: BlockObjectRequest[]): Promise<AppendBlockChildrenResponse[]> {
+  async resolveBeforePosition(
+    parentId: string,
+    beforeId: string,
+  ): Promise<{ after: string } | { position: { type: 'start' } }> {
+    let previousBlockId: string | undefined
+    let cursor: string | undefined
+
+    while (true) {
+      const response = await this.sdk.blocks.children.list({
+        block_id: parentId,
+        ...(cursor ? { start_cursor: cursor } : {}),
+      })
+
+      for (const block of response.results) {
+        if (block.id === beforeId) {
+          if (previousBlockId) {
+            return { after: previousBlockId }
+          }
+          return { position: { type: 'start' as const } }
+        }
+        previousBlockId = block.id
+      }
+
+      if (!response.has_more || !response.next_cursor) break
+      cursor = response.next_cursor
+    }
+
+    throw new Error(`Block ${beforeId} not found in children of ${parentId}`)
+  }
+
+  async appendBlockChildren(
+    blockId: string,
+    children: BlockObjectRequest[],
+    after?: string,
+    before?: string,
+  ): Promise<AppendBlockChildrenResponse[]> {
     const results: AppendBlockChildrenResponse[] = []
+
+    let currentAfter = after
+    let positionStart = false
+
+    if (before) {
+      const resolved = await this.resolveBeforePosition(blockId, before)
+      if ('after' in resolved) {
+        currentAfter = resolved.after
+      } else {
+        positionStart = true
+      }
+    }
 
     for (let i = 0; i < children.length; i += BLOCK_CHUNK_SIZE) {
       const chunk = children.slice(i, i + BLOCK_CHUNK_SIZE)
       const response = await this.sdk.blocks.children.append({
         block_id: blockId,
         children: chunk,
+        ...(i === 0 && positionStart ? { position: { type: 'start' as const } } : {}),
+        ...(i === 0 && currentAfter ? { after: currentAfter } : {}),
       })
       results.push(response)
+
+      // Track last block from response for correct multi-chunk positioning
+      const responseResults = (response as unknown as { results?: Array<{ id: string }> }).results
+      if (responseResults?.length) {
+        currentAfter = responseResults[responseResults.length - 1].id
+        positionStart = false
+      }
     }
 
     return results

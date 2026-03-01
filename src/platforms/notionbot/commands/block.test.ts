@@ -196,10 +196,44 @@ describe('block commands', () => {
     })
 
     // Then
-    expect(mockAppendBlockChildren).toHaveBeenCalledWith('parent-456', children)
+    expect(mockAppendBlockChildren).toHaveBeenCalledWith('parent-456', children, undefined, undefined)
     const output = JSON.parse(consoleOutput[0])
     expect(output.results[0].id).toBe('new-block-1')
     expect(output.results[0].type).toBe('paragraph')
+  })
+
+  test('append with --after passes after to appendBlockChildren', async () => {
+    // Given
+    const children = [{ type: 'paragraph', paragraph: { rich_text: [{ text: { content: 'hi' } }] } }]
+    mockAppendBlockChildren.mockResolvedValue([{ results: [] }] as any)
+
+    // When
+    await blockCommand.parseAsync(
+      ['append', 'parent-456', '--after', 'sibling-1', '--content', JSON.stringify(children)],
+      {
+        from: 'user',
+      },
+    )
+
+    // Then
+    expect(mockAppendBlockChildren).toHaveBeenCalledWith('parent-456', children, 'sibling-1', undefined)
+  })
+
+  test('append with --before passes before to appendBlockChildren', async () => {
+    // Given
+    const children = [{ type: 'paragraph', paragraph: { rich_text: [{ text: { content: 'hi' } }] } }]
+    mockAppendBlockChildren.mockResolvedValue([{ results: [] }] as any)
+
+    // When
+    await blockCommand.parseAsync(
+      ['append', 'parent-456', '--before', 'sibling-1', '--content', JSON.stringify(children)],
+      {
+        from: 'user',
+      },
+    )
+
+    // Then
+    expect(mockAppendBlockChildren).toHaveBeenCalledWith('parent-456', children, undefined, 'sibling-1')
   })
 
   test('append chunks >100 blocks via client.appendBlockChildren', async () => {
@@ -216,7 +250,7 @@ describe('block commands', () => {
     })
 
     // Then — client.appendBlockChildren handles chunking internally, called once with all 150
-    expect(mockAppendBlockChildren).toHaveBeenCalledWith('parent-789', children)
+    expect(mockAppendBlockChildren).toHaveBeenCalledWith('parent-789', children, undefined, undefined)
   })
 
   test('update modifies a block', async () => {
@@ -293,6 +327,32 @@ describe('block commands', () => {
     expect(output.results[0].id).toBe('new-block-1')
   })
 
+  test('append with --after and --markdown', async () => {
+    // Given
+    mockAppendBlockChildren.mockResolvedValue([{ results: [] }] as any)
+
+    // When
+    await blockCommand.parseAsync(['append', 'parent-456', '--after', 'sibling-1', '--markdown', '# Hello'], {
+      from: 'user',
+    })
+
+    // Then
+    expect(mockAppendBlockChildren).toHaveBeenCalledWith('parent-456', expect.any(Array), 'sibling-1', undefined)
+  })
+
+  test('append with --before and --markdown', async () => {
+    // Given
+    mockAppendBlockChildren.mockResolvedValue([{ results: [] }] as any)
+
+    // When
+    await blockCommand.parseAsync(['append', 'parent-456', '--before', 'sibling-1', '--markdown', '# Hello'], {
+      from: 'user',
+    })
+
+    // Then
+    expect(mockAppendBlockChildren).toHaveBeenCalledWith('parent-456', expect.any(Array), undefined, 'sibling-1')
+  })
+
   test('append with --markdown preprocesses markdown without images unchanged', async () => {
     // Given
     mockAppendBlockChildren.mockResolvedValue([
@@ -364,6 +424,24 @@ describe('block commands', () => {
     // Then
     const allOutput = [...consoleOutput, ...consoleErrors].join('\n')
     expect(allOutput).toContain('Provide either --markdown or --markdown-file, not both')
+  })
+
+  test('append with both --after and --before errors', async () => {
+    // When
+    try {
+      await blockCommand.parseAsync(
+        ['append', 'parent-456', '--after', 'sibling-1', '--before', 'sibling-2', '--content', '[]'],
+        {
+          from: 'user',
+        },
+      )
+    } catch {
+      // handleError calls process.exit which our mock throws
+    }
+
+    // Then
+    const allOutput = [...consoleOutput, ...consoleErrors].join('\n')
+    expect(allOutput).toContain('mutually exclusive')
   })
 
   test('append with neither --markdown nor --content errors', async () => {
@@ -449,11 +527,45 @@ describe('block commands', () => {
     await blockCommand.parseAsync(['upload', 'parent-123', '--file', './test.png'], { from: 'user' })
 
     // Then
-    expect(mockUploadFile).toHaveBeenCalledWith(expect.anything(), 'parent-123', './test.png')
+    expect(mockUploadFile).toHaveBeenCalledWith(expect.anything(), 'parent-123', './test.png', undefined, undefined)
     const output = JSON.parse(consoleOutput[0])
     expect(output.id).toBe('uploaded-block-1')
     expect(output.type).toBe('image')
     expect(output.url).toContain('file-uploads')
+  })
+
+  test('upload with --after passes after to uploadFile', async () => {
+    // Given
+    mockUploadFile.mockResolvedValue({
+      id: 'uploaded-block-1',
+      type: 'image',
+      url: 'https://www.notion.so/file-uploads/upload-123',
+    })
+
+    // When
+    await blockCommand.parseAsync(['upload', 'parent-123', '--file', './test.png', '--after', 'sibling-1'], {
+      from: 'user',
+    })
+
+    // Then
+    expect(mockUploadFile).toHaveBeenCalledWith(expect.anything(), 'parent-123', './test.png', 'sibling-1', undefined)
+  })
+
+  test('upload with --before passes before to uploadFile', async () => {
+    // Given
+    mockUploadFile.mockResolvedValue({
+      id: 'uploaded-block-1',
+      type: 'image',
+      url: 'https://www.notion.so/file-uploads/upload-123',
+    })
+
+    // When
+    await blockCommand.parseAsync(['upload', 'parent-123', '--file', './test.png', '--before', 'sibling-1'], {
+      from: 'user',
+    })
+
+    // Then
+    expect(mockUploadFile).toHaveBeenCalledWith(expect.anything(), 'parent-123', './test.png', undefined, 'sibling-1')
   })
 
   test('upload handles errors', async () => {
