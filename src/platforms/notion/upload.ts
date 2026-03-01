@@ -105,6 +105,7 @@ export async function uploadFile(
   parentId: string,
   filePath: string,
   spaceId: string,
+  afterId?: string,
 ): Promise<UploadedBlock> {
   const upload = await uploadFileOnly(tokenV2, filePath, parentId, spaceId)
 
@@ -133,7 +134,7 @@ export async function uploadFile(
       pointer: { table: 'block', id: parentId, spaceId },
       command: 'listAfter',
       path: ['content'],
-      args: { id: blockId },
+      args: afterId ? { id: blockId, after: afterId } : { id: blockId },
     },
     {
       pointer: { table: 'block', id: blockId, spaceId },
