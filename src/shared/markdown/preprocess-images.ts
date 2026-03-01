@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import nodePath from 'node:path'
 
-const IMAGE_PATTERN = /!\[([^\]]*)\]\(([^)]+)\)/g
+const IMAGE_PATTERN = /!\[([^\]]*)\]\(([^\s)]+)(?:\s+"([^"]*)")?\)/g
 
 export async function preprocessMarkdownImages(
   markdown: string,
@@ -36,7 +36,10 @@ export async function preprocessMarkdownImages(
       dedupMap.set(resolvedPath, uploadedUrl)
     }
 
-    result = result.replace(`![${match[1]}](${imagePath})`, `![${match[1]}](${uploadedUrl})`)
+    const title = match[3]
+    const originalText = match[0]
+    const replacement = title ? `![${match[1]}](${uploadedUrl} "${title}")` : `![${match[1]}](${uploadedUrl})`
+    result = result.replace(originalText, replacement)
   }
 
   return result

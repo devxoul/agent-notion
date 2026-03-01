@@ -188,4 +188,51 @@ describe('preprocessMarkdownImages', () => {
       expect((error as Error).message).toContain('/tmp/no-such-file.png')
     }
   })
+
+  test('handles images with titles', async () => {
+    // given
+    const tmpFile = createTempFile('titled.png')
+    const basePath = path.dirname(tmpFile)
+    const fileName = path.basename(tmpFile)
+    const markdown = `![alt](./${fileName} "My Title")`
+    const uploadFn = mock(async (_filePath: string) => 'https://uploaded.example.com/titled.png')
+
+    try {
+      // when
+      const result = await preprocessMarkdownImages(markdown, uploadFn, basePath)
+
+      // then
+      expect(result).toBe('![alt](https://uploaded.example.com/titled.png "My Title")')
+      expect(uploadFn).toHaveBeenCalledTimes(1)
+      expect(uploadFn.mock.calls[0][0]).toBe(tmpFile)
+    } finally {
+      fs.unlinkSync(tmpFile)
+    }
+  })
+
+  test('handles images with titles mixed with untitled', async () => {
+    // given
+    const tmpFile1 = createTempFile('a.png')
+    const tmpFile2 = createTempFile('b.jpg')
+    const basePath = path.dirname(tmpFile1)
+    const fileName1 = path.basename(tmpFile1)
+    const fileName2 = path.basename(tmpFile2)
+    const markdown = `![with title](./${fileName1} "Title")\n\n![no title](./${fileName2})`
+    const uploadFn = mock(async (filePath: string) => {
+      return `https://uploaded.example.com/${path.basename(filePath)}`
+    })
+
+    try {
+      // when
+      const result = await preprocessMarkdownImages(markdown, uploadFn, basePath)
+
+      // then
+      expect(result).toContain(`![with title](https://uploaded.example.com/${fileName1} "Title")`)
+      expect(result).toContain(`![no title](https://uploaded.example.com/${fileName2})`)
+      expect(uploadFn).toHaveBeenCalledTimes(2)
+    } finally {
+      fs.unlinkSync(tmpFile1)
+      fs.unlinkSync(tmpFile2)
+    }
+  })
 })
