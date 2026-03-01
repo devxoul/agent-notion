@@ -36,6 +36,13 @@ const mockUploadFile = mock(() =>
     url: 'https://www.notion.so/file-uploads/upload-123',
   }),
 )
+const mockUploadFileOnly = mock(() =>
+  Promise.resolve({
+    fileUploadId: 'upload-123',
+    url: 'https://www.notion.so/file-uploads/upload-123',
+    contentType: 'image/png',
+  }),
+)
 const mockPreprocessMarkdownImages = mock(
   (markdown: string, _uploadFn: (filePath: string) => Promise<string>, _basePath: string) => Promise.resolve(markdown),
 )
@@ -64,6 +71,7 @@ mock.module('@/shared/markdown/read-input', () => ({
 
 mock.module('@/platforms/notionbot/upload', () => ({
   uploadFile: mockUploadFile,
+  uploadFileOnly: mockUploadFileOnly,
 }))
 
 mock.module('@/shared/markdown/preprocess-images', () => ({
@@ -103,6 +111,14 @@ describe('block commands', () => {
         id: 'uploaded-block-1',
         type: 'image' as const,
         url: 'https://www.notion.so/file-uploads/upload-123',
+      }),
+    )
+    mockUploadFileOnly.mockReset()
+    mockUploadFileOnly.mockImplementation(() =>
+      Promise.resolve({
+        fileUploadId: 'upload-123',
+        url: 'https://www.notion.so/file-uploads/upload-123',
+        contentType: 'image/png',
       }),
     )
     mockPreprocessMarkdownImages.mockReset()
@@ -316,7 +332,7 @@ describe('block commands', () => {
       expect.any(Function),
       process.cwd(),
     )
-    expect(mockUploadFile).toHaveBeenCalledWith(expect.anything(), 'parent-456', '/tmp/local-image.png')
+    expect(mockUploadFileOnly).toHaveBeenCalledWith(expect.anything(), '/tmp/local-image.png')
   })
 
   test('append with --markdown-file reads and converts markdown file', async () => {

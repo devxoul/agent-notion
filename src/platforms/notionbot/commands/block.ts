@@ -3,7 +3,7 @@ import type { BlockObjectRequest } from '@notionhq/client/build/src/api-endpoint
 import { Command } from 'commander'
 import { getClient } from '@/platforms/notionbot/client'
 import { formatAppendResponse, formatBlock, formatBlockChildrenResponse } from '@/platforms/notionbot/formatters'
-import { uploadFile } from '@/platforms/notionbot/upload'
+import { uploadFile, uploadFileOnly } from '@/platforms/notionbot/upload'
 import { preprocessMarkdownImages } from '@/shared/markdown/preprocess-images'
 import { readMarkdownInput } from '@/shared/markdown/read-input'
 import { markdownToOfficialBlocks } from '@/shared/markdown/to-notion-official'
@@ -111,7 +111,7 @@ export async function handleBlockAppend(
     const rawMarkdown = readMarkdownInput({ markdown: args.markdown, markdownFile: args.markdownFile })
     const basePath = args.markdownFile ? path.dirname(path.resolve(args.markdownFile)) : process.cwd()
     const uploadFn = async (filePath: string): Promise<string> => {
-      const result = await uploadFile(client, args.parent_id, filePath)
+      const result = await uploadFileOnly(client, filePath)
       return result.url
     }
     const markdown = await preprocessMarkdownImages(rawMarkdown, uploadFn, basePath)
