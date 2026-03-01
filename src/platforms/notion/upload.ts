@@ -81,20 +81,35 @@ export async function uploadToS3(signedPutUrl: string, fileBuffer: Buffer, conte
   }
 }
 
-export async function uploadFile(
+export async function uploadFileOnly(
   tokenV2: string,
-  parentId: string,
   filePath: string,
+  parentId: string,
   spaceId: string,
-): Promise<UploadedBlock> {
+): Promise<{ url: string; fileId: string; contentType: string; name: string }> {
   const fileInfo = uploadDeps.resolveFileInfo(filePath)
   const record = { table: 'block', id: parentId, spaceId }
   const uploadInfo = await getUploadUrl(tokenV2, fileInfo.name, fileInfo.contentType, record)
   const fileBuffer = uploadDeps.readFileSync(fileInfo.path)
   await uploadToS3(uploadInfo.signedPutUrl, fileBuffer, fileInfo.contentType)
 
+  return {
+    url: uploadInfo.url,
+    fileId: uploadInfo.fileId,
+    contentType: fileInfo.contentType,
+    name: fileInfo.name,
+  }
+}
+export async function uploadFile(
+  tokenV2: string,
+  parentId: string,
+  filePath: string,
+  spaceId: string,
+): Promise<UploadedBlock> {
+  const upload = await uploadFileOnly(tokenV2, filePath, parentId, spaceId)
+
   const blockId = uploadDeps.generateId()
-  const blockType: UploadedBlock['type'] = isImageType(fileInfo.contentType) ? 'image' : 'file'
+  const blockType: UploadedBlock['type'] = isImageType(upload.contentType) ? 'image' : 'file'
   const operations: SaveOperation[] = [
     {
       pointer: { table: 'block', id: blockId, spaceId },
@@ -108,8 +123,8 @@ export async function uploadFile(
         parent_table: 'block',
         alive: true,
         properties: {
-          source: [[uploadInfo.url]],
-          title: [[fileInfo.name]],
+          source: [[upload.url]],
+          title: [[upload.name]],
         },
         space_id: spaceId,
       },
@@ -124,7 +139,7 @@ export async function uploadFile(
       pointer: { table: 'block', id: blockId, spaceId },
       command: 'listAfter',
       path: ['file_ids'],
-      args: { id: uploadInfo.fileId },
+      args: { id: upload.fileId },
     },
   ]
 
@@ -137,7 +152,7 @@ export async function uploadFile(
   return {
     id: blockId,
     type: blockType,
-    url: uploadInfo.url,
+    url: upload.url,
   }
 }
 

@@ -4,7 +4,66 @@ import os from 'node:os'
 import path from 'node:path'
 import type { NotionClient } from './client'
 
-const { uploadFile } = await import('./upload')
+const { uploadFile, uploadFileOnly } = await import('./upload')
+
+describe('uploadFileOnly', () => {
+  let tempDir: string
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vibe-notionbot-upload-'))
+  })
+
+  afterEach(() => {
+    fs.rmSync(tempDir, { recursive: true, force: true })
+    mock.restore()
+  })
+
+  test('uploads file and returns url without appending block', async () => {
+    const filePath = path.join(tempDir, 'photo.png')
+    const fileBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47])
+    fs.writeFileSync(filePath, fileBuffer)
+
+    const mockCreate = mock(() => Promise.resolve({ id: 'file_upload_123' }))
+    const mockSend = mock(() => Promise.resolve({}))
+    const mockAppend = mock(() => Promise.resolve({}))
+
+    const client = {
+      fileUploads: {
+        create: mockCreate,
+        send: mockSend,
+      },
+      blocks: {
+        children: {
+          append: mockAppend,
+        },
+      },
+    } as unknown as NotionClient
+
+    // when
+    const result = await uploadFileOnly(client, filePath)
+
+    // then
+    expect(mockCreate).toHaveBeenCalledWith({
+      mode: 'single_part',
+      filename: 'photo.png',
+      content_type: 'image/png',
+    })
+    expect(mockSend).toHaveBeenCalledWith({
+      file_upload_id: 'file_upload_123',
+      file: {
+        data: fileBuffer,
+        filename: 'photo.png',
+      },
+      part_number: 1,
+    })
+    expect(mockAppend).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      fileUploadId: 'file_upload_123',
+      url: 'https://www.notion.so/file-uploads/file_upload_123',
+      contentType: 'image/png',
+    })
+  })
+})
 
 describe('uploadFile', () => {
   let tempDir: string
@@ -25,7 +84,6 @@ describe('uploadFile', () => {
 
     const mockCreate = mock(() => Promise.resolve({ id: 'file_upload_123' }))
     const mockSend = mock(() => Promise.resolve({}))
-    const mockComplete = mock(() => Promise.resolve({}))
     const mockAppend = mock(() =>
       Promise.resolve({
         results: [
@@ -40,7 +98,6 @@ describe('uploadFile', () => {
       fileUploads: {
         create: mockCreate,
         send: mockSend,
-        complete: mockComplete,
       },
       blocks: {
         children: {
@@ -64,7 +121,6 @@ describe('uploadFile', () => {
       },
       part_number: 1,
     })
-    expect(mockComplete).toHaveBeenCalledWith({ file_upload_id: 'file_upload_123' })
     expect(mockAppend).toHaveBeenCalledWith({
       block_id: 'parent-123',
       children: [
@@ -93,7 +149,6 @@ describe('uploadFile', () => {
 
     const mockCreate = mock(() => Promise.resolve({ id: 'file_upload_456' }))
     const mockSend = mock(() => Promise.resolve({}))
-    const mockComplete = mock(() => Promise.resolve({}))
     const mockAppend = mock(() =>
       Promise.resolve({
         results: [
@@ -108,7 +163,6 @@ describe('uploadFile', () => {
       fileUploads: {
         create: mockCreate,
         send: mockSend,
-        complete: mockComplete,
       },
       blocks: {
         children: {
@@ -132,7 +186,6 @@ describe('uploadFile', () => {
       },
       part_number: 1,
     })
-    expect(mockComplete).toHaveBeenCalledWith({ file_upload_id: 'file_upload_456' })
     expect(mockAppend).toHaveBeenCalledWith({
       block_id: 'parent-456',
       children: [

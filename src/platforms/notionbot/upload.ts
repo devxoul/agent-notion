@@ -2,6 +2,12 @@ import fs from 'node:fs'
 import { isImageType, resolveFileInfo } from '@/shared/upload/detect-type'
 import type { NotionClient } from './client'
 
+type FileUploadResult = {
+  fileUploadId: string
+  url: string
+  contentType: string
+}
+
 type UploadedBlock = {
   id: string
   type: 'image' | 'file'
@@ -16,7 +22,7 @@ type AppendResult = {
   }>
 }
 
-export async function uploadFile(client: NotionClient, parentId: string, filePath: string): Promise<UploadedBlock> {
+export async function uploadFileOnly(client: NotionClient, filePath: string): Promise<FileUploadResult> {
   const fileInfo = resolveFileInfo(filePath)
 
   const createResponse = await client.fileUploads.create({
@@ -36,25 +42,31 @@ export async function uploadFile(client: NotionClient, parentId: string, filePat
     part_number: 1,
   } as any)
 
-  await client.fileUploads.complete({
-    file_upload_id: fileUploadId,
-  })
+  return {
+    fileUploadId,
+    url: `https://www.notion.so/file-uploads/${fileUploadId}`,
+    contentType: fileInfo.contentType,
+  }
+}
 
-  const blockType: UploadedBlock['type'] = isImageType(fileInfo.contentType) ? 'image' : 'file'
+export async function uploadFile(client: NotionClient, parentId: string, filePath: string): Promise<UploadedBlock> {
+  const upload = await uploadFileOnly(client, filePath)
+
+  const blockType: UploadedBlock['type'] = isImageType(upload.contentType) ? 'image' : 'file'
   const blockObject =
     blockType === 'image'
       ? {
           type: 'image' as const,
           image: {
             type: 'file_upload' as const,
-            file_upload: { id: fileUploadId },
+            file_upload: { id: upload.fileUploadId },
           },
         }
       : {
           type: 'file' as const,
           file: {
             type: 'file_upload' as const,
-            file_upload: { id: fileUploadId },
+            file_upload: { id: upload.fileUploadId },
           },
         }
 
@@ -71,6 +83,6 @@ export async function uploadFile(client: NotionClient, parentId: string, filePat
   return {
     id: blockId,
     type: blockType,
-    url: `https://www.notion.so/file-uploads/${fileUploadId}`,
+    url: upload.url,
   }
 }
