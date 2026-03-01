@@ -50,7 +50,11 @@ export class NotionClient {
     return this.sdk.fileUploads
   }
 
-  async appendBlockChildren(blockId: string, children: BlockObjectRequest[]): Promise<AppendBlockChildrenResponse[]> {
+  async appendBlockChildren(
+    blockId: string,
+    children: BlockObjectRequest[],
+    after?: string,
+  ): Promise<AppendBlockChildrenResponse[]> {
     const results: AppendBlockChildrenResponse[] = []
 
     for (let i = 0; i < children.length; i += BLOCK_CHUNK_SIZE) {
@@ -58,6 +62,7 @@ export class NotionClient {
       const response = await this.sdk.blocks.children.append({
         block_id: blockId,
         children: chunk,
+        ...(i === 0 && after ? { after } : {}),
       })
       results.push(response)
     }

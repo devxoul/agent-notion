@@ -49,7 +49,12 @@ export async function uploadFileOnly(client: NotionClient, filePath: string): Pr
   }
 }
 
-export async function uploadFile(client: NotionClient, parentId: string, filePath: string): Promise<UploadedBlock> {
+export async function uploadFile(
+  client: NotionClient,
+  parentId: string,
+  filePath: string,
+  afterId?: string,
+): Promise<UploadedBlock> {
   const upload = await uploadFileOnly(client, filePath)
 
   const blockType: UploadedBlock['type'] = isImageType(upload.contentType) ? 'image' : 'file'
@@ -73,6 +78,7 @@ export async function uploadFile(client: NotionClient, parentId: string, filePat
   const appendResponse = (await client.blocks.children.append({
     block_id: parentId,
     children: [blockObject],
+    ...(afterId ? { after: afterId } : {}),
   })) as AppendResult
 
   const blockId = appendResponse.results?.[0]?.results?.[0]?.id
