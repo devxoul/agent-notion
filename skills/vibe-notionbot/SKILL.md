@@ -172,6 +172,10 @@ vibe-notionbot block append <parent_id> --markdown-file ./doc-with-images.md
 # Append nested markdown (indented lists become nested children blocks)
 vibe-notionbot block append <parent_id> --markdown '- Parent item\n  - Child item\n    - Grandchild item'
 
+# Append blocks after a specific block (positional insertion)
+vibe-notionbot block append <parent_id> --after <block_id> --markdown '# Inserted after specific block'
+vibe-notionbot block append <parent_id> --after <block_id> --content '[{"type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": "Inserted after"}}]}}]'
+
 # Update a block's content
 vibe-notionbot block update <block_id> --content '{"paragraph": {"rich_text": [{"type": "text", "text": {"content": "Updated content"}}]}}'
 
@@ -181,6 +185,7 @@ vibe-notionbot block delete <block_id>
 # Upload a file as a block (image or file block)
 vibe-notionbot block upload <parent_id> --file ./image.png --pretty
 vibe-notionbot block upload <parent_id> --file ./document.pdf --pretty
+vibe-notionbot block upload <parent_id> --file ./image.png --after <block_id> --pretty
 ```
 
 ### User Commands

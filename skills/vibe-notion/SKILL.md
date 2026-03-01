@@ -307,6 +307,10 @@ vibe-notion block append <parent_id> --workspace-id <workspace_id> --markdown-fi
 # Append nested markdown (indented lists become nested children blocks)
 vibe-notion block append <parent_id> --workspace-id <workspace_id> --markdown '- Parent item\n  - Child item\n    - Grandchild item'
 
+# Append blocks after a specific block (positional insertion)
+vibe-notion block append <parent_id> --workspace-id <workspace_id> --after <block_id> --markdown '# Inserted after specific block'
+vibe-notion block append <parent_id> --workspace-id <workspace_id> --after <block_id> --content '[{"type":"text","properties":{"title":[["Inserted after"]]}}]'
+
 # Update a block
 vibe-notion block update <block_id> --workspace-id <workspace_id> --content '{"properties":{"title":[["Updated text"]]}}' --pretty
 
@@ -316,6 +320,11 @@ vibe-notion block delete <block_id> --workspace-id <workspace_id> --pretty
 # Upload a file as a block (image or file block)
 vibe-notion block upload <parent_id> --workspace-id <workspace_id> --file ./image.png --pretty
 vibe-notion block upload <parent_id> --workspace-id <workspace_id> --file ./document.pdf --pretty
+vibe-notion block upload <parent_id> --workspace-id <workspace_id> --file ./image.png --after <block_id> --pretty
+
+# Move a block to a new position
+vibe-notion block move <block_id> --workspace-id <workspace_id> --parent <parent_id> --pretty
+vibe-notion block move <block_id> --workspace-id <workspace_id> --parent <parent_id> --after <sibling_id> --pretty
 ```
 
 ### Block Types Reference
