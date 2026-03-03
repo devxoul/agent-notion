@@ -386,7 +386,7 @@ If you already know the user's preferred package runner, use it directly instead
 
 ## Limitations
 
-- Supports Notion API version 2022-06-28.
+- Supports Notion API version 2025-09-03.
 - Does not support OAuth (token only).
-- ~~Does not support file uploads in v1.~~ File uploads are now supported via `block upload`.
-- Page property updates are limited to simple key=value pairs unless using raw JSON.
+- File uploads are supported via `block upload`.
+- Page property updates are limited to simple key=value pairs via `--set`.

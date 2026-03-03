@@ -437,7 +437,7 @@ vibe-notion batch --workspace-id <workspace_id> '<operations_json>'
 vibe-notion batch --workspace-id <workspace_id> --file ./operations.json '[]'
 ```
 
-**Supported actions** (13 total):
+**Supported actions** (14 total):
 
 | Action | Description |
 |--------|-------------|
@@ -447,6 +447,7 @@ vibe-notion batch --workspace-id <workspace_id> --file ./operations.json '[]'
 | `block.append` | Append blocks to a parent |
 | `block.update` | Update a block |
 | `block.delete` | Delete a block |
+| `block.move` | Move a block to a new position |
 | `comment.create` | Create a comment |
 | `database.create` | Create a database |
 | `database.update` | Update database title or schema |
