@@ -12,6 +12,15 @@ function maskToken(token: string): string {
   return `${token.slice(0, 6)}...${token.slice(-4)}`
 }
 
+class TokenValidationError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message)
+  }
+}
+
 async function validateTokenV2(tokenV2: string): Promise<void> {
   const response = await fetch('https://www.notion.so/api/v3/getSpaces', {
     method: 'POST',
@@ -23,7 +32,7 @@ async function validateTokenV2(tokenV2: string): Promise<void> {
   })
 
   if (!response.ok) {
-    throw new Error(`Notion internal API error: ${response.status}`)
+    throw new TokenValidationError(response.status, `Notion internal API error: ${response.status}`)
   }
 }
 
@@ -108,16 +117,36 @@ async function statusAction(options: CommandOptions): Promise<void> {
     const manager = new CredentialManager()
     const stored = await manager.getCredentials()
 
-    const output = {
-      stored_token_v2: stored
-        ? {
-            token_v2: maskToken(stored.token_v2),
-            user_id: stored.user_id,
-          }
-        : null,
+    if (!stored) {
+      console.log(formatOutput({ authenticated: false, stored_token_v2: null }, options.pretty))
+      return
     }
 
-    console.log(formatOutput(output, options.pretty))
+    let valid = false
+    try {
+      await validateTokenV2(stored.token_v2)
+      valid = true
+    } catch (error) {
+      if (error instanceof TokenValidationError && (error.status === 401 || error.status === 403)) {
+        valid = false
+      } else {
+        throw error
+      }
+    }
+
+    console.log(
+      formatOutput(
+        {
+          authenticated: valid,
+          stored_token_v2: {
+            token_v2: maskToken(stored.token_v2),
+            user_id: stored.user_id,
+          },
+          ...(valid ? {} : { hint: 'Token is stale or revoked. Run: vibe-notion auth extract' }),
+        },
+        options.pretty,
+      ),
+    )
   } catch (error) {
     console.error(JSON.stringify({ error: (error as Error).message }))
     process.exit(1)
