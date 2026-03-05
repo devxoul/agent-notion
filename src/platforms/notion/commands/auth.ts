@@ -62,12 +62,20 @@ async function extractAction(options: CommandOptions): Promise<void> {
     }
 
     const extracted = await extractor.extract()
+
+    if (options.debug) {
+      for (const err of extractor.getErrors()) {
+        console.error(`[debug] ${err}`)
+      }
+    }
+
     if (!extracted) {
       console.log(
         formatOutput(
           {
             error: 'No token_v2 found. Make sure Notion desktop app is installed and logged in.',
             hint: options.debug ? undefined : 'Run with --debug for more info.',
+            ...(options.debug && extractor.getErrors().length > 0 ? { extraction_errors: extractor.getErrors() } : {}),
           },
           options.pretty,
         ),
