@@ -39,8 +39,14 @@ export async function getCredentialsOrExit(): Promise<NotionCredentials> {
       await manager.setCredentials(extracted)
       return extracted
     }
-  } catch {
-    // Extraction failed, fall through to error
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        error: `Auto-extraction failed: ${(error as Error).message}`,
+        hint: 'Run: vibe-notion auth extract --debug',
+      }),
+    )
+    process.exit(1)
   }
 
   console.error(JSON.stringify({ error: 'Not authenticated. Run: vibe-notion auth extract' }))
@@ -60,8 +66,8 @@ export async function getCredentialsOrThrow(): Promise<NotionCredentials> {
       await manager.setCredentials(extracted)
       return extracted
     }
-  } catch {
-    // Extraction failed, fall through to error
+  } catch (error) {
+    throw new Error(`Auto-extraction failed: ${(error as Error).message}`)
   }
 
   throw new Error('Not authenticated. Run: vibe-notion auth extract')

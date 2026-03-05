@@ -36,8 +36,14 @@ async function getCredentialsOrExit() {
       await _mockSetCredentials(extracted)
       return extracted
     }
-  } catch {
-    // Extraction failed, fall through to error
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        error: `Auto-extraction failed: ${(error as Error).message}`,
+        hint: 'Run: vibe-notion auth extract --debug',
+      }),
+    )
+    process.exit(1)
   }
 
   console.error(JSON.stringify({ error: 'Not authenticated. Run: vibe-notion auth extract' }))
@@ -55,8 +61,8 @@ async function getCredentialsOrThrow() {
       await _mockSetCredentials(extracted)
       return extracted
     }
-  } catch {
-    // Extraction failed, fall through to error
+  } catch (error) {
+    throw new Error(`Auto-extraction failed: ${(error as Error).message}`)
   }
 
   throw new Error('Not authenticated. Run: vibe-notion auth extract')
@@ -242,7 +248,7 @@ describe('getCredentialsOrExit', () => {
     expect(_mockSetCredentials).toHaveBeenCalledWith(extracted)
   })
 
-  test('exits when auto-extraction throws', async () => {
+  test('exits with extraction error message when auto-extraction throws', async () => {
     _mockGetCredentials = mock(() => Promise.resolve(null))
     _mockExtract = mock(() => Promise.reject(new Error('Notion directory not found')))
 
@@ -252,10 +258,21 @@ describe('getCredentialsOrExit', () => {
     const originalExit = process.exit
     process.exit = mockExit as never
 
+    const consoleErrorMock = mock(() => {})
+    const originalError = console.error
+    console.error = consoleErrorMock as never
+
     try {
       await expect(getCredentialsOrExit()).rejects.toThrow('process.exit called')
       expect(mockExit).toHaveBeenCalledWith(1)
+      expect(consoleErrorMock).toHaveBeenCalledWith(
+        JSON.stringify({
+          error: 'Auto-extraction failed: Notion directory not found',
+          hint: 'Run: vibe-notion auth extract --debug',
+        }),
+      )
     } finally {
+      console.error = originalError
       process.exit = originalExit
     }
   })
@@ -297,11 +314,11 @@ describe('getCredentialsOrThrow', () => {
     expect(_mockSetCredentials).toHaveBeenCalledWith(extracted)
   })
 
-  test('throws when auto-extraction throws', async () => {
+  test('throws with extraction error message when auto-extraction throws', async () => {
     _mockGetCredentials = mock(() => Promise.resolve(null))
     _mockExtract = mock(() => Promise.reject(new Error('Notion directory not found')))
 
-    await expect(getCredentialsOrThrow()).rejects.toThrow('Not authenticated. Run: vibe-notion auth extract')
+    await expect(getCredentialsOrThrow()).rejects.toThrow('Auto-extraction failed: Notion directory not found')
   })
 })
 
