@@ -27,8 +27,12 @@ export class CredentialManager {
       return { credentials: null }
     }
 
-    const content = await readFile(this.credentialsPath, 'utf8')
-    return JSON.parse(content) as CredentialConfig
+    try {
+      const content = await readFile(this.credentialsPath, 'utf8')
+      return JSON.parse(content) as CredentialConfig
+    } catch {
+      return { credentials: null }
+    }
   }
 
   async save(config: CredentialConfig): Promise<void> {

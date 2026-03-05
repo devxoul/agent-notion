@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { CredentialManager } from './credential-manager'
@@ -67,5 +67,23 @@ describe('CredentialManager', () => {
     await manager.remove()
 
     expect(existsSync(credentialsPath)).toBe(false)
+  })
+
+  test('load returns empty config when file contains invalid JSON', async () => {
+    writeFileSync(join(configDir, 'credentials.json'), '{ broken json')
+    const config = await manager.load()
+    expect(config).toEqual({ credentials: null })
+  })
+
+  test('load returns empty config when file is empty', async () => {
+    writeFileSync(join(configDir, 'credentials.json'), '')
+    const config = await manager.load()
+    expect(config).toEqual({ credentials: null })
+  })
+
+  test('getCredentials returns null when file is corrupted', async () => {
+    writeFileSync(join(configDir, 'credentials.json'), 'not json at all')
+    const creds = await manager.getCredentials()
+    expect(creds).toBeNull()
   })
 })
