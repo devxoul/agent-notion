@@ -263,7 +263,13 @@ export class TokenExtractor {
         usersRow = db.query(usersSql).get() as CookieRow
         db.close()
       } else {
-        const Database = require('better-sqlite3')
+        // biome-ignore lint/suspicious/noExplicitAny: dynamic require for Node.js compatibility
+        let Database: any
+        try {
+          Database = require('better-sqlite3')
+        } catch {
+          throw new Error('better-sqlite3 is required for Node.js. Install it with: npm install better-sqlite3')
+        }
         const db = new Database(tempDbPath, { readonly: true })
         tokenRow = db.prepare(tokenSql).get() as CookieRow
         userRow = db.prepare(userSql).get() as CookieRow
@@ -284,7 +290,10 @@ export class TokenExtractor {
         ...(userId ? { user_id: userId } : {}),
         ...(userIds.length > 0 ? { user_ids: userIds } : {}),
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('better-sqlite3')) {
+        throw error
+      }
       return null
     } finally {
       try {
