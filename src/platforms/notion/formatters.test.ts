@@ -356,6 +356,117 @@ describe('formatPageGet', () => {
       blocks: [{ id: 'block-1', type: 'text', text: 'Present' }],
     })
   })
+
+  test('includes database row properties when page belongs to a collection', () => {
+    // Given
+    const blocks: Record<string, Record<string, unknown>> = {
+      'row-1': {
+        value: {
+          id: 'row-1',
+          type: 'page',
+          parent_table: 'collection',
+          parent_id: 'coll-1',
+          content: ['block-1'],
+          properties: {
+            title: [['My Task']],
+            status_prop: [['In Progress']],
+            id_prop: [['5']],
+          },
+        },
+        role: 'editor',
+      },
+      'block-1': {
+        value: { id: 'block-1', type: 'text', properties: { title: [['Description']] } },
+        role: 'editor',
+      },
+    }
+    const recordMap = {
+      collection: {
+        'coll-1': {
+          value: {
+            id: 'coll-1',
+            schema: {
+              title: { name: 'Name', type: 'title' },
+              status_prop: { name: 'Status', type: 'select' },
+              id_prop: { name: 'ID', type: 'auto_increment_id', prefix: 'HUX' },
+            },
+          },
+        },
+      },
+    }
+
+    // When
+    const result = formatPageGet(blocks, 'row-1', recordMap)
+
+    // Then
+    expect(result.properties).toEqual({
+      Name: { type: 'title', value: 'My Task' },
+      Status: { type: 'select', value: 'In Progress' },
+      ID: { type: 'auto_increment_id', value: 'HUX-5' },
+    })
+    expect(result.blocks).toEqual([{ id: 'block-1', type: 'text', text: 'Description' }])
+  })
+
+  test('uses parent collection schema when multiple collections exist', () => {
+    // Given
+    const blocks: Record<string, Record<string, unknown>> = {
+      'row-1': {
+        value: {
+          id: 'row-1',
+          type: 'page',
+          parent_table: 'collection',
+          parent_id: 'coll-2',
+          content: [],
+          properties: { title: [['Row']], prop_a: [['Value A']] },
+        },
+        role: 'editor',
+      },
+    }
+    const recordMap = {
+      collection: {
+        'coll-1': {
+          value: {
+            id: 'coll-1',
+            schema: { title: { name: 'Wrong', type: 'title' } },
+          },
+        },
+        'coll-2': {
+          value: {
+            id: 'coll-2',
+            schema: {
+              title: { name: 'Name', type: 'title' },
+              prop_a: { name: 'Custom', type: 'select' },
+            },
+          },
+        },
+      },
+    }
+
+    // When
+    const result = formatPageGet(blocks, 'row-1', recordMap)
+
+    // Then
+    expect(result.properties).toEqual({
+      Name: { type: 'title', value: 'Row' },
+      Custom: { type: 'select', value: 'Value A' },
+    })
+  })
+
+  test('omits properties for regular pages without collection', () => {
+    // Given
+    const blocks: Record<string, Record<string, unknown>> = {
+      'page-1': {
+        value: { id: 'page-1', type: 'page', parent_table: 'block', content: [] },
+        role: 'editor',
+      },
+    }
+
+    // When
+    const result = formatPageGet(blocks, 'page-1', {})
+
+    // Then
+    expect(result.properties).toBeUndefined()
+  })
 })
 
 describe('formatBacklinks', () => {

@@ -109,19 +109,44 @@ export function formatBlockUpdate(block: Record<string, unknown>): {
 export function formatPageGet(
   blocks: Record<string, Record<string, unknown>>,
   pageId: string,
+  recordMap?: Record<string, unknown>,
 ): {
   id: string
   title: string
+  properties?: Record<string, PropertyValue>
   blocks: SimplifiedBlock[]
 } {
   const root = getRecordValue(blocks[pageId])
   const content = toStringArray(root?.content)
 
-  return {
+  const result: {
+    id: string
+    title: string
+    properties?: Record<string, PropertyValue>
+    blocks: SimplifiedBlock[]
+  } = {
     id: pageId,
     title: root ? extractNotionTitle(root) : '',
     blocks: buildPageChildren(blocks, content),
   }
+
+  if (root && recordMap) {
+    const parentTable = toOptionalString(root.parent_table)
+    if (parentTable === 'collection') {
+      const parentId = toOptionalString(root.parent_id)
+      if (parentId) {
+        const collectionMap = toRecordMap(recordMap.collection)
+        if (collectionMap[parentId]) {
+          const schemaMap = extractSchemaMap({ collection: { [parentId]: collectionMap[parentId] } })
+          if (Object.keys(schemaMap).length > 0) {
+            result.properties = formatRowProperties(root, schemaMap)
+          }
+        }
+      }
+    }
+  }
+
+  return result
 }
 
 export function formatBacklinks(

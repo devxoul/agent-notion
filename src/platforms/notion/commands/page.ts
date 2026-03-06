@@ -48,6 +48,7 @@ type LoadPageChunkResponse = {
   }
   recordMap: {
     block: Record<string, BlockRecord>
+    [key: string]: unknown
   }
 }
 
@@ -190,6 +191,7 @@ async function getAction(rawPageId: string, options: LoadPageChunkOptions): Prom
     let cursor: { stack: unknown[] } = { stack: [] }
     let chunkNumber = 0
     const blocks: Record<string, BlockRecord> = {}
+    const extraRecordMap: Record<string, Record<string, unknown>> = {}
 
     do {
       const chunk = (await internalRequest(creds.token_v2, 'loadPageChunk', {
@@ -201,11 +203,16 @@ async function getAction(rawPageId: string, options: LoadPageChunkOptions): Prom
       })) as LoadPageChunkResponse
 
       Object.assign(blocks, chunk.recordMap.block)
+      for (const [key, value] of Object.entries(chunk.recordMap)) {
+        if (key === 'block') continue
+        if (!extraRecordMap[key]) extraRecordMap[key] = {}
+        Object.assign(extraRecordMap[key], value as Record<string, unknown>)
+      }
       cursor = chunk.cursor
       chunkNumber += 1
     } while (cursor.stack.length > 0)
 
-    const result = formatPageGet(blocks as unknown as Record<string, Record<string, unknown>>, pageId)
+    const result = formatPageGet(blocks as unknown as Record<string, Record<string, unknown>>, pageId, extraRecordMap)
 
     if (options.backlinks) {
       const backlinksResponse = (await internalRequest(creds.token_v2, 'getBacklinksForBlock', {
