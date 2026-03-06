@@ -1376,7 +1376,7 @@ describe('formatQueryCollectionResponse', () => {
     })
   })
 
-  test('returns typed auto_increment_id property with prefix', () => {
+  test('returns display string for auto_increment_id with prefix', () => {
     // Given
     const response = {
       result: {
@@ -1406,11 +1406,11 @@ describe('formatQueryCollectionResponse', () => {
 
     // Then
     expect(result.results[0].properties).toEqual({
-      ID: { type: 'auto_increment_id', value: 42, prefix: 'AGN' },
+      ID: { type: 'auto_increment_id', value: 'AGN-42' },
     })
   })
 
-  test('returns typed auto_increment_id property without prefix', () => {
+  test('returns numeric string for auto_increment_id without prefix', () => {
     // Given
     const response = {
       result: {
@@ -1440,7 +1440,7 @@ describe('formatQueryCollectionResponse', () => {
 
     // Then
     expect(result.results[0].properties).toEqual({
-      ID: { type: 'auto_increment_id', value: 7, prefix: undefined },
+      ID: { type: 'auto_increment_id', value: '7' },
     })
   })
 
@@ -1474,7 +1474,7 @@ describe('formatQueryCollectionResponse', () => {
 
     // Then
     expect(result.results[0].properties).toEqual({
-      ID: { type: 'auto_increment_id', value: null, prefix: 'TSK' },
+      ID: { type: 'auto_increment_id', value: null },
     })
   })
 

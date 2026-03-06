@@ -16,7 +16,7 @@ export type PropertyValue =
   | { type: 'phone_number'; value: string }
   | { type: 'status'; value: string }
   | { type: 'formula'; value: unknown }
-  | { type: 'auto_increment_id'; value: number | null; prefix?: string }
+  | { type: 'auto_increment_id'; value: string | null }
   | { type: string; value: unknown }
 
 export type BacklinkEntry = {
@@ -757,7 +757,8 @@ function extractPropertyValue(value: unknown, schemaType: string, prefix?: strin
     case 'auto_increment_id': {
       const text = extractPropertyText(value)
       const num = Number.parseFloat(text)
-      return { type: 'auto_increment_id' as const, value: Number.isNaN(num) ? null : num, prefix }
+      if (Number.isNaN(num)) return { type: 'auto_increment_id' as const, value: null }
+      return { type: 'auto_increment_id' as const, value: prefix ? `${prefix}-${num}` : String(num) }
     }
     case 'checkbox': {
       const text = extractPropertyText(value)
