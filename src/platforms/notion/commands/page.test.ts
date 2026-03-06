@@ -1759,6 +1759,318 @@ describe('PageCommand', () => {
     expect(result.id).toBe('uuid-1')
   })
 
+  test('page properties returns properties for database row', async () => {
+    const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string, body: any) => {
+      if (endpoint === 'syncRecordValues') {
+        const requests = body.requests as Array<{ pointer: { table: string; id: string } }>
+        const firstReq = requests[0]
+
+        // Block fetch
+        if (firstReq.pointer.table === 'block' && firstReq.pointer.id === 'row-1') {
+          return {
+            recordMap: {
+              block: {
+                'row-1': {
+                  value: {
+                    id: 'row-1',
+                    type: 'page',
+                    parent_id: 'collection-1',
+                    parent_table: 'collection',
+                    space_id: 'space-123',
+                    properties: {
+                      title: [['Task A']],
+                      status: [['In Progress']],
+                    },
+                  },
+                  role: 'editor',
+                },
+              },
+            },
+          }
+        }
+
+        // Collection fetch
+        if (firstReq.pointer.table === 'collection') {
+          return {
+            recordMap: {
+              collection: {
+                'collection-1': {
+                  value: {
+                    id: 'collection-1',
+                    schema: {
+                      title: { name: 'Name', type: 'title' },
+                      status: { name: 'Status', type: 'select' },
+                    },
+                  },
+                },
+              },
+            },
+          }
+        }
+      }
+      return {}
+    })
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mock(async () => ({ token_v2: 'test-token' })),
+      generateId: mock(() => 'uuid-1'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+      resolveDefaultTeamId: mock(async () => undefined),
+    }))
+
+    const { pageCommand } = await import('./page')
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      await pageCommand.parseAsync(['properties', 'row-1', '--workspace-id', 'space-123'], { from: 'user' })
+    } catch {
+      // Expected to exit
+    }
+
+    console.log = originalLog
+
+    expect(output.length).toBeGreaterThan(0)
+    const result = JSON.parse(output[0])
+    expect(result.id).toBe('row-1')
+    expect(result.properties).toBeDefined()
+    expect(result.properties.Name).toEqual({ type: 'title', value: 'Task A' })
+    expect(result.properties.Status).toEqual({ type: 'select', value: 'In Progress' })
+  })
+
+  test('page properties returns basic info for regular page', async () => {
+    const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string) => {
+      if (endpoint === 'syncRecordValues') {
+        return {
+          recordMap: {
+            block: {
+              'page-1': {
+                value: {
+                  id: 'page-1',
+                  type: 'page',
+                  parent_id: 'space-123',
+                  parent_table: 'space',
+                  space_id: 'space-123',
+                  properties: {
+                    title: [['My Page']],
+                  },
+                },
+                role: 'editor',
+              },
+            },
+          },
+        }
+      }
+      return {}
+    })
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mock(async () => ({ token_v2: 'test-token' })),
+      generateId: mock(() => 'uuid-1'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+      resolveDefaultTeamId: mock(async () => undefined),
+    }))
+
+    const { pageCommand } = await import('./page')
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      await pageCommand.parseAsync(['properties', 'page-1', '--workspace-id', 'space-123'], { from: 'user' })
+    } catch {
+      // Expected to exit
+    }
+
+    console.log = originalLog
+
+    expect(output.length).toBeGreaterThan(0)
+    const result = JSON.parse(output[0])
+    expect(result.id).toBe('page-1')
+    expect(result.title).toBe('My Page')
+    expect(result.type).toBe('page')
+    expect(result.properties).toBeUndefined()
+  })
+
+  test('page properties enriches relation and person references', async () => {
+    const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string, body: any) => {
+      if (endpoint === 'syncRecordValues') {
+        const requests = body.requests as Array<{ pointer: { table: string; id: string } }>
+        const firstReq = requests[0]
+
+        if (firstReq.pointer.table === 'block' && firstReq.pointer.id === 'row-1') {
+          return {
+            recordMap: {
+              block: {
+                'row-1': {
+                  value: {
+                    id: 'row-1',
+                    type: 'page',
+                    parent_id: 'collection-1',
+                    parent_table: 'collection',
+                    space_id: 'space-123',
+                    properties: {
+                      title: [['Task A']],
+                      assignee: [['‣', [['u', 'user-1']]]],
+                      related: [['‣', [['p', 'page-2']]]],
+                    },
+                  },
+                  role: 'editor',
+                },
+              },
+            },
+          }
+        }
+
+        if (firstReq.pointer.table === 'collection') {
+          return {
+            recordMap: {
+              collection: {
+                'collection-1': {
+                  value: {
+                    id: 'collection-1',
+                    schema: {
+                      title: { name: 'Name', type: 'title' },
+                      assignee: { name: 'Assignee', type: 'person' },
+                      related: { name: 'Related', type: 'relation' },
+                    },
+                  },
+                },
+              },
+            },
+          }
+        }
+
+        // Reference resolution batch
+        if (firstReq.pointer.table === 'block' && firstReq.pointer.id === 'page-2') {
+          return {
+            recordMap: {
+              block: {
+                'page-2': {
+                  value: {
+                    id: 'page-2',
+                    type: 'page',
+                    properties: { title: [['Related Task']] },
+                  },
+                  role: 'editor',
+                },
+              },
+              notion_user: {
+                'user-1': {
+                  value: {
+                    id: 'user-1',
+                    name: 'Alice',
+                  },
+                  role: 'editor',
+                },
+              },
+            },
+          }
+        }
+      }
+      return {}
+    })
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mock(async () => ({ token_v2: 'test-token' })),
+      generateId: mock(() => 'uuid-1'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+      resolveDefaultTeamId: mock(async () => undefined),
+    }))
+
+    const { pageCommand } = await import('./page')
+    const output: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => output.push(msg)
+
+    try {
+      await pageCommand.parseAsync(['properties', 'row-1', '--workspace-id', 'space-123'], { from: 'user' })
+    } catch {
+      // Expected to exit
+    }
+
+    console.log = originalLog
+
+    expect(output.length).toBeGreaterThan(0)
+    const result = JSON.parse(output[0])
+    expect(result.id).toBe('row-1')
+    expect(result.properties.Assignee).toEqual({
+      type: 'person',
+      value: [{ id: 'user-1', name: 'Alice' }],
+    })
+    expect(result.properties.Related).toEqual({
+      type: 'relation',
+      value: [{ id: 'page-2', title: 'Related Task' }],
+    })
+  })
+
+  test('page properties handles errors', async () => {
+    const mockInternalRequest = mock(async () => {
+      throw new Error('Page not found')
+    })
+
+    mock.module('../client', () => ({
+      internalRequest: mockInternalRequest,
+    }))
+
+    mock.module('./helpers', () => ({
+      getCredentialsOrExit: mock(async () => ({ token_v2: 'test-token' })),
+      generateId: mock(() => 'uuid-1'),
+      resolveSpaceId: mock(async () => 'space-123'),
+      resolveCollectionViewId: mock(async () => 'view-mock'),
+      resolveAndSetActiveUserId: mock(async () => {}),
+      resolveBacklinkUsers: mock(async () => ({})),
+      resolveDefaultTeamId: mock(async () => undefined),
+    }))
+
+    const { pageCommand } = await import('./page')
+    const errorOutput: string[] = []
+    const originalError = console.error
+    console.error = (msg: string) => errorOutput.push(msg)
+
+    let exitCode: number | undefined
+    const originalExit = process.exit
+    process.exit = ((code: number) => {
+      exitCode = code
+    }) as any
+
+    try {
+      await pageCommand.parseAsync(['properties', 'invalid-page', '--workspace-id', 'space-123'], { from: 'user' })
+    } catch {
+      // Expected
+    }
+
+    console.error = originalError
+    process.exit = originalExit
+
+    expect(errorOutput.length).toBeGreaterThan(0)
+    const errorMsg = JSON.parse(errorOutput[0])
+    expect(errorMsg.error).toBe('Page not found')
+    expect(exitCode).toBe(1)
+  })
+
   test('page archive for team root page removes from team pages', async () => {
     const mockInternalRequest = mock(async (_tokenV2: string, endpoint: string, body: any) => {
       if (endpoint === 'syncRecordValues') {
