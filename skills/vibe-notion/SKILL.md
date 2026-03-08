@@ -55,7 +55,7 @@ If a feature you need is not supported by `vibe-notion`, let the user know and o
 
 This applies even when:
 - You need to create 100+ rows
-- You need cross-references between newly created rows (use multi-pass batch — see [Bulk Operations Strategy](#bulk-operations-strategy))
+- You need cross-references between newly created rows (use multi-pass batch — see [references/batch-operations.md](references/batch-operations.md#bulk-operations-strategy))
 - The operation feels "too big" for a single command
 
 If you catch yourself thinking "I should write a script for this," stop and use `batch`.
@@ -337,79 +337,9 @@ vibe-notion block move <block_id> --workspace-id <workspace_id> --parent <parent
 vibe-notion block move <block_id> --workspace-id <workspace_id> --parent <parent_id> --before <sibling_id> --pretty
 ```
 
-### Block Types Reference
+### Block Types & Rich Text Reference
 
-The internal API uses a specific block format. Here are all supported types:
-
-#### Headings
-
-```json
-{"type": "header", "properties": {"title": [["Heading 1"]]}}
-{"type": "sub_header", "properties": {"title": [["Heading 2"]]}}
-{"type": "sub_sub_header", "properties": {"title": [["Heading 3"]]}}
-```
-
-#### Text
-
-```json
-{"type": "text", "properties": {"title": [["Plain text paragraph"]]}}
-```
-
-#### Lists
-
-```json
-{"type": "bulleted_list", "properties": {"title": [["Bullet item"]]}}
-{"type": "numbered_list", "properties": {"title": [["Numbered item"]]}}
-```
-
-#### Nested Children
-
-List blocks support nested children via the `children` property:
-
-```json
-{"type": "bulleted_list", "properties": {"title": [["Parent"]]}, "children": [{"type": "bulleted_list", "properties": {"title": [["Child"]]}}]}
-```
-
-#### To-Do / Checkbox
-
-```json
-{"type": "to_do", "properties": {"title": [["Task item"]], "checked": [["Yes"]]}}
-{"type": "to_do", "properties": {"title": [["Unchecked task"]], "checked": [["No"]]}}
-```
-
-#### Code Block
-
-```json
-{"type": "code", "properties": {"title": [["console.log('hello')"]], "language": [["javascript"]]}}
-```
-
-#### Quote
-
-```json
-{"type": "quote", "properties": {"title": [["Quoted text"]]}}
-```
-
-#### Divider
-
-```json
-{"type": "divider"}
-```
-
-### Rich Text Formatting
-
-Rich text uses nested arrays with formatting codes:
-
-| Format | Syntax | Example |
-|--------|--------|---------|
-| Plain | `[["text"]]` | `[["Hello"]]` |
-| Bold | `["text", [["b"]]]` | `["Hello", [["b"]]]` |
-| Italic | `["text", [["i"]]]` | `["Hello", [["i"]]]` |
-| Strikethrough | `["text", [["s"]]]` | `["Hello", [["s"]]]` |
-| Inline code | `["text", [["c"]]]` | `["Hello", [["c"]]]` |
-| Link | `["text", [["a", "url"]]]` | `["Click", [["a", "https://example.com"]]]` |
-| Bold + Italic | `["text", [["b"], ["i"]]]` | `["Hello", [["b"], ["i"]]]` |
-
-Multiple segments: `[["plain "], ["bold", [["b"]]], [" more plain"]]`
+For block type JSON format (headings, text, lists, to-do, code, quote, divider) and rich text formatting codes, see [references/block-types.md](references/block-types.md).
 
 ### Comment Commands
 
@@ -432,7 +362,9 @@ vibe-notion comment get <comment_id> --workspace-id <workspace_id> --pretty
 
 ## Batch Operations
 
-Run multiple write operations in a single CLI call. Use this instead of calling the CLI repeatedly when you need to create, update, or delete multiple things at once. Saves tokens and reduces round-trips.
+For batch command format, supported actions (14 total), operation JSON structure, output format, fail-fast behavior, bulk operations strategy (multi-pass pattern), and rate limit handling, see [references/batch-operations.md](references/batch-operations.md).
+
+**Quick usage:**
 
 ```bash
 # Inline JSON
@@ -441,95 +373,6 @@ vibe-notion batch --workspace-id <workspace_id> '<operations_json>'
 # From file (for large payloads)
 vibe-notion batch --workspace-id <workspace_id> --file ./operations.json '[]'
 ```
-
-**Supported actions** (14 total):
-
-| Action | Description |
-|--------|-------------|
-| `page.create` | Create a page |
-| `page.update` | Update page title, icon, or content |
-| `page.archive` | Archive a page |
-| `block.append` | Append blocks to a parent |
-| `block.update` | Update a block |
-| `block.delete` | Delete a block |
-| `block.move` | Move a block to a new position |
-| `comment.create` | Create a comment |
-| `database.create` | Create a database |
-| `database.update` | Update database title or schema |
-| `database.delete-property` | Delete a database property |
-| `database.add-row` | Add a row to a database |
-| `database.update-row` | Update properties on a database row |
-| `block.upload` | Upload a file as an image or file block |
-
-**Operation format**: Each operation is an object with `action` plus the same fields you'd pass to the individual command handler. Example with mixed actions:
-
-```json
-[
-  {"action": "database.add-row", "database_id": "<db_id>", "title": "Task A", "properties": {"Status": "To Do"}},
-  {"action": "database.add-row", "database_id": "<db_id>", "title": "Task B", "properties": {"Status": "In Progress"}},
-  {"action": "page.update", "page_id": "<page_id>", "title": "Updated Summary"}
-]
-```
-
-**Output format**:
-
-```json
-{
-  "results": [
-    {"index": 0, "action": "database.add-row", "success": true, "data": {"id": "row-uuid-1", "...": "..."}},
-    {"index": 1, "action": "database.add-row", "success": true, "data": {"id": "row-uuid-2", "...": "..."}},
-    {"index": 2, "action": "page.update", "success": true, "data": {"id": "page-uuid", "...": "..."}}
-  ],
-  "total": 3,
-  "succeeded": 3,
-  "failed": 0
-}
-```
-
-**Fail-fast behavior**: Operations run sequentially. If any operation fails, execution stops immediately. The output will contain results for all completed operations plus the failed one. The process exits with code 1 on failure, 0 on success.
-
-```json
-{
-  "results": [
-    {"index": 0, "action": "database.add-row", "success": true, "data": {"...": "..."}},
-    {"index": 1, "action": "page.update", "success": false, "error": "Page not found"}
-  ],
-  "total": 3,
-  "succeeded": 1,
-  "failed": 1
-}
-```
-
-### Bulk Operations Strategy
-
-For large operations (tens or hundreds of items), use `--file` to avoid shell argument limits and keep things manageable.
-
-**Step 1**: Write the operations JSON to a file, then run batch with `--file`:
-
-```bash
-# Write operations to a file (using your Write tool), then:
-vibe-notion batch --workspace-id <workspace_id> --file ./operations.json '[]'
-```
-
-**Multi-pass pattern** — when new rows need to reference each other (e.g., relation properties linking row A → row B, where both are new):
-
-1. **Pass 1 — Create all rows** (without cross-references): Write a batch JSON file with all `database.add-row` operations, omitting relation properties that point to other new rows. Run it. Collect the returned IDs from the output.
-2. **Pass 2 — Set cross-references**: Write a second batch JSON file with `database.update-row` operations that set the relation properties using the IDs from Pass 1. Run it.
-
-```
-Pass 1: Create rows A, B, C (no cross-refs) → get IDs for A, B, C
-Pass 2: Update A.predecessor=B, C.related=A (using real IDs from Pass 1)
-```
-
-This is the same result as a script, but without writing any code. Just two batch calls.
-
-### Rate Limits
-
-Notion enforces rate limits on its API. Batch operations run sequentially, so a large batch (30+ operations) can trigger **429 Too Many Requests** errors. To avoid this:
-
- **Split large batches into chunks of ~25-30 operations** per batch call
- If a batch fails mid-way with a 429, re-run with only the remaining (unprocessed) operations
- The `batch` output shows which operations succeeded before the failure — use the `index` field to determine where to resume
 
 ### Search Command
 
@@ -553,126 +396,9 @@ vibe-notion user get <user_id> --workspace-id <workspace_id> --pretty
 
 ## Output Format
 
-### JSON (Default)
+All commands output JSON by default. Use `--pretty` for human-readable output.
 
-All commands output JSON by default for AI consumption:
-
-```bash
-# Search results
-vibe-notion search "Roadmap" --workspace-id <workspace_id>
-```
-```json
-{
-  "results": [
-    {
-      "id": "305c0fcf-90b3-807a-bc1a-dc7cc18e0022",
-      "title": "Getting Started",
-      "score": 76.58
-    }
-  ],
-  "has_more": true,
-  "next_cursor": "20",
-  "total": 100
-}
-```
-
-```bash
-# Database query — properties use human-readable field names from the collection schema
-vibe-notion database query <database_id> --workspace-id <workspace_id>
-```
-```json
-{
-  "results": [
-    {
-      "id": "row-uuid",
-      "properties": {
-        "Name": "Acme Corp",
-        "Status": "Active",
-        "Type": "Enterprise"
-      }
-    }
-  ],
-  "has_more": false,
-  "next_cursor": null
-}
-```
-
-### Schema Hints (`$hints`)
-
-`database get` and `database query` may include a `$hints` array when the database schema has issues. These are actionable warnings — follow the instructions in each hint to fix the problem.
-
-```json
-{
-  "id": "collection-uuid",
-  "name": "My Database",
-  "schema": { "Name": "title", "Status": "select" },
-  "$hints": [
-    "Rollup 'Revenue Sum' depends on deleted relation 'Deals'. This rollup will return empty values. Fix: run `database delete-property --property \"Revenue Sum\"` to remove it."
-  ]
-}
-```
-
-**When `$hints` is present**: Read each hint carefully and execute the suggested fix commands. Broken properties can crash the Notion app for the user. Common issues detected:
-
-- **Dead properties**: Soft-deleted but still in schema. Usually harmless but indicates past issues.
-- **Broken rollups**: Reference deleted or missing relations. Will return empty values and may crash Notion.
-- **Broken relations**: Missing target collection. May crash Notion.
-
-If `$hints` is absent, the schema is clean — no action needed.
-
-```bash
-# Page get — returns page metadata with content blocks
-vibe-notion page get <page_id> --workspace-id <workspace_id>
-```
-```json
-{
-  "id": "page-uuid",
-  "title": "My Page",
-  "blocks": [
-    { "id": "block-1", "type": "text", "text": "Hello world" },
-    { "id": "block-2", "type": "to_do", "text": "Task item" }
-  ]
-}
-```
-
-```bash
-# With --backlinks: includes pages that link to this page/block
-vibe-notion page get <page_id> --workspace-id <workspace_id> --backlinks
-vibe-notion block get <block_id> --workspace-id <workspace_id> --backlinks
-```
-```json
-{
-  "id": "page-uuid",
-  "title": "My Page",
-  "blocks": [...],
-  "backlinks": [
-    { "id": "linking-page-uuid", "title": "Page That Links Here" }
-  ]
-}
-```
-
-```bash
-# Block get — collection_view blocks include collection_id and view_ids
-vibe-notion block get <block_id> --workspace-id <workspace_id>
-```
-```json
-{
-  "id": "block-uuid",
-  "type": "collection_view",
-  "text": "",
-  "parent_id": "parent-uuid",
-  "collection_id": "collection-uuid",
-  "view_ids": ["view-uuid"]
-}
-```
-
-### Pretty (Human-Readable)
-
-Use `--pretty` flag for formatted output on any command:
-
-```bash
-vibe-notion search "Roadmap" --workspace-id <workspace_id> --pretty
-```
+For JSON response shapes (search, database query, page get, block get, backlinks), `$hints` schema warnings, and detailed examples, see [references/output-format.md](references/output-format.md).
 
 ## When to Use `--backlinks`
 
