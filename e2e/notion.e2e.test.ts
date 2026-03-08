@@ -44,7 +44,7 @@ describe('Notion E2E Tests', () => {
     for (const blockId of testBlockIds) {
       try {
         await runNotionCLI(['block', 'delete', '--workspace-id', workspaceId, blockId])
-        await waitForRateLimit()
+        await waitForRateLimit(500)
       } catch {}
     }
 
@@ -52,25 +52,25 @@ describe('Notion E2E Tests', () => {
       if (pageId === containerId) continue
       try {
         await runNotionCLI(['page', 'archive', '--workspace-id', workspaceId, pageId])
-        await waitForRateLimit()
+        await waitForRateLimit(500)
       } catch {}
     }
 
     for (const databaseBlockId of testDatabaseIds) {
       try {
         await runNotionCLI(['page', 'archive', '--workspace-id', workspaceId, databaseBlockId])
-        await waitForRateLimit()
+        await waitForRateLimit(500)
       } catch {}
     }
 
     if (containerId) {
       try {
         await runNotionCLI(['page', 'archive', '--workspace-id', workspaceId, containerId])
-        await waitForRateLimit()
+        await waitForRateLimit(500)
       } catch {}
     }
 
-  }, 60000)
+  }, 120000)
 
   // ── auth ──────────────────────────────────────────────────────────────
 
