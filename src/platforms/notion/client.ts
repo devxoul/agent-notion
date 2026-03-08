@@ -1,5 +1,6 @@
 import { CredentialManager } from '@/platforms/notion/credential-manager'
 import { TokenExtractor } from '@/platforms/notion/token-extractor'
+import { delay } from '@/shared/utils/delay'
 
 let activeUserId: string | undefined
 
@@ -67,30 +68,52 @@ async function tryReExtractToken(staleToken: string): Promise<string | null> {
   }
 }
 
+const MAX_RATE_LIMIT_RETRIES = 3
+const RATE_LIMIT_BASE_DELAY_MS = 1000
+
 export async function internalRequest(
   tokenV2: string,
   endpoint: string,
   body: Record<string, unknown> = {},
 ): Promise<unknown> {
-  const response = await doRequest(tokenV2, endpoint, body)
+  let currentToken = tokenV2
 
-  if (response.ok) {
-    return response.json()
-  }
+  for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt++) {
+    const response = await doRequest(currentToken, endpoint, body)
 
-  // On 401, attempt token re-extraction and retry once
-  if (response.status === 401) {
-    const freshToken = await tryReExtractToken(tokenV2)
-    if (freshToken) {
-      const retryResponse = await doRequest(freshToken, endpoint, body)
-      if (retryResponse.ok) {
-        return retryResponse.json()
-      }
-      const retryDetail = await extractResponseDetail(retryResponse)
-      throw new Error(buildErrorMessage(retryResponse.status, retryDetail))
+    if (response.ok) {
+      return response.json()
     }
+
+    // On 429, retry with exponential backoff
+    if (response.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
+      const retryAfter = response.headers.get('retry-after')
+      const retryAfterSeconds = retryAfter ? Number(retryAfter) : NaN
+      const delayMs =
+        Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+          ? retryAfterSeconds * 1000
+          : RATE_LIMIT_BASE_DELAY_MS * 2 ** attempt
+      await delay(delayMs)
+      continue
+    }
+
+    // On 401, attempt token re-extraction and retry once
+    if (response.status === 401) {
+      const freshToken = await tryReExtractToken(currentToken)
+      if (freshToken) {
+        currentToken = freshToken
+        const retryResponse = await doRequest(currentToken, endpoint, body)
+        if (retryResponse.ok) {
+          return retryResponse.json()
+        }
+        const retryDetail = await extractResponseDetail(retryResponse)
+        throw new Error(buildErrorMessage(retryResponse.status, retryDetail))
+      }
+    }
+
+    const detail = await extractResponseDetail(response)
+    throw new Error(buildErrorMessage(response.status, detail))
   }
 
-  const detail = await extractResponseDetail(response)
-  throw new Error(buildErrorMessage(response.status, detail))
+  throw new Error(`Notion internal API error: 429: Rate limited after ${MAX_RATE_LIMIT_RETRIES} retries`)
 }

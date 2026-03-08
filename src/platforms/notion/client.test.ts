@@ -334,7 +334,7 @@ describe('401 auto-recovery', () => {
     expect(mockSetCredentials).toHaveBeenCalledWith({ token_v2: 'fresh_token', user_id: 'user-1' })
   })
 
-  test('does not retry on non-401 errors', async () => {
+  test('does not retry on non-401/non-429 errors', async () => {
     // Given
     mock.module('@/platforms/notion/token-extractor', () => ({
       TokenExtractor: class {
@@ -382,5 +382,93 @@ describe('401 auto-recovery', () => {
     // When/Then
     await expect(req('stale_token', 'endpoint')).rejects.toThrow('Notion internal API error: 401')
     expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('429 rate limit retry', () => {
+  beforeEach(() => {
+    mock.module('@/shared/utils/delay', () => ({
+      delay: mock(() => Promise.resolve()),
+    }))
+  })
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  test('retries on 429 and succeeds on subsequent attempt', async () => {
+    // Given
+    let callCount = 0
+    globalThis.fetch = mock(() => {
+      callCount++
+      if (callCount === 1) {
+        return Promise.resolve(new Response(JSON.stringify({ error: 'Rate limited' }), { status: 429 }))
+      }
+      return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+    }) as any
+
+    const { internalRequest: req } = await import('./client')
+
+    // When
+    const result = await req('token', 'endpoint')
+
+    // Then
+    expect(result).toEqual({ ok: true })
+    expect(callCount).toBe(2)
+  })
+
+  test('retries up to 3 times on consecutive 429 responses', async () => {
+    // Given
+    let callCount = 0
+    globalThis.fetch = mock(() => {
+      callCount++
+      if (callCount <= 3) {
+        return Promise.resolve(new Response(JSON.stringify({ error: 'Rate limited' }), { status: 429 }))
+      }
+      return Promise.resolve(new Response(JSON.stringify({ recovered: true }), { status: 200 }))
+    }) as any
+
+    const { internalRequest: req } = await import('./client')
+
+    // When
+    const result = await req('token', 'endpoint')
+
+    // Then
+    expect(result).toEqual({ recovered: true })
+    expect(callCount).toBe(4)
+  })
+
+  test('throws after exhausting all 429 retries', async () => {
+    // Given
+    globalThis.fetch = mock(() =>
+      Promise.resolve(new Response(JSON.stringify({ error: 'Rate limited' }), { status: 429 })),
+    ) as any
+
+    const { internalRequest: req } = await import('./client')
+
+    // When/Then
+    await expect(req('token', 'endpoint')).rejects.toThrow('429')
+  })
+
+  test('falls back to exponential backoff on malformed retry-after header', async () => {
+    // Given
+    let callCount = 0
+    globalThis.fetch = mock(() => {
+      callCount++
+      if (callCount === 1) {
+        const headers = new Headers({ 'retry-after': 'invalid' })
+        return Promise.resolve(new Response(JSON.stringify({ error: 'Rate limited' }), { status: 429, headers }))
+      }
+      return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+    }) as any
+
+    const { internalRequest: req } = await import('./client')
+
+    // When
+    const result = await req('token', 'endpoint')
+
+    // Then
+    expect(result).toEqual({ ok: true })
+    expect(callCount).toBe(2)
   })
 })
