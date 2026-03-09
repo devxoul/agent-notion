@@ -36,7 +36,7 @@ describe('UserCommands', () => {
 
     try {
       await userCommand.parseAsync(['list'], { from: 'user' })
-    } catch (_e) {
+    } catch {
       // Expected if process.exit is called
     }
 
@@ -69,7 +69,7 @@ describe('UserCommands', () => {
 
     try {
       await userCommand.parseAsync(['get', 'user123'], { from: 'user' })
-    } catch (_e) {
+    } catch {
       // Expected if process.exit is called
     }
 
@@ -102,7 +102,7 @@ describe('UserCommands', () => {
 
     try {
       await userCommand.parseAsync(['me'], { from: 'user' })
-    } catch (_e) {
+    } catch {
       // Expected if process.exit is called
     }
 
@@ -140,7 +140,7 @@ describe('UserCommands', () => {
       await userCommand.parseAsync(['list', '--page-size', '10', '--start-cursor', 'cursor123'], {
         from: 'user',
       })
-    } catch (_e) {
+    } catch {
       // Expected if process.exit is called
     }
 
