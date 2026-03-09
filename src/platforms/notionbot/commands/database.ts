@@ -1,4 +1,5 @@
 import { Command } from 'commander'
+
 import { getClient, type NotionClient } from '@/platforms/notionbot/client'
 import { formatDatabase, formatDatabaseListResults, formatDatabaseQueryResults } from '@/platforms/notionbot/formatters'
 import { handleError } from '@/shared/utils/error-handler'

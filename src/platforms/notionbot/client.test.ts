@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
+
 import { Client as NotionSDK } from '@notionhq/client'
+
 import { getClient, getClientOrThrow, NotionClient } from './client'
 
 const mockBlocks = {

@@ -1,4 +1,5 @@
 import { Command } from 'commander'
+
 import { CredentialManager } from '@/platforms/notion/credential-manager'
 import { TokenExtractor } from '@/platforms/notion/token-extractor'
 import { formatOutput } from '@/shared/utils/output'

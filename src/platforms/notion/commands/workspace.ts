@@ -1,6 +1,8 @@
 import { Command } from 'commander'
+
 import { internalRequest } from '@/platforms/notion/client'
 import { formatOutput } from '@/shared/utils/output'
+
 import { type CommandOptions, getCredentialsOrExit } from './helpers'
 
 type SpaceValue = {

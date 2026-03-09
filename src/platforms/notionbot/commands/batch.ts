@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs'
+
 import { Command } from 'commander'
+
 import { getClientOrThrow } from '@/platforms/notionbot/client'
 import {
   type ActionRegistry,
@@ -12,6 +14,7 @@ import {
 } from '@/shared/batch/types'
 import { handleError } from '@/shared/utils/error-handler'
 import { formatOutput } from '@/shared/utils/output'
+
 import { handleBlockAppend, handleBlockDelete, handleBlockUpdate, handleBlockUpload } from './block'
 import { handleCommentCreate } from './comment'
 import { handleDatabaseCreate, handleDatabaseDeleteProperty, handleDatabaseUpdate } from './database'

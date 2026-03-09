@@ -1,9 +1,10 @@
+import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { writeFileSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
-import { runNotionCLI, parseJSON, generateTestId, waitForRateLimit } from './helpers'
+
 import { validateNotionEnvironment } from './config'
+import { runNotionCLI, parseJSON, generateTestId, waitForRateLimit } from './helpers'
 
 let containerId = ''
 let containerTitle = ''
@@ -21,14 +22,7 @@ describe('Notion E2E Tests', () => {
     runStartedAt = Date.now()
     containerTitle = `e2e-notion-run-${runStartedAt}`
 
-    const result = await runNotionCLI([
-      'page',
-      'create',
-      '--workspace-id',
-      workspaceId,
-      '--title',
-      containerTitle,
-    ])
+    const result = await runNotionCLI(['page', 'create', '--workspace-id', workspaceId, '--title', containerTitle])
     expect(result.exitCode).toBe(0)
 
     const data = parseJSON<{ id: string; title: string; type: string }>(result.stdout)
@@ -69,7 +63,6 @@ describe('Notion E2E Tests', () => {
         await waitForRateLimit(500)
       } catch {}
     }
-
   }, 120000)
 
   // ── auth ──────────────────────────────────────────────────────────────
@@ -86,7 +79,6 @@ describe('Notion E2E Tests', () => {
 
       await waitForRateLimit()
     }, 15000)
-
   })
 
   // ── page ──────────────────────────────────────────────────────────────
@@ -221,23 +213,15 @@ describe('Notion E2E Tests', () => {
       await waitForRateLimit()
 
       // Verify blocks were created from markdown
-      const childrenResult = await runNotionCLI([
-        'block',
-        'children',
-        '--workspace-id',
-        workspaceId,
-        markdownPageId,
-      ])
+      const childrenResult = await runNotionCLI(['block', 'children', '--workspace-id', workspaceId, markdownPageId])
       expect(childrenResult.exitCode).toBe(0)
 
       const children = parseJSON<{ results: unknown[]; has_more: boolean }>(childrenResult.stdout)
       expect(Array.isArray(children?.results)).toBe(true)
-      expect((children?.results?.length ?? 0)).toBeGreaterThan(0)
+      expect(children?.results?.length ?? 0).toBeGreaterThan(0)
 
       await waitForRateLimit()
     }, 30000)
-
-
   })
 
   // ── root page ────────────────────────────────────────────────────────
@@ -312,7 +296,7 @@ describe('Notion E2E Tests', () => {
 
       const children = parseJSON<{ results: unknown[]; has_more: boolean }>(childrenResult.stdout)
       expect(Array.isArray(children?.results)).toBe(true)
-      expect((children?.results?.length ?? 0)).toBeGreaterThan(0)
+      expect(children?.results?.length ?? 0).toBeGreaterThan(0)
 
       await waitForRateLimit()
     }, 30000)
@@ -617,12 +601,12 @@ describe('Notion E2E Tests', () => {
       const getResult = await runNotionCLI(['database', 'get', '--workspace-id', workspaceId, dbId])
       expect(getResult.exitCode).toBe(0)
 
-      const final = parseJSON<{ id: string; schema: Record<string, { type: string }>; $hints?: string[] }>(getResult.stdout)
+      const final = parseJSON<{ id: string; schema: Record<string, { type: string }>; $hints?: string[] }>(
+        getResult.stdout,
+      )
       expect(final?.schema?.[propName]?.type).toBe('text')
 
-      const suffixedKeys = Object.keys(final?.schema ?? {}).filter(
-        (k) => k.startsWith(propName) && k !== propName,
-      )
+      const suffixedKeys = Object.keys(final?.schema ?? {}).filter((k) => k.startsWith(propName) && k !== propName)
       expect(suffixedKeys).toEqual([])
 
       const softDeleteHints = (final?.$hints ?? []).filter((h) => h.includes('soft-deleted'))
@@ -770,13 +754,7 @@ describe('Notion E2E Tests', () => {
       await waitForRateLimit()
 
       // then — database get should have no broken-rollup hints
-      const getResult = await runNotionCLI([
-        'database',
-        'get',
-        '--workspace-id',
-        workspaceId,
-        tgtDbId,
-      ])
+      const getResult = await runNotionCLI(['database', 'get', '--workspace-id', workspaceId, tgtDbId])
       expect(getResult.exitCode).toBe(0)
 
       const getDb = parseJSON<{ id: string; schema: Record<string, { type: string }>; $hints?: string[] }>(
@@ -864,13 +842,7 @@ describe('Notion E2E Tests', () => {
       await waitForRateLimit()
 
       // then — database get should have no broken-rollup hints
-      const getResult = await runNotionCLI([
-        'database',
-        'get',
-        '--workspace-id',
-        workspaceId,
-        tgtDbId,
-      ])
+      const getResult = await runNotionCLI(['database', 'get', '--workspace-id', workspaceId, tgtDbId])
       expect(getResult.exitCode).toBe(0)
 
       const getDb = parseJSON<{ id: string; schema: Record<string, { type: string }>; $hints?: string[] }>(
@@ -985,13 +957,7 @@ describe('Notion E2E Tests', () => {
       await waitForRateLimit(500)
 
       // Step 7: Query the DB and verify both updates
-      const queryResult = await runNotionCLI([
-        'database',
-        'query',
-        '--workspace-id',
-        workspaceId,
-        dbId,
-      ])
+      const queryResult = await runNotionCLI(['database', 'query', '--workspace-id', workspaceId, dbId])
       expect(queryResult.exitCode).toBe(0)
 
       const data = parseJSON<{
@@ -1003,9 +969,7 @@ describe('Notion E2E Tests', () => {
       expect(Array.isArray(data?.results)).toBe(true)
 
       // Verify Row B's relation points to Row A
-      const resultRowB = data?.results.find(
-        (r) => r.properties.Name?.value === 'Row B',
-      )
+      const resultRowB = data?.results.find((r) => r.properties.Name?.value === 'Row B')
       expect(resultRowB).toBeDefined()
       const relationProp = resultRowB!.properties['Depends On']
       expect(relationProp?.type).toBe('relation')
@@ -1018,9 +982,7 @@ describe('Notion E2E Tests', () => {
       expect(hasRowAId).toBe(true)
 
       // Verify Row A's select is "Active"
-      const resultRowA = data?.results.find(
-        (r) => r.properties.Name?.value === 'Row A',
-      )
+      const resultRowA = data?.results.find((r) => r.properties.Name?.value === 'Row A')
       expect(resultRowA).toBeDefined()
       expect(resultRowA!.properties.Status?.value).toBe('Active')
 
@@ -1074,13 +1036,7 @@ describe('Notion E2E Tests', () => {
       await waitForRateLimit()
 
       // Step 3: Find the view ID via block children → block get
-      const childrenResult = await runNotionCLI([
-        'block',
-        'children',
-        '--workspace-id',
-        workspaceId,
-        subPageId,
-      ])
+      const childrenResult = await runNotionCLI(['block', 'children', '--workspace-id', workspaceId, subPageId])
       expect(childrenResult.exitCode).toBe(0)
 
       const children = parseJSON<{
@@ -1088,19 +1044,11 @@ describe('Notion E2E Tests', () => {
       }>(childrenResult.stdout)
       expect(children?.results?.length).toBeGreaterThan(0)
 
-      const dbBlock = children!.results.find(
-        (b) => b.type === 'collection_view_page' || b.type === 'collection_view',
-      )
+      const dbBlock = children!.results.find((b) => b.type === 'collection_view_page' || b.type === 'collection_view')
       expect(dbBlock).toBeDefined()
       await waitForRateLimit()
 
-      const blockGetResult = await runNotionCLI([
-        'block',
-        'get',
-        '--workspace-id',
-        workspaceId,
-        dbBlock!.id,
-      ])
+      const blockGetResult = await runNotionCLI(['block', 'get', '--workspace-id', workspaceId, dbBlock!.id])
       expect(blockGetResult.exitCode).toBe(0)
 
       const blockData = parseJSON<{
@@ -1115,13 +1063,7 @@ describe('Notion E2E Tests', () => {
       await waitForRateLimit()
 
       // Step 4: view-get to confirm initial state has properties
-      const viewGetResult = await runNotionCLI([
-        'database',
-        'view-get',
-        '--workspace-id',
-        workspaceId,
-        viewId,
-      ])
+      const viewGetResult = await runNotionCLI(['database', 'view-get', '--workspace-id', workspaceId, viewId])
       expect(viewGetResult.exitCode).toBe(0)
 
       const viewData = parseJSON<{
@@ -1147,13 +1089,7 @@ describe('Notion E2E Tests', () => {
       await waitForRateLimit()
 
       // Step 6: view-get again to verify new column order
-      const verifyResult = await runNotionCLI([
-        'database',
-        'view-get',
-        '--workspace-id',
-        workspaceId,
-        viewId,
-      ])
+      const verifyResult = await runNotionCLI(['database', 'view-get', '--workspace-id', workspaceId, viewId])
       expect(verifyResult.exitCode).toBe(0)
 
       const verifyData = parseJSON<{
@@ -1173,21 +1109,15 @@ describe('Notion E2E Tests', () => {
     test('database view-list lists views for a database', async () => {
       // Track the database used in tests
       testDatabaseIds.push(createdDbId)
-      const result = await runNotionCLI([
-        'database',
-        'view-list',
-        '--workspace-id',
-        workspaceId,
-        createdDbId,
-      ])
+      const result = await runNotionCLI(['database', 'view-list', '--workspace-id', workspaceId, createdDbId])
       expect(result.exitCode).toBe(0)
-      const views = (parseJSON<Array<{ id: string; type: string; name: string }>>(result.stdout) ?? [])
+      const views = parseJSON<Array<{ id: string; type: string; name: string }>>(result.stdout) ?? []
       expect(Array.isArray(views)).toBe(true)
       expect(views.length).toBeGreaterThanOrEqual(1)
       expect(views.some((v) => v.type === 'table')).toBe(true)
       await waitForRateLimit()
     }, 60000)
-  test('database view-add adds a new board view', async () => {
+    test('database view-add adds a new board view', async () => {
       const result = await runNotionCLI([
         'database',
         'view-add',
@@ -1206,56 +1136,32 @@ describe('Notion E2E Tests', () => {
       addedViewId = data!.id
       await waitForRateLimit()
     }, 60000)
-  test('database view-list shows newly added view', async () => {
-      const result = await runNotionCLI([
-        'database',
-        'view-list',
-        '--workspace-id',
-        workspaceId,
-        createdDbId,
-      ])
+    test('database view-list shows newly added view', async () => {
+      const result = await runNotionCLI(['database', 'view-list', '--workspace-id', workspaceId, createdDbId])
       expect(result.exitCode).toBe(0)
-      const views = (parseJSON<Array<{ id: string; type: string; name: string }>>(result.stdout) ?? [])
+      const views = parseJSON<Array<{ id: string; type: string; name: string }>>(result.stdout) ?? []
       expect(Array.isArray(views)).toBe(true)
       expect(views.length).toBeGreaterThanOrEqual(2)
       const hasBoard = views.some((v) => v.type === 'board')
       expect(hasBoard).toBe(true)
       await waitForRateLimit()
     }, 60000)
-  test('database view-delete removes a view', async () => {
-      const result = await runNotionCLI([
-        'database',
-        'view-delete',
-        '--workspace-id',
-        workspaceId,
-        addedViewId,
-      ])
+    test('database view-delete removes a view', async () => {
+      const result = await runNotionCLI(['database', 'view-delete', '--workspace-id', workspaceId, addedViewId])
       expect(result.exitCode).toBe(0)
       const data = parseJSON<{ id: string; deleted: boolean }>(result.stdout)
       expect(data?.deleted).toBe(true)
       expect(data?.id).toBe(addedViewId)
       await waitForRateLimit()
     }, 60000)
-  test('database view-delete refuses to delete last view', async () => {
+    test('database view-delete refuses to delete last view', async () => {
       // List to determine last remaining view
-      const listResult = await runNotionCLI([
-        'database',
-        'view-list',
-        '--workspace-id',
-        workspaceId,
-        createdDbId,
-      ])
+      const listResult = await runNotionCLI(['database', 'view-list', '--workspace-id', workspaceId, createdDbId])
       expect(listResult.exitCode).toBe(0)
-      const views = (parseJSON<Array<{ id: string; type: string; name: string }>>(listResult.stdout) ?? [])
+      const views = parseJSON<Array<{ id: string; type: string; name: string }>>(listResult.stdout) ?? []
       expect(views.length).toBe(1)
       const lastViewId = views[0].id
-      const delResult = await runNotionCLI([
-        'database',
-        'view-delete',
-        '--workspace-id',
-        workspaceId,
-        lastViewId,
-      ])
+      const delResult = await runNotionCLI(['database', 'view-delete', '--workspace-id', workspaceId, lastViewId])
       expect(delResult.exitCode).toBe(1)
       const err = parseJSON<{ error: string }>(delResult.stderr)
       expect(err?.error).toContain('Cannot delete the last view')
@@ -1287,7 +1193,7 @@ describe('Notion E2E Tests', () => {
 
       const data = parseJSON<{ created: string[] }>(result.stdout)
       expect(Array.isArray(data?.created)).toBe(true)
-      expect((data?.created?.length ?? 0)).toBeGreaterThan(0)
+      expect(data?.created?.length ?? 0).toBeGreaterThan(0)
 
       appendedBlockId = data!.created[0]
       testBlockIds.push(appendedBlockId)
@@ -1313,7 +1219,7 @@ describe('Notion E2E Tests', () => {
 
       const data = parseJSON<{ results: unknown[]; has_more: boolean }>(result.stdout)
       expect(Array.isArray(data?.results)).toBe(true)
-      expect((data?.results?.length ?? 0)).toBeGreaterThan(0)
+      expect(data?.results?.length ?? 0).toBeGreaterThan(0)
 
       await waitForRateLimit()
     }, 15000)
@@ -1353,7 +1259,7 @@ describe('Notion E2E Tests', () => {
 
       const appended = parseJSON<{ created: string[] }>(appendResult.stdout)
       expect(Array.isArray(appended?.created)).toBe(true)
-      expect((appended?.created?.length ?? 0)).toBeGreaterThan(0)
+      expect(appended?.created?.length ?? 0).toBeGreaterThan(0)
 
       const blockToDelete = appended!.created[0]
       await waitForRateLimit()
@@ -1374,36 +1280,35 @@ describe('Notion E2E Tests', () => {
 
       // when - append nested markdown
       const result = await runNotionCLI([
-        'block', 'append',
-        '--workspace-id', workspaceId,
+        'block',
+        'append',
+        '--workspace-id',
+        workspaceId,
         containerId,
-        '--markdown', markdown,
+        '--markdown',
+        markdown,
       ])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ created: string[] }>(result.stdout)
-      expect(data?.created?.length).toBe(1)  // only top-level IDs returned
+      expect(data?.created?.length).toBe(1) // only top-level IDs returned
 
       const parentBlockId = data!.created[0]
       testBlockIds.push(parentBlockId)
       await waitForRateLimit()
 
       // then - verify parent block exists
-      const parentResult = await runNotionCLI([
-        'block', 'get', '--workspace-id', workspaceId, parentBlockId,
-      ])
+      const parentResult = await runNotionCLI(['block', 'get', '--workspace-id', workspaceId, parentBlockId])
       expect(parentResult.exitCode).toBe(0)
 
       const parentBlock = parseJSON<{ id: string; type: string; content?: string[] }>(parentResult.stdout)
       expect(parentBlock?.type).toBe('bulleted_list')
-      expect(parentBlock?.content?.length).toBeGreaterThan(0)  // has child content
+      expect(parentBlock?.content?.length).toBeGreaterThan(0) // has child content
 
       await waitForRateLimit()
 
       // then - verify child block exists under parent
-      const childrenResult = await runNotionCLI([
-        'block', 'children', '--workspace-id', workspaceId, parentBlockId,
-      ])
+      const childrenResult = await runNotionCLI(['block', 'children', '--workspace-id', workspaceId, parentBlockId])
       expect(childrenResult.exitCode).toBe(0)
 
       const children = parseJSON<{ results: Array<{ id: string; type: string }> }>(childrenResult.stdout)
@@ -1433,8 +1338,6 @@ describe('Notion E2E Tests', () => {
 
       await waitForRateLimit()
     }, 15000)
-
-
   })
 
   // ── comment ──────────────────────────────────────────────────────────
@@ -1492,19 +1395,12 @@ describe('Notion E2E Tests', () => {
     test('comment list returns comments on the page', async () => {
       expect(commentPageId).toBeTruthy()
 
-      const result = await runNotionCLI([
-        'comment',
-        'list',
-        '--page',
-        commentPageId,
-        '--workspace-id',
-        workspaceId,
-      ])
+      const result = await runNotionCLI(['comment', 'list', '--page', commentPageId, '--workspace-id', workspaceId])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ results: Array<{ id: string; text: string }>; total: number }>(result.stdout)
       expect(Array.isArray(data?.results)).toBe(true)
-      expect((data?.results?.length ?? 0)).toBeGreaterThan(0)
+      expect(data?.results?.length ?? 0).toBeGreaterThan(0)
 
       await waitForRateLimit()
     }, 15000)
@@ -1512,13 +1408,7 @@ describe('Notion E2E Tests', () => {
     test('comment get retrieves a specific comment', async () => {
       expect(createdCommentId).toBeTruthy()
 
-      const result = await runNotionCLI([
-        'comment',
-        'get',
-        createdCommentId,
-        '--workspace-id',
-        workspaceId,
-      ])
+      const result = await runNotionCLI(['comment', 'get', createdCommentId, '--workspace-id', workspaceId])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ id: string; text: string; discussion_id: string }>(result.stdout)
@@ -1573,8 +1463,6 @@ describe('Notion E2E Tests', () => {
 
       await waitForRateLimit()
     }, 15000)
-
-
   })
 
   // ── batch ────────────────────────────────────────────────────────────
@@ -1602,12 +1490,7 @@ describe('Notion E2E Tests', () => {
         },
       ]
 
-      const result = await runNotionCLI([
-        'batch',
-        '--workspace-id',
-        workspaceId,
-        JSON.stringify(operations),
-      ])
+      const result = await runNotionCLI(['batch', '--workspace-id', workspaceId, JSON.stringify(operations)])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{
@@ -1641,12 +1524,7 @@ describe('Notion E2E Tests', () => {
       ]
 
       // first create the page
-      const createResult = await runNotionCLI([
-        'batch',
-        '--workspace-id',
-        workspaceId,
-        JSON.stringify(operations),
-      ])
+      const createResult = await runNotionCLI(['batch', '--workspace-id', workspaceId, JSON.stringify(operations)])
       expect(createResult.exitCode).toBe(0)
 
       const createData = parseJSON<{
@@ -1669,12 +1547,7 @@ describe('Notion E2E Tests', () => {
         },
       ]
 
-      const result = await runNotionCLI([
-        'batch',
-        '--workspace-id',
-        workspaceId,
-        JSON.stringify(multiOps),
-      ])
+      const result = await runNotionCLI(['batch', '--workspace-id', workspaceId, JSON.stringify(multiOps)])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{
@@ -1708,12 +1581,7 @@ describe('Notion E2E Tests', () => {
         },
       ]
 
-      const result = await runNotionCLI([
-        'batch',
-        '--workspace-id',
-        workspaceId,
-        JSON.stringify(operations),
-      ])
+      const result = await runNotionCLI(['batch', '--workspace-id', workspaceId, JSON.stringify(operations)])
       expect(result.exitCode).toBe(1)
 
       const data = parseJSON<{
@@ -1739,12 +1607,7 @@ describe('Notion E2E Tests', () => {
         },
       ]
 
-      const result = await runNotionCLI([
-        'batch',
-        '--workspace-id',
-        workspaceId,
-        JSON.stringify(operations),
-      ])
+      const result = await runNotionCLI(['batch', '--workspace-id', workspaceId, JSON.stringify(operations)])
       expect(result.exitCode).toBe(1)
 
       const data = parseJSON<{ error: string }>(result.stderr || result.stdout)
@@ -1793,7 +1656,9 @@ describe('Notion E2E Tests', () => {
           batchPageIds.push(data.results[0].data.id)
         }
       } finally {
-        try { unlinkSync(tmpFile) } catch {}
+        try {
+          unlinkSync(tmpFile)
+        } catch {}
       }
 
       await waitForRateLimit()
@@ -1802,12 +1667,10 @@ describe('Notion E2E Tests', () => {
 
   describe('upload', () => {
     const MINIMAL_PNG = Buffer.from([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
-      0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, 0x00, 0x00, 0x00,
-      0x0c, 0x49, 0x44, 0x41, 0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00,
-      0x00, 0x00, 0x02, 0x00, 0x01, 0xe2, 0x21, 0xbc, 0x33, 0x00, 0x00, 0x00,
-      0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00,
+      0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, 0x00, 0x00, 0x00, 0x0c, 0x49,
+      0x44, 0x41, 0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01, 0xe2, 0x21, 0xbc, 0x33,
+      0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
     ])
 
     let tmpPngPath = ''
@@ -1831,10 +1694,18 @@ describe('Notion E2E Tests', () => {
     })
 
     afterAll(() => {
-      try { unlinkSync(tmpPngPath) } catch {}
-      try { unlinkSync(tmpTxtPath) } catch {}
-      try { unlinkSync(tmpMdPngPath) } catch {}
-      try { unlinkSync(tmpMdFilePath) } catch {}
+      try {
+        unlinkSync(tmpPngPath)
+      } catch {}
+      try {
+        unlinkSync(tmpTxtPath)
+      } catch {}
+      try {
+        unlinkSync(tmpMdPngPath)
+      } catch {}
+      try {
+        unlinkSync(tmpMdFilePath)
+      } catch {}
     })
 
     test('block upload with image file returns image type', async () => {
@@ -1900,7 +1771,7 @@ describe('Notion E2E Tests', () => {
 
       const data = parseJSON<{ created: string[] }>(result.stdout)
       expect(Array.isArray(data?.created)).toBe(true)
-      expect((data?.created?.length ?? 0)).toBeGreaterThan(0)
+      expect(data?.created?.length ?? 0).toBeGreaterThan(0)
 
       for (const id of data!.created) {
         testBlockIds.push(id)
@@ -1924,7 +1795,7 @@ describe('Notion E2E Tests', () => {
 
       const data = parseJSON<{ created: string[] }>(result.stdout)
       expect(Array.isArray(data?.created)).toBe(true)
-      expect((data?.created?.length ?? 0)).toBeGreaterThan(0)
+      expect(data?.created?.length ?? 0).toBeGreaterThan(0)
 
       for (const id of data!.created) {
         testBlockIds.push(id)

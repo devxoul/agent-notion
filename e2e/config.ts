@@ -13,7 +13,7 @@ export async function validateNotionBotEnvironment() {
   if (!process.env.E2E_NOTIONBOT_TOKEN) {
     throw new Error(
       'E2E_NOTIONBOT_TOKEN environment variable is not set. ' +
-      'Please set your Notion integration token: export E2E_NOTIONBOT_TOKEN=your_token_here'
+        'Please set your Notion integration token: export E2E_NOTIONBOT_TOKEN=your_token_here',
     )
   }
 
@@ -21,24 +21,21 @@ export async function validateNotionBotEnvironment() {
   if (result.exitCode !== 0) {
     throw new Error(
       'Notion authentication failed. ' +
-      'Please verify your E2E_NOTIONBOT_TOKEN is valid. ' +
-      `Error: ${result.stderr || result.stdout}`
+        'Please verify your E2E_NOTIONBOT_TOKEN is valid. ' +
+        `Error: ${result.stderr || result.stdout}`,
     )
   }
 
   const data = parseJSON<{ integration: { workspace_name?: string } }>(result.stdout)
   if (!data?.integration?.workspace_name) {
-    throw new Error(
-      'Failed to parse auth status response. ' +
-      `Got: ${result.stdout}`
-    )
+    throw new Error('Failed to parse auth status response. ' + `Got: ${result.stdout}`)
   }
 
   if (data.integration.workspace_name !== NOTIONBOT_WORKSPACE_NAME) {
     throw new Error(
       `Wrong Notion workspace. Expected: ${NOTIONBOT_WORKSPACE_NAME}, ` +
-      `Got: ${data.integration.workspace_name}. ` +
-      'Please ensure your token is for the correct workspace.'
+        `Got: ${data.integration.workspace_name}. ` +
+        'Please ensure your token is for the correct workspace.',
     )
   }
 }
@@ -55,8 +52,8 @@ export async function validateNotionEnvironment(): Promise<string> {
   if (result.exitCode !== 0) {
     throw new Error(
       'Notion auth status failed. ' +
-      'Please run `vibe-notion auth extract` first to store credentials. ' +
-      `Error: ${result.stderr || result.stdout}`
+        'Please run `vibe-notion auth extract` first to store credentials. ' +
+        `Error: ${result.stderr || result.stdout}`,
     )
   }
 
@@ -64,16 +61,13 @@ export async function validateNotionEnvironment(): Promise<string> {
   if (!data?.stored_token_v2) {
     throw new Error(
       'No stored credentials found. ' +
-      'Please run `vibe-notion auth extract` to extract token_v2 from the Notion desktop app.'
+        'Please run `vibe-notion auth extract` to extract token_v2 from the Notion desktop app.',
     )
   }
 
   const wsResult = await runNotionCLI(['workspace', 'list'])
   if (wsResult.exitCode !== 0) {
-    throw new Error(
-      'Failed to list workspaces. ' +
-      `Error: ${wsResult.stderr || wsResult.stdout}`
-    )
+    throw new Error('Failed to list workspaces. ' + `Error: ${wsResult.stderr || wsResult.stdout}`)
   }
 
   const workspaces = parseJSON<Array<{ id: string; name?: string }>>(wsResult.stdout)
@@ -84,8 +78,7 @@ export async function validateNotionEnvironment(): Promise<string> {
   const workspace = workspaces.find((w) => w.name === NOTION_E2E_WORKSPACE_NAME)
   if (!workspace) {
     throw new Error(
-      `Workspace "${NOTION_E2E_WORKSPACE_NAME}" not found. ` +
-      `Available: ${workspaces.map((w) => w.name).join(', ')}`,
+      `Workspace "${NOTION_E2E_WORKSPACE_NAME}" not found. ` + `Available: ${workspaces.map((w) => w.name).join(', ')}`,
     )
   }
 

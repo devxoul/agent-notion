@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+
 import type { FileInfo } from './types'
 
 const MIME_TYPE_MAP: Record<string, string> = {

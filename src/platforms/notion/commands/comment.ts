@@ -1,8 +1,10 @@
 import { Command } from 'commander'
+
 import { getActiveUserId, internalRequest } from '@/platforms/notion/client'
 import { formatCommentValue, formatDiscussionComments } from '@/platforms/notion/formatters'
 import { formatNotionId } from '@/shared/utils/id'
 import { formatOutput } from '@/shared/utils/output'
+
 import {
   type CommandOptions,
   generateId,

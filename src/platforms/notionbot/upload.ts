@@ -1,5 +1,7 @@
 import fs from 'node:fs'
+
 import { isImageType, resolveFileInfo } from '@/shared/upload/detect-type'
+
 import type { NotionClient } from './client'
 
 type FileUploadResult = {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
+
 import { userCommand } from './user'
 
 describe('UserCommands', () => {

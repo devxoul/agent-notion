@@ -1,5 +1,7 @@
 import fs from 'node:fs'
+
 import { isImageType, resolveFileInfo } from '@/shared/upload/detect-type'
+
 import { internalRequest } from './client'
 import { generateId } from './commands/helpers'
 

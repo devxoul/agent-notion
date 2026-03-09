@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+
 import { internalRequest, setActiveUserId } from '@/platforms/notion/client'
 import { CredentialManager, type NotionCredentials } from '@/platforms/notion/credential-manager'
 import { collectBacklinkUserIds } from '@/platforms/notion/formatters'

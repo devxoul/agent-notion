@@ -1,8 +1,8 @@
+import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { writeFileSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
-import { runCLI, parseJSON, generateTestId, waitForRateLimit } from './helpers'
+
 import {
   NOTIONBOT_E2E_PAGE_ID,
   NOTIONBOT_BOT_ID,
@@ -10,6 +10,7 @@ import {
   NOTIONBOT_WORKSPACE_NAME,
   validateNotionBotEnvironment,
 } from './config'
+import { runCLI, parseJSON, generateTestId, waitForRateLimit } from './helpers'
 
 let containerId = ''
 let testPageIds: string[] = []
@@ -22,9 +23,12 @@ describe('NotionBot E2E Tests', () => {
     await waitForRateLimit()
 
     const result = await runCLI([
-      'page', 'create',
-      '--parent', NOTIONBOT_E2E_PAGE_ID,
-      '--title', `e2e-run-${Date.now()}`,
+      'page',
+      'create',
+      '--parent',
+      NOTIONBOT_E2E_PAGE_ID,
+      '--title',
+      `e2e-run-${Date.now()}`,
     ])
     expect(result.exitCode).toBe(0)
 
@@ -39,28 +43,36 @@ describe('NotionBot E2E Tests', () => {
       try {
         await runCLI(['block', 'delete', blockId])
         await waitForRateLimit()
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
     }
 
     for (const pageId of testPageIds) {
       try {
         await runCLI(['page', 'archive', pageId])
         await waitForRateLimit()
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
     }
 
     for (const dbId of testDatabaseIds) {
       try {
         await runCLI(['page', 'archive', dbId])
         await waitForRateLimit()
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
     }
 
     if (containerId) {
       try {
         await runCLI(['page', 'archive', containerId])
         await waitForRateLimit()
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
     }
 
     try {
@@ -76,7 +88,9 @@ describe('NotionBot E2E Tests', () => {
           }
         }
       }
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
   }, 60000)
 
   // ── auth ──────────────────────────────────────────────────────────────
@@ -106,11 +120,7 @@ describe('NotionBot E2E Tests', () => {
 
     test('page create creates a page under container', async () => {
       const testId = generateTestId()
-      const result = await runCLI([
-        'page', 'create',
-        '--parent', containerId,
-        '--title', `e2e-page-${testId}`,
-      ])
+      const result = await runCLI(['page', 'create', '--parent', containerId, '--title', `e2e-page-${testId}`])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ id: string; title: string }>(result.stdout)
@@ -158,11 +168,7 @@ describe('NotionBot E2E Tests', () => {
 
     test('page archive archives the page', async () => {
       const testId = generateTestId()
-      const createResult = await runCLI([
-        'page', 'create',
-        '--parent', containerId,
-        '--title', `e2e-archive-${testId}`,
-      ])
+      const createResult = await runCLI(['page', 'create', '--parent', containerId, '--title', `e2e-archive-${testId}`])
       const created = parseJSON<{ id: string }>(createResult.stdout)
       expect(created?.id).toBeTruthy()
 
@@ -186,11 +192,7 @@ describe('NotionBot E2E Tests', () => {
 
     beforeAll(async () => {
       const testId = generateTestId()
-      const result = await runCLI([
-        'database', 'create',
-        '--parent', containerId,
-        '--title', `e2e-db-${testId}`,
-      ])
+      const result = await runCLI(['database', 'create', '--parent', containerId, '--title', `e2e-db-${testId}`])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ id: string }>(result.stdout)
@@ -205,13 +207,24 @@ describe('NotionBot E2E Tests', () => {
       const testId = generateTestId()
       const properties = JSON.stringify({
         Name: { title: {} },
-        Status: { select: { options: [{ name: 'Open', color: 'green' }, { name: 'Closed', color: 'red' }] } },
+        Status: {
+          select: {
+            options: [
+              { name: 'Open', color: 'green' },
+              { name: 'Closed', color: 'red' },
+            ],
+          },
+        },
       })
       const result = await runCLI([
-        'database', 'create',
-        '--parent', containerId,
-        '--title', `e2e-select-db-${testId}`,
-        '--properties', properties,
+        'database',
+        'create',
+        '--parent',
+        containerId,
+        '--title',
+        `e2e-select-db-${testId}`,
+        '--properties',
+        properties,
       ])
       expect(result.exitCode).toBe(0)
 
@@ -229,10 +242,7 @@ describe('NotionBot E2E Tests', () => {
       const properties = JSON.stringify({
         Priority: { select: { options: [{ name: 'High' }, { name: 'Low' }] } },
       })
-      const result = await runCLI([
-        'database', 'update', createdDbId,
-        '--properties', properties,
-      ])
+      const result = await runCLI(['database', 'update', createdDbId, '--properties', properties])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ id: string; properties: Record<string, string> }>(result.stdout)
@@ -248,10 +258,7 @@ describe('NotionBot E2E Tests', () => {
       const properties = JSON.stringify({
         E2EProp: { rich_text: {} },
       })
-      const addResult = await runCLI([
-        'database', 'update', createdDbId,
-        '--properties', properties,
-      ])
+      const addResult = await runCLI(['database', 'update', createdDbId, '--properties', properties])
       expect(addResult.exitCode).toBe(0)
 
       const added = parseJSON<{ id: string; properties: Record<string, string> }>(addResult.stdout)
@@ -259,10 +266,7 @@ describe('NotionBot E2E Tests', () => {
 
       await waitForRateLimit()
 
-      const result = await runCLI([
-        'database', 'delete-property', createdDbId,
-        '--property', 'E2EProp',
-      ])
+      const result = await runCLI(['database', 'delete-property', createdDbId, '--property', 'E2EProp'])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ id: string; properties: Record<string, string> }>(result.stdout)
@@ -327,10 +331,7 @@ describe('NotionBot E2E Tests', () => {
         },
       ])
 
-      const result = await runCLI([
-        'block', 'append', containerId,
-        '--content', blockContent,
-      ])
+      const result = await runCLI(['block', 'append', containerId, '--content', blockContent])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ results: Array<{ id: string; type: string }> }>(result.stdout)
@@ -377,10 +378,7 @@ describe('NotionBot E2E Tests', () => {
         },
       ])
 
-      const appendResult = await runCLI([
-        'block', 'append', containerId,
-        '--content', blockContent,
-      ])
+      const appendResult = await runCLI(['block', 'append', containerId, '--content', blockContent])
       const appended = parseJSON<{ results: Array<{ id: string }> }>(appendResult.stdout)
       const blockToDelete = appended!.results[0].id
       expect(blockToDelete).toBeTruthy()
@@ -402,10 +400,7 @@ describe('NotionBot E2E Tests', () => {
       const markdown = '- Parent item\n  - Child item'
 
       // when
-      const result = await runCLI([
-        'block', 'append', containerId,
-        '--markdown', markdown,
-      ])
+      const result = await runCLI(['block', 'append', containerId, '--markdown', markdown])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ results: Array<{ id: string; type: string; has_children: boolean }> }>(result.stdout)
@@ -500,11 +495,7 @@ describe('NotionBot E2E Tests', () => {
 
     beforeAll(async () => {
       const testId = generateTestId()
-      const result = await runCLI([
-        'page', 'create',
-        '--parent', containerId,
-        '--title', `e2e-comments-${testId}`,
-      ])
+      const result = await runCLI(['page', 'create', '--parent', containerId, '--title', `e2e-comments-${testId}`])
       const data = parseJSON<{ id: string }>(result.stdout)
       expect(data?.id).toBeTruthy()
       commentPageId = data!.id
@@ -516,10 +507,7 @@ describe('NotionBot E2E Tests', () => {
       expect(commentPageId).toBeTruthy()
 
       const testId = generateTestId()
-      const result = await runCLI([
-        'comment', 'create', `e2e-comment-${testId}`,
-        '--page', commentPageId,
-      ])
+      const result = await runCLI(['comment', 'create', `e2e-comment-${testId}`, '--page', commentPageId])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ id: string; text: string; author: { id: string } }>(result.stdout)
@@ -570,7 +558,9 @@ describe('NotionBot E2E Tests', () => {
         try {
           await runCLI(['page', 'archive', pageId])
           await waitForRateLimit()
-        } catch { /* best-effort */ }
+        } catch {
+          /* best-effort */
+        }
       }
     }, 30000)
 
@@ -585,10 +575,7 @@ describe('NotionBot E2E Tests', () => {
         },
       ]
 
-      const result = await runCLI([
-        'batch',
-        JSON.stringify(operations),
-      ])
+      const result = await runCLI(['batch', JSON.stringify(operations)])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{
@@ -623,10 +610,7 @@ describe('NotionBot E2E Tests', () => {
         },
       ]
 
-      const createResult = await runCLI([
-        'batch',
-        JSON.stringify(createOps),
-      ])
+      const createResult = await runCLI(['batch', JSON.stringify(createOps)])
       expect(createResult.exitCode).toBe(0)
 
       const createData = parseJSON<{
@@ -649,10 +633,7 @@ describe('NotionBot E2E Tests', () => {
         },
       ]
 
-      const result = await runCLI([
-        'batch',
-        JSON.stringify(multiOps),
-      ])
+      const result = await runCLI(['batch', JSON.stringify(multiOps)])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{
@@ -686,10 +667,7 @@ describe('NotionBot E2E Tests', () => {
         },
       ]
 
-      const result = await runCLI([
-        'batch',
-        JSON.stringify(operations),
-      ])
+      const result = await runCLI(['batch', JSON.stringify(operations)])
       expect(result.exitCode).toBe(1)
 
       const data = parseJSON<{
@@ -715,10 +693,7 @@ describe('NotionBot E2E Tests', () => {
         },
       ]
 
-      const result = await runCLI([
-        'batch',
-        JSON.stringify(operations),
-      ])
+      const result = await runCLI(['batch', JSON.stringify(operations)])
       expect(result.exitCode).toBe(1)
 
       const data = parseJSON<{ error: string }>(result.stderr || result.stdout)
@@ -765,7 +740,11 @@ describe('NotionBot E2E Tests', () => {
           batchPageIds.push(data.results[0].data.id)
         }
       } finally {
-        try { unlinkSync(tmpFile) } catch { /* best-effort */ }
+        try {
+          unlinkSync(tmpFile)
+        } catch {
+          /* best-effort */
+        }
       }
 
       await waitForRateLimit()
@@ -776,12 +755,10 @@ describe('NotionBot E2E Tests', () => {
 
   describe('upload', () => {
     const MINIMAL_PNG = Buffer.from([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
-      0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, 0x00, 0x00, 0x00,
-      0x0c, 0x49, 0x44, 0x41, 0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00,
-      0x00, 0x00, 0x02, 0x00, 0x01, 0xe2, 0x21, 0xbc, 0x33, 0x00, 0x00, 0x00,
-      0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00,
+      0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, 0x00, 0x00, 0x00, 0x0c, 0x49,
+      0x44, 0x41, 0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01, 0xe2, 0x21, 0xbc, 0x33,
+      0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
     ])
 
     let tmpPng = ''
@@ -813,16 +790,21 @@ describe('NotionBot E2E Tests', () => {
     afterAll(() => {
       const { rmSync } = require('node:fs')
       for (const f of [tmpPng, tmpTxt]) {
-        try { unlinkSync(f) } catch { /* best-effort */ }
+        try {
+          unlinkSync(f)
+        } catch {
+          /* best-effort */
+        }
       }
-      try { rmSync(tmpMdDir, { recursive: true }) } catch { /* best-effort */ }
+      try {
+        rmSync(tmpMdDir, { recursive: true })
+      } catch {
+        /* best-effort */
+      }
     })
 
     test('block upload with image file returns image type', async () => {
-      const result = await runCLI([
-        'block', 'upload', containerId,
-        '--file', tmpPng,
-      ])
+      const result = await runCLI(['block', 'upload', containerId, '--file', tmpPng])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ id: string; type: string; url: string }>(result.stdout)
@@ -835,10 +817,7 @@ describe('NotionBot E2E Tests', () => {
     }, 30000)
 
     test('block upload with non-image file returns file type', async () => {
-      const result = await runCLI([
-        'block', 'upload', containerId,
-        '--file', tmpTxt,
-      ])
+      const result = await runCLI(['block', 'upload', containerId, '--file', tmpTxt])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ id: string; type: string; url: string }>(result.stdout)
@@ -853,10 +832,7 @@ describe('NotionBot E2E Tests', () => {
     test('block append --markdown with local image reference creates blocks', async () => {
       const markdown = `![test](${tmpPng})`
 
-      const result = await runCLI([
-        'block', 'append', containerId,
-        '--markdown', markdown,
-      ])
+      const result = await runCLI(['block', 'append', containerId, '--markdown', markdown])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ results: Array<{ id: string; type: string }> }>(result.stdout)
@@ -870,10 +846,7 @@ describe('NotionBot E2E Tests', () => {
     }, 60000)
 
     test('block append --markdown-file with local image reference creates blocks', async () => {
-      const result = await runCLI([
-        'block', 'append', containerId,
-        '--markdown-file', tmpMdFile,
-      ])
+      const result = await runCLI(['block', 'append', containerId, '--markdown-file', tmpMdFile])
       expect(result.exitCode).toBe(0)
 
       const data = parseJSON<{ results: Array<{ id: string; type: string }> }>(result.stdout)

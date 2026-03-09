@@ -55,5 +55,5 @@ export function generateTestId(): string {
 }
 
 export async function waitForRateLimit(ms: number = 1500): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, ms))
+  await new Promise((resolve) => setTimeout(resolve, ms))
 }

@@ -279,7 +279,7 @@ export class TokenExtractor {
         usersRow = db.query(usersSql).get() as CookieRow
         db.close()
       } else {
-        // biome-ignore lint/suspicious/noExplicitAny: dynamic require for Node.js compatibility
+        // oxlint-disable-next-line typescript/no-explicit-any -- dynamic require for Node.js compatibility
         let Database: any
         try {
           Database = require('better-sqlite3')

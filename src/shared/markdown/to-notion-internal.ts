@@ -2,6 +2,7 @@ import type { Blockquote, Code, Heading, List, ListItem, Paragraph, PhrasingCont
 import remarkGfm from 'remark-gfm'
 import remarkParse from 'remark-parse'
 import { unified } from 'unified'
+
 import type { InternalBlockDefinition } from './types'
 
 type RichTextSegment = [string] | [string, string[][]]

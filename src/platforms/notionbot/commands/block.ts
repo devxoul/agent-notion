@@ -1,6 +1,8 @@
 import path from 'node:path'
+
 import type { BlockObjectRequest } from '@notionhq/client/build/src/api-endpoints'
 import { Command } from 'commander'
+
 import { getClient } from '@/platforms/notionbot/client'
 import { formatAppendResponse, formatBlock, formatBlockChildrenResponse } from '@/platforms/notionbot/formatters'
 import { uploadFile, uploadFileOnly } from '@/platforms/notionbot/upload'

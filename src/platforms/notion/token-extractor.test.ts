@@ -4,6 +4,7 @@ import { createCipheriv, pbkdf2Sync, randomBytes } from 'node:crypto'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
 import { TokenExtractor } from './token-extractor'
 
 function createCookiesDb(dbPath: string, rows: Array<Record<string, unknown>>): void {

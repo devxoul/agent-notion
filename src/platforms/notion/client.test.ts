@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
+
 import { getActiveUserId, internalRequest, setActiveUserId } from './client'
 
 let mockFetch: ReturnType<typeof mock>

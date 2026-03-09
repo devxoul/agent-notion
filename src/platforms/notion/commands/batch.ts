@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs'
+
 import { Command } from 'commander'
+
 import {
   type ActionRegistry,
   type BatchOperation,
@@ -10,6 +12,7 @@ import {
   validateOperations,
 } from '@/shared/batch/types'
 import { formatOutput } from '@/shared/utils/output'
+
 import { handleBlockAppend, handleBlockDelete, handleBlockMove, handleBlockUpdate, handleBlockUpload } from './block'
 import { handleCommentCreate } from './comment'
 import {

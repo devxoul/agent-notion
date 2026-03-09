@@ -1,5 +1,7 @@
 import path from 'node:path'
+
 import { Command } from 'commander'
+
 import { internalRequest } from '@/platforms/notion/client'
 import { formatBacklinks, formatBlockChildren, formatBlockValue } from '@/platforms/notion/formatters'
 import { uploadFile, uploadFileOnly } from '@/platforms/notion/upload'
@@ -8,6 +10,7 @@ import { readMarkdownInput } from '@/shared/markdown/read-input'
 import { markdownToBlocks } from '@/shared/markdown/to-notion-internal'
 import { formatNotionId } from '@/shared/utils/id'
 import { formatOutput } from '@/shared/utils/output'
+
 import {
   type CommandOptions,
   generateId,

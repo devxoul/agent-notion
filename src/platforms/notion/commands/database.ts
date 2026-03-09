@@ -1,4 +1,5 @@
 import { Command } from 'commander'
+
 import { internalRequest } from '@/platforms/notion/client'
 import {
   buildPageLookup,
@@ -12,6 +13,7 @@ import {
 } from '@/platforms/notion/formatters'
 import { formatNotionId } from '@/shared/utils/id'
 import { formatOutput } from '@/shared/utils/output'
+
 import {
   type CommandOptions,
   generateId,

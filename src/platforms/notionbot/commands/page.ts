@@ -1,5 +1,7 @@
 import path from 'node:path'
+
 import { Command } from 'commander'
+
 import { getClient } from '@/platforms/notionbot/client'
 import { formatPage } from '@/platforms/notionbot/formatters'
 import { uploadFileOnly } from '@/platforms/notionbot/upload'

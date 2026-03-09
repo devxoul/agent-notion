@@ -1,4 +1,5 @@
 import { Command } from 'commander'
+
 import { getClient } from '@/platforms/notionbot/client'
 import { formatComment, formatCommentListResponse } from '@/platforms/notionbot/formatters'
 import { handleError } from '@/shared/utils/error-handler'
