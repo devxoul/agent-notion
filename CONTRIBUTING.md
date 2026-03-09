@@ -32,13 +32,13 @@ bun test src/
 
 ### 4. Linting and Formatting
 
-We use [Biome](https://biomejs.dev/) for linting and formatting:
+We use [oxlint](https://oxc.rs/docs/guide/usage/linter) and [oxfmt](https://oxc.rs/docs/guide/usage/formatter) for linting and formatting:
 
 ```bash
-# Check for lint errors and formatting
+# Check for lint errors
 bun run lint
 
-# Automatically fix lint errors and format code
+# Format code
 bun run format
 ```
 

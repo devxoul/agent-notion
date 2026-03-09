@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "typescript/no-non-null-assertion": "off",
+    "typescript/no-explicit-any": "off",
+    "eslint/prefer-template": "off",
+    "eslint/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
+    "eslint/no-unsafe-optional-chaining": "off",
+    "eslint/preserve-caught-error": "off",
+    "unicorn/no-array-sort": "off"
+  },
+  "ignorePatterns": ["dist/**", ".github/**", ".claude-plugin/**", "**/*.md"]
+}

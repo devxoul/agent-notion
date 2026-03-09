@@ -3,6 +3,7 @@
 ## Project Overview
 
 Notion API CLI for AI agents. Ships two CLIs:
+
 - `vibe-notion` — unofficial private API (acts as user via `token_v2`)
 - `vibe-notionbot` — official Integration API (acts as bot via `NOTION_TOKEN`)
 
@@ -23,11 +24,11 @@ bun test:e2e
 # Type checking
 bun run typecheck
 
-# Lint (Biome)
+# Lint (oxlint)
 bun run lint
 bun run lint:fix
 
-# Format
+# Format (oxfmt)
 bun run format
 ```
 
@@ -56,19 +57,21 @@ npm consumers run compiled JS via Node.js. The `prepublishOnly` script runs the 
 
 ### Key Distinction
 
-| | Local (dev) | Published (npm) |
-|---|---|---|
-| Runtime | Bun | Node.js |
+|             | Local (dev)              | Published (npm)               |
+| ----------- | ------------------------ | ----------------------------- |
+| Runtime     | Bun                      | Node.js                       |
 | Entry files | `src/platforms/*/cli.ts` | `dist/src/platforms/*/cli.js` |
-| Shebang | `#!/usr/bin/env bun` | `#!/usr/bin/env node` |
-| Compilation | None (Bun runs TS) | `tsc` → `dist/` |
+| Shebang     | `#!/usr/bin/env bun`     | `#!/usr/bin/env node`         |
+| Compilation | None (Bun runs TS)       | `tsc` → `dist/`               |
 
 ## Release
+
 Use the **Release** GitHub Actions workflow (`workflow_dispatch`). Enter the version (e.g., `0.2.0`) — it typechecks, lints, tests, bumps version in `package.json`, commits, tags, publishes to npm, and creates a GitHub Release. Tags have no `v` prefix.
 
 ### Version Decision
 
 When asked to release without a specific version:
+
 - **Patch** (x.y.Z) — bug fixes, docs, refactors, non-breaking changes
 - **Minor** (x.Y.0) — new features, new commands, new options, expanded capabilities
 

@@ -2,12 +2,20 @@
   "name": "vibe-notion",
   "version": "0.9.0",
   "description": "Notion API CLI for AI agents",
-  "type": "module",
-  "module": "dist/cli.js",
-  "main": "dist/cli.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devxoul/vibe-notion.git"
+  },
   "bin": {
-    "vibe-notionbot": "./src/platforms/notionbot/cli.ts",
-    "vibe-notion": "./src/platforms/notion/cli.ts"
+    "vibe-notion": "./src/platforms/notion/cli.ts",
+    "vibe-notionbot": "./src/platforms/notionbot/cli.ts"
+  },
+  "type": "module",
+  "main": "dist/cli.js",
+  "module": "dist/cli.js",
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc && tsc-alias --resolve-full-paths",
@@ -15,9 +23,9 @@
     "test": "bun test src/",
     "test:e2e": "bun test --config /dev/null e2e/",
     "typecheck": "tsc --noEmit",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write --unsafe .",
-    "format": "biome format --write .",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt --write .",
     "prepublishOnly": "bun run build && bun scripts/prepublish.ts",
     "postpublish": "git checkout package.json"
   },
@@ -30,19 +38,12 @@
     "remark-parse": "^11.0.0",
     "unified": "^11.0.5"
   },
-  "publishConfig": {
-    "access": "public"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/devxoul/vibe-notion.git"
-  },
-  "license": "MIT",
   "devDependencies": {
-    "@biomejs/biome": "latest",
     "@types/better-sqlite3": "latest",
     "@types/bun": "latest",
     "@types/node": "latest",
+    "oxfmt": "latest",
+    "oxlint": "latest",
     "tsc-alias": "^1.8.16",
     "typescript": "latest"
   }
