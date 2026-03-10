@@ -158,9 +158,10 @@ export async function handlePageUpdate(
   }
 
   if (hasPropertyUpdates) {
-    await client.pages.update({
-      page_id: pageId,
-      properties: set as any,
+    await client.request({
+      path: `pages/${pageId}`,
+      method: 'patch',
+      body: { properties: set },
     })
   }
 
@@ -186,11 +187,11 @@ export async function handlePageUpdate(
         block_id: pageId,
         page_size: 100,
         ...(cursor ? { start_cursor: cursor } : {}),
-      } as any)
-      for (const block of (response as any).results) {
+      })
+      for (const block of response.results) {
         await client.blocks.delete({ block_id: block.id })
       }
-      cursor = (response as any).has_more ? (response as any).next_cursor : undefined
+      cursor = response.has_more ? response.next_cursor ?? undefined : undefined
     } while (cursor)
 
     if (newBlocks.length > 0) {

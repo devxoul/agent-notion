@@ -32,10 +32,10 @@ async function childrenAction(
   const blockId = formatNotionId(rawBlockId)
   try {
     const client = getClient()
-    const params: Record<string, unknown> = { block_id: blockId }
+    const params: { block_id: string; page_size?: number; start_cursor?: string } = { block_id: blockId }
     if (options.pageSize) params.page_size = Number(options.pageSize)
     if (options.startCursor) params.start_cursor = options.startCursor
-    const response = await client.blocks.children.list(params as any)
+    const response = await client.blocks.children.list(params)
     console.log(formatOutput(formatBlockChildrenResponse(response as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)

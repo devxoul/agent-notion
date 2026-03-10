@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 
 import { Command } from 'commander'
 
-import { getClientOrThrow } from '@/platforms/notionbot/client'
+import { type NotionClient, getClientOrThrow } from '@/platforms/notionbot/client'
 import {
   type ActionRegistry,
   type NotionBotHandler,
