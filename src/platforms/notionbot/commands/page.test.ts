@@ -25,6 +25,8 @@ const mockPreprocessMarkdownImages = mock(
   (markdown: string, _uploadFn: (filePath: string) => Promise<string>, _basePath: string) => Promise.resolve(markdown),
 )
 
+const mockRequest = mock(() => Promise.resolve({}))
+
 mock.module('../client', () => ({
   getClient: () => ({
     pages: {
@@ -38,6 +40,7 @@ mock.module('../client', () => ({
       delete: mockBlockDelete,
     },
     appendBlockChildren: mockAppendBlockChildren,
+    request: mockRequest,
   }),
 }))
 
@@ -79,6 +82,7 @@ describe('page commands', () => {
     mockAppendBlockChildren.mockReset()
     mockBlockChildrenList.mockReset()
     mockBlockDelete.mockReset()
+    mockRequest.mockReset()
     mockUploadFile.mockReset()
     mockUploadFile.mockImplementation(() =>
       Promise.resolve({
@@ -297,7 +301,7 @@ describe('page commands', () => {
   describe('page update', () => {
     test('updates page properties with --set key=value pairs', async () => {
       // Given
-      mockPageUpdate.mockResolvedValue({
+      mockRequest.mockResolvedValue({
         id: 'page-123',
         object: 'page',
         url: 'https://notion.so/page-123',
@@ -322,10 +326,13 @@ describe('page commands', () => {
       })
 
       // Then
-      expect(mockPageUpdate).toHaveBeenCalledWith({
-        page_id: 'page-123',
-        properties: {
-          Status: 'Done',
+      expect(mockRequest).toHaveBeenCalledWith({
+        path: 'pages/page-123',
+        method: 'patch',
+        body: {
+          properties: {
+            Status: 'Done',
+          },
         },
       })
       const output = JSON.parse(consoleOutput[0])
@@ -334,7 +341,7 @@ describe('page commands', () => {
 
     test('handles multiple --set flags', async () => {
       // Given
-      mockPageUpdate.mockResolvedValue({
+      mockRequest.mockResolvedValue({
         id: 'page-123',
         object: 'page',
         url: 'https://notion.so/page-123',
@@ -359,11 +366,14 @@ describe('page commands', () => {
       })
 
       // Then
-      expect(mockPageUpdate).toHaveBeenCalledWith({
-        page_id: 'page-123',
-        properties: {
-          Status: 'Done',
-          Priority: 'High',
+      expect(mockRequest).toHaveBeenCalledWith({
+        path: 'pages/page-123',
+        method: 'patch',
+        body: {
+          properties: {
+            Status: 'Done',
+            Priority: 'High',
+          },
         },
       })
     })

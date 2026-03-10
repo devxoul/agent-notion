@@ -1,4 +1,5 @@
 import { Command } from 'commander'
+import type { SearchParameters } from '@notionhq/client/build/src/api-endpoints'
 
 import { getClient, type NotionClient } from '@/platforms/notionbot/client'
 import { formatDatabase, formatDatabaseListResults, formatDatabaseQueryResults } from '@/platforms/notionbot/formatters'
@@ -111,8 +112,8 @@ async function deletePropertyAction(
 async function listAction(options: PrettyOption & { pageSize?: string; startCursor?: string }): Promise<void> {
   try {
     const client = getClient()
-    const params: Record<string, unknown> = {
-      filter: { property: 'object', value: 'database' },
+    const params: SearchParameters = {
+      filter: { property: 'object', value: 'database' as unknown as 'page' | 'data_source' },
     }
 
     if (options.pageSize) {
@@ -122,7 +123,7 @@ async function listAction(options: PrettyOption & { pageSize?: string; startCurs
       params.start_cursor = options.startCursor
     }
 
-    const result = await client.search(params as any)
+    const result = await client.search(params)
     console.log(formatOutput(formatDatabaseListResults(result as Record<string, unknown>), options.pretty))
   } catch (error) {
     handleError(error as Error)
@@ -135,7 +136,7 @@ export async function handleDatabaseCreate(
 ): Promise<unknown> {
   const parentId = formatNotionId(args.parent)
   const parsed = args.properties ? JSON.parse(args.properties) : {}
-  const hasTitleProperty = Object.values(parsed).some((v: any) => v && typeof v === 'object' && 'title' in v)
+  const hasTitleProperty = Object.values(parsed).some((v: unknown) => v !== null && typeof v === 'object' && 'title' in v)
   const properties = hasTitleProperty ? parsed : { Name: { title: {} }, ...parsed }
 
   // Bypass SDK — databases.create in @notionhq/client v5+ strips `properties`

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 
 import { Command } from 'commander'
 
-import { getClientOrThrow } from '@/platforms/notionbot/client'
+import { type NotionClient, getClientOrThrow } from '@/platforms/notionbot/client'
 import {
   type ActionRegistry,
   type NotionBotHandler,
@@ -21,7 +21,7 @@ import { handleCommentCreate } from './comment'
 import { handleDatabaseCreate, handleDatabaseDeleteProperty, handleDatabaseUpdate } from './database'
 import { handlePageArchive, handlePageCreate, handlePageUpdate } from './page'
 
-type NotionBotBatchDeps = BatchDeps<unknown> & {
+type NotionBotBatchDeps = BatchDeps<NotionClient> & {
   actionRegistry: ActionRegistry<NotionBotHandler>
 }
 

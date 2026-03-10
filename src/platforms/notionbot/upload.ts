@@ -38,11 +38,11 @@ export async function uploadFileOnly(client: NotionClient, filePath: string): Pr
   await client.fileUploads.send({
     file_upload_id: fileUploadId,
     file: {
-      data: fileBuffer,
+      data: new Blob([fileBuffer]),
       filename: fileInfo.name,
     },
-    part_number: 1,
-  } as any)
+    part_number: '1',
+  })
 
   return {
     fileUploadId,

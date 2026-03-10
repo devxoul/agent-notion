@@ -119,7 +119,7 @@ describe('SearchCommand', () => {
     ]
 
     const mockSearch = mock(async (params: any) => {
-      expect(params.filter?.value).toBe('database')
+      expect(params.filter?.value).toBe('data_source')
       return {
         results: mockResults,
         next_cursor: null,

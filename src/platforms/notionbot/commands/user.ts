@@ -1,4 +1,5 @@
 import { Command } from 'commander'
+import type { PartialUserObjectResponse, UserObjectResponse } from '@notionhq/client/build/src/api-endpoints'
 
 import { getClient } from '@/platforms/notionbot/client'
 import { handleError } from '@/shared/utils/error-handler'
@@ -12,11 +13,17 @@ async function listAction(options: { pageSize?: number; startCursor?: string; pr
       start_cursor: options.startCursor,
     })
 
-    const output = response.results.map((user: any) => ({
-      id: user.id,
-      name: user.name,
-      type: user.type,
-    }))
+    const output = response.results.map((user: UserObjectResponse | PartialUserObjectResponse) => {
+      const { id } = user
+      const name = 'name' in user ? user.name : undefined
+      const type = 'type' in user ? user.type : undefined
+
+      return {
+        id,
+        name,
+        type,
+      }
+    })
 
     console.log(formatOutput(output, options.pretty))
   } catch (error) {
@@ -46,11 +53,16 @@ async function meAction(options: { pretty?: boolean }): Promise<void> {
     const client = getClient()
     const me = await client.users.me({})
 
+    const workspaceName =
+      me.type === 'bot'
+        ? (((me.bot as Record<string, unknown>)?.workspace_name as string | null | undefined) ?? undefined)
+        : undefined
+
     const output = {
       id: me.id,
       name: me.name,
       type: me.type,
-      workspace_name: me.type === 'bot' ? (me as any).bot?.workspace_name : undefined,
+      workspace_name: workspaceName,
     }
 
     console.log(formatOutput(output, options.pretty))

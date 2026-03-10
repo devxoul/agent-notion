@@ -1,3 +1,5 @@
+import type { NotionClient } from '@/platforms/notionbot/client'
+
 export type BatchOperation = { action: string } & Record<string, unknown>
 
 export type BatchResult = {
@@ -17,7 +19,7 @@ export type BatchOutput = {
 
 export type NotionHandler = (tokenV2: string, args: Record<string, unknown>) => Promise<unknown>
 
-export type NotionBotHandler = (client: any, args: Record<string, unknown>) => Promise<unknown>
+export type NotionBotHandler = (client: NotionClient, args: Record<string, unknown>) => Promise<unknown>
 
 export type ActionRegistry<H> = Record<string, H>
 

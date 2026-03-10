@@ -1,4 +1,5 @@
 import { Command } from 'commander'
+import type { SearchParameters } from '@notionhq/client/build/src/api-endpoints'
 
 import { getClient } from '@/platforms/notionbot/client'
 import { handleError } from '@/shared/utils/error-handler'
@@ -17,12 +18,19 @@ async function searchAction(
   try {
     const client = getClient()
 
-    const params: any = {
+    const params: SearchParameters = {
       query,
     }
 
     if (options.filter) {
-      params.filter = { value: options.filter }
+      const filterValue = options.filter === 'database' ? 'data_source' : options.filter
+      if (filterValue !== 'page' && filterValue !== 'data_source') {
+        throw new Error(`Invalid filter value: ${options.filter}. Must be 'page' or 'database'.`)
+      }
+      params.filter = {
+        property: 'object',
+        value: filterValue,
+      }
     }
 
     if (options.sort) {
@@ -42,13 +50,18 @@ async function searchAction(
 
     const response = await client.search(params)
 
-    const output = response.results.map((result: any) => ({
-      id: result.id,
-      object: result.object,
-      title: result.title ? result.title.map((t: any) => t.plain_text).join('') : result.title,
-      url: result.url,
-      last_edited_time: result.last_edited_time,
-    }))
+    const output = response.results.map((result) => {
+      const r = result as Record<string, unknown>
+      const titleArr = r.title as Array<{ plain_text: string }> | undefined
+
+      return {
+        id: r.id,
+        object: r.object,
+        title: titleArr ? titleArr.map((t) => t.plain_text).join('') : r.title,
+        url: r.url,
+        last_edited_time: r.last_edited_time,
+      }
+    })
 
     console.log(formatOutput(output, options.pretty))
   } catch (error) {

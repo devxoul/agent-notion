@@ -49,14 +49,11 @@ describe('uploadFileOnly', () => {
       filename: 'photo.png',
       content_type: 'image/png',
     })
-    expect(mockSend).toHaveBeenCalledWith({
-      file_upload_id: 'file_upload_123',
-      file: {
-        data: fileBuffer,
-        filename: 'photo.png',
-      },
-      part_number: 1,
-    })
+    const sendCall = (mockSend.mock.calls as unknown[][])[0][0] as Record<string, unknown>
+    expect(sendCall.file_upload_id).toBe('file_upload_123')
+    expect((sendCall.file as Record<string, unknown>).filename).toBe('photo.png')
+    expect((sendCall.file as Record<string, unknown>).data).toBeInstanceOf(Blob)
+    expect(sendCall.part_number).toBe('1')
     expect(mockAppend).not.toHaveBeenCalled()
     expect(result).toEqual({
       fileUploadId: 'file_upload_123',
@@ -114,14 +111,11 @@ describe('uploadFile', () => {
       filename: 'photo.png',
       content_type: 'image/png',
     })
-    expect(mockSend).toHaveBeenCalledWith({
-      file_upload_id: 'file_upload_123',
-      file: {
-        data: fileBuffer,
-        filename: 'photo.png',
-      },
-      part_number: 1,
-    })
+    const sendCall2 = (mockSend.mock.calls as unknown[][])[0][0] as Record<string, unknown>
+    expect(sendCall2.file_upload_id).toBe('file_upload_123')
+    expect((sendCall2.file as Record<string, unknown>).filename).toBe('photo.png')
+    expect((sendCall2.file as Record<string, unknown>).data).toBeInstanceOf(Blob)
+    expect(sendCall2.part_number).toBe('1')
     expect(mockAppend).toHaveBeenCalledWith({
       block_id: 'parent-123',
       children: [
@@ -179,14 +173,11 @@ describe('uploadFile', () => {
       filename: 'report.pdf',
       content_type: 'application/pdf',
     })
-    expect(mockSend).toHaveBeenCalledWith({
-      file_upload_id: 'file_upload_456',
-      file: {
-        data: fileBuffer,
-        filename: 'report.pdf',
-      },
-      part_number: 1,
-    })
+    const sendCall3 = (mockSend.mock.calls as unknown[][])[0][0] as Record<string, unknown>
+    expect(sendCall3.file_upload_id).toBe('file_upload_456')
+    expect((sendCall3.file as Record<string, unknown>).filename).toBe('report.pdf')
+    expect((sendCall3.file as Record<string, unknown>).data).toBeInstanceOf(Blob)
+    expect(sendCall3.part_number).toBe('1')
     expect(mockAppend).toHaveBeenCalledWith({
       block_id: 'parent-456',
       children: [

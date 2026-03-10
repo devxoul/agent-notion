@@ -1,4 +1,5 @@
 import { Command } from 'commander'
+import type { CreateCommentParameters } from '@notionhq/client/build/src/api-endpoints'
 
 import { getClient } from '@/platforms/notionbot/client'
 import { formatComment, formatCommentListResponse } from '@/platforms/notionbot/formatters'
@@ -47,23 +48,28 @@ export async function handleCommentCreate(
     throw new Error('Cannot specify both --page and --discussion')
   }
 
-  const createParams: any = {
-    rich_text: [
-      {
-        type: 'text',
-        text: {
-          content: args.text,
-        },
+  const richText: CreateCommentParameters['rich_text'] = [
+    {
+      type: 'text',
+      text: {
+        content: args.text,
       },
-    ],
-  }
+    },
+  ]
 
+  let createParams: CreateCommentParameters
   if (args.page) {
-    createParams.parent = {
-      page_id: formatNotionId(args.page),
+    createParams = {
+      parent: {
+        page_id: formatNotionId(args.page),
+      },
+      rich_text: richText,
     }
-  } else if (args.discussion) {
-    createParams.discussion_id = formatNotionId(args.discussion)
+  } else {
+    createParams = {
+      discussion_id: formatNotionId(args.discussion!),
+      rich_text: richText,
+    }
   }
 
   const result = await client.comments.create(createParams)

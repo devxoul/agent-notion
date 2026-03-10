@@ -28,6 +28,17 @@ type CookieRow = {
   encrypted_value?: Uint8Array | Buffer
 } | null
 
+type BetterSqlite3Database = {
+  prepare(sql: string): {
+    get(...params: unknown[]): unknown
+  }
+  close(): void
+}
+
+type BetterSqlite3Constructor = {
+  new (path: string, options?: Record<string, unknown>): BetterSqlite3Database
+}
+
 export interface ExtractedToken {
   token_v2: string
   user_id?: string
@@ -279,8 +290,7 @@ export class TokenExtractor {
         usersRow = db.query(usersSql).get() as CookieRow
         db.close()
       } else {
-        // oxlint-disable-next-line typescript/no-explicit-any -- dynamic require for Node.js compatibility
-        let Database: any
+        let Database: BetterSqlite3Constructor
         try {
           Database = require('better-sqlite3')
         } catch {
