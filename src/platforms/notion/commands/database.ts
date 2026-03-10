@@ -312,6 +312,142 @@ function getOptionValue(option: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
 }
 
+function unknownPropertyError(name: string, schema: CollectionSchema): Error {
+  return new Error(
+    `Unknown property: "${name}". Available: ${Object.values(schema)
+      .map((p) => p.name)
+      .join(', ')}`,
+  )
+}
+
+function resolvePropertyIdOrThrow(name: string, nameToId: Record<string, string>, schema: CollectionSchema): string {
+  const propId = nameToId[name]
+  if (!propId) {
+    throw unknownPropertyError(name, schema)
+  }
+  return propId
+}
+
+function serializeTitleProperty(value: unknown): unknown {
+  return [[value as string]]
+}
+
+function serializeSelectProperty(value: unknown): unknown {
+  return [[value as string]]
+}
+
+function serializeMultiSelectProperty(value: unknown, propId: string, registerOption: (propId: string, value: string) => void): unknown {
+  const values = value as string[]
+  const segments: string[] = []
+  for (let i = 0; i < values.length; i++) {
+    if (i > 0) segments.push(',')
+    segments.push(values[i])
+    registerOption(propId, values[i])
+  }
+  return [segments]
+}
+
+function serializeNumberProperty(value: unknown): unknown {
+  return [[String(value)]]
+}
+
+function serializeCheckboxProperty(value: unknown): unknown {
+  return [[value ? 'Yes' : 'No']]
+}
+
+function serializeDateProperty(value: unknown): unknown {
+  const dateValue = value as { start: string; end?: string }
+  const dateArgs: Record<string, string> = {
+    type: dateValue.end ? 'daterange' : 'date',
+    start_date: dateValue.start,
+  }
+  if (dateValue.end) {
+    dateArgs.end_date = dateValue.end
+  }
+  return [['‣', [['d', dateArgs]]]]
+}
+
+function serializeTextProperty(value: unknown): unknown {
+  return [[value as string]]
+}
+
+function serializePersonProperty(value: unknown): unknown {
+  const userIds = value as string[]
+  const segments: unknown[] = []
+  for (let i = 0; i < userIds.length; i++) {
+    if (i > 0) {
+      segments.push([','])
+    }
+    segments.push(['‣', [['u', userIds[i]]]])
+  }
+  return segments
+}
+
+function serializeRelationProperty(value: unknown): unknown {
+  const pageIds = value as string[]
+  const segments: unknown[] = []
+  for (let i = 0; i < pageIds.length; i++) {
+    if (i > 0) {
+      segments.push([','])
+    }
+    segments.push(['‣', [['p', formatNotionId(pageIds[i])]]])
+  }
+  return segments
+}
+
+function serializeDefaultProperty(value: unknown): unknown {
+  return [[value as string]]
+}
+
+function serializePropertyValue(
+  propType: CollectionPropertyType,
+  propId: string,
+  value: unknown,
+  registerOption: (propId: string, value: string) => void,
+): unknown {
+  if (propType === 'title') {
+    return serializeTitleProperty(value)
+  }
+
+  if (propType === 'select' || propType === 'status') {
+    const serialized = serializeSelectProperty(value)
+    if (propType === 'select') {
+      registerOption(propId, value as string)
+    }
+    return serialized
+  }
+
+  if (propType === 'multi_select') {
+    return serializeMultiSelectProperty(value, propId, registerOption)
+  }
+
+  if (propType === 'number') {
+    return serializeNumberProperty(value)
+  }
+
+  if (propType === 'checkbox') {
+    return serializeCheckboxProperty(value)
+  }
+
+  if (propType === 'date') {
+    return serializeDateProperty(value)
+  }
+
+  if (propType === 'url' || propType === 'email' || propType === 'phone_number' || propType === 'text') {
+    return serializeTextProperty(value)
+  }
+
+  if (propType === 'person') {
+    return serializePersonProperty(value)
+  }
+
+  if (propType === 'relation') {
+    return serializeRelationProperty(value)
+  }
+
+  return serializeDefaultProperty(value)
+}
+
 function serializeRowProperties(
   parsed: Record<string, unknown>,
   schema: CollectionSchema,
@@ -321,78 +457,14 @@ function serializeRowProperties(
   const properties: Record<string, unknown> = {}
 
   for (const [name, value] of Object.entries(parsed)) {
-    const propId = nameToId[name]
-    if (!propId) {
-      throw new Error(
-        `Unknown property: "${name}". Available: ${Object.values(schema)
-          .map((p) => p.name)
-          .join(', ')}`,
-      )
-    }
+    const propId = resolvePropertyIdOrThrow(name, nameToId, schema)
 
     const propType = schema[propId].type
     if (propType === 'auto_increment_id' || propType === 'formula' || propType === 'rollup') {
       continue
     }
 
-    if (propType === 'title') {
-      properties.title = [[value as string]]
-    } else if (propType === 'select' || propType === 'status') {
-      const selectValue = value as string
-      properties[propId] = [[selectValue]]
-      if (propType === 'select') {
-        registerOption(propId, selectValue)
-      }
-    } else if (propType === 'multi_select') {
-      const values = value as string[]
-      const segments: string[] = []
-      for (let i = 0; i < values.length; i++) {
-        if (i > 0) segments.push(',')
-        segments.push(values[i])
-        registerOption(propId, values[i])
-      }
-      properties[propId] = [segments]
-    } else if (propType === 'number') {
-      properties[propId] = [[String(value)]]
-    } else if (propType === 'checkbox') {
-      properties[propId] = [[value ? 'Yes' : 'No']]
-    } else if (propType === 'date') {
-      const dateValue = value as { start: string; end?: string }
-      const dateArgs: Record<string, string> = {
-        type: dateValue.end ? 'daterange' : 'date',
-        start_date: dateValue.start,
-      }
-      if (dateValue.end) {
-        dateArgs.end_date = dateValue.end
-      }
-      properties[propId] = [['‣', [['d', dateArgs]]]]
-    } else if (propType === 'url' || propType === 'email' || propType === 'phone_number') {
-      properties[propId] = [[value as string]]
-    } else if (propType === 'text') {
-      properties[propId] = [[value as string]]
-    } else if (propType === 'person') {
-      const userIds = value as string[]
-      const segments: unknown[] = []
-      for (let i = 0; i < userIds.length; i++) {
-        if (i > 0) {
-          segments.push([','])
-        }
-        segments.push(['‣', [['u', userIds[i]]]])
-      }
-      properties[propId] = segments
-    } else if (propType === 'relation') {
-      const pageIds = value as string[]
-      const segments: unknown[] = []
-      for (let i = 0; i < pageIds.length; i++) {
-        if (i > 0) {
-          segments.push([','])
-        }
-        segments.push(['‣', [['p', formatNotionId(pageIds[i])]]])
-      }
-      properties[propId] = segments
-    } else {
-      properties[propId] = [[value as string]]
-    }
+    properties[propId] = serializePropertyValue(propType, propId, value, registerOption)
   }
 
   return properties
@@ -775,89 +847,9 @@ async function viewUpdateAction(rawViewId: string, options: ViewUpdateOptions): 
       }
     }
 
-    const showNames = options.show ? options.show.split(',').map((s) => s.trim()) : []
-    const hideNames = options.hide ? options.hide.split(',').map((s) => s.trim()) : []
-
-    for (const name of showNames) {
-      const propId = nameToId[name]
-      if (!propId) {
-        throw new Error(
-          `Unknown property: "${name}". Available: ${Object.values(schema)
-            .map((p) => p.name)
-            .join(', ')}`,
-        )
-      }
-      const entry = updatedProps.get(propId) ?? { property: propId, visible: false }
-      entry.visible = true
-      updatedProps.set(propId, entry)
-    }
-
-    for (const name of hideNames) {
-      const propId = nameToId[name]
-      if (!propId) {
-        throw new Error(
-          `Unknown property: "${name}". Available: ${Object.values(schema)
-            .map((p) => p.name)
-            .join(', ')}`,
-        )
-      }
-      const entry = updatedProps.get(propId) ?? { property: propId, visible: true }
-      entry.visible = false
-      updatedProps.set(propId, entry)
-    }
-
-    const reorderNames = options.reorder ? options.reorder.split(',').map((s) => s.trim()) : []
-
-    for (const name of reorderNames) {
-      const propId = nameToId[name]
-      if (!propId) {
-        throw new Error(
-          `Unknown property: "${name}". Available: ${Object.values(schema)
-            .map((p) => p.name)
-            .join(', ')}`,
-        )
-      }
-    }
-
-    if (reorderNames.length > 0) {
-      const reorderIds = reorderNames.map((name) => nameToId[name])
-      const reorderSet = new Set(reorderIds)
-      const reordered = new Map<string, ViewProperty>()
-
-      for (const id of reorderIds) {
-        const prop = updatedProps.get(id)
-        if (prop) reordered.set(id, prop)
-      }
-
-      for (const [id, prop] of updatedProps) {
-        if (!reorderSet.has(id)) {
-          reordered.set(id, prop)
-        }
-      }
-
-      updatedProps.clear()
-      for (const [id, prop] of reordered) {
-        updatedProps.set(id, prop)
-      }
-    }
-
-    if (options.resize) {
-      const resizeMap = JSON.parse(options.resize) as Record<string, number>
-      for (const [name, width] of Object.entries(resizeMap)) {
-        const propId = nameToId[name]
-        if (!propId) {
-          throw new Error(
-            `Unknown property: "${name}". Available: ${Object.values(schema)
-              .map((p) => p.name)
-              .join(', ')}`,
-          )
-        }
-        const entry = updatedProps.get(propId)
-        if (entry) {
-          entry.width = width
-        }
-      }
-    }
+    applyVisibilityUpdates(updatedProps, options.show, options.hide, nameToId, schema)
+    applyReorderUpdates(updatedProps, options.reorder, nameToId, schema)
+    applyResizeUpdates(updatedProps, options.resize, nameToId, schema)
 
     const newProps = Array.from(updatedProps.values())
 
@@ -905,6 +897,142 @@ async function viewUpdateAction(rawViewId: string, options: ViewUpdateOptions): 
     console.error(JSON.stringify({ error: (error as Error).message }))
     process.exit(1)
   }
+}
+
+function parseCommaSeparatedNames(raw?: string): string[] {
+  return raw ? raw.split(',').map((name) => name.trim()) : []
+}
+
+function applyVisibilityUpdates(
+  updatedProps: Map<string, ViewProperty>,
+  showOption: string | undefined,
+  hideOption: string | undefined,
+  nameToId: Record<string, string>,
+  schema: CollectionSchema,
+): void {
+  const showNames = parseCommaSeparatedNames(showOption)
+  const hideNames = parseCommaSeparatedNames(hideOption)
+
+  for (const name of showNames) {
+    const propId = resolvePropertyIdOrThrow(name, nameToId, schema)
+    const entry = updatedProps.get(propId) ?? { property: propId, visible: false }
+    entry.visible = true
+    updatedProps.set(propId, entry)
+  }
+
+  for (const name of hideNames) {
+    const propId = resolvePropertyIdOrThrow(name, nameToId, schema)
+    const entry = updatedProps.get(propId) ?? { property: propId, visible: true }
+    entry.visible = false
+    updatedProps.set(propId, entry)
+  }
+}
+
+function applyReorderUpdates(
+  updatedProps: Map<string, ViewProperty>,
+  reorderOption: string | undefined,
+  nameToId: Record<string, string>,
+  schema: CollectionSchema,
+): void {
+  const reorderNames = parseCommaSeparatedNames(reorderOption)
+
+  for (const name of reorderNames) {
+    resolvePropertyIdOrThrow(name, nameToId, schema)
+  }
+
+  if (reorderNames.length === 0) {
+    return
+  }
+
+  const reorderIds = reorderNames.map((name) => nameToId[name])
+  const reorderSet = new Set(reorderIds)
+  const reordered = new Map<string, ViewProperty>()
+
+  for (const id of reorderIds) {
+    const prop = updatedProps.get(id)
+    if (prop) reordered.set(id, prop)
+  }
+
+  for (const [id, prop] of updatedProps) {
+    if (!reorderSet.has(id)) {
+      reordered.set(id, prop)
+    }
+  }
+
+  updatedProps.clear()
+  for (const [id, prop] of reordered) {
+    updatedProps.set(id, prop)
+  }
+}
+
+function applyResizeUpdates(
+  updatedProps: Map<string, ViewProperty>,
+  resizeOption: string | undefined,
+  nameToId: Record<string, string>,
+  schema: CollectionSchema,
+): void {
+  if (!resizeOption) {
+    return
+  }
+
+  const resizeMap = JSON.parse(resizeOption) as Record<string, number>
+  for (const [name, width] of Object.entries(resizeMap)) {
+    const propId = resolvePropertyIdOrThrow(name, nameToId, schema)
+    const entry = updatedProps.get(propId)
+    if (entry) {
+      entry.width = width
+    }
+  }
+}
+
+function buildSchemaNameToId(schema: CollectionSchema): Record<string, string> {
+  const nameToId: Record<string, string> = {}
+  for (const [propId, prop] of Object.entries(schema)) {
+    nameToId[prop.name] = propId
+  }
+  return nameToId
+}
+
+function createSchemaOptionRegistrar(
+  schema: CollectionSchema,
+  optionValuesToRegister: Record<string, string[]>,
+): (propId: string, value: string) => void {
+  return (propId: string, value: string) => {
+    const schemaEntry = schema[propId]
+    const existingOptions = Array.isArray(schemaEntry.options) ? schemaEntry.options : []
+    const existsInSchema = existingOptions.some((option) => getOptionValue(option) === value)
+    if (existsInSchema) {
+      return
+    }
+
+    const pendingValues = optionValuesToRegister[propId] ?? []
+    if (!pendingValues.includes(value)) {
+      optionValuesToRegister[propId] = [...pendingValues, value]
+    }
+  }
+}
+
+function buildSerializedInputProperties(
+  rawProperties: string,
+  schema: CollectionSchema,
+  nameToId: Record<string, string>,
+  registerOption: (propId: string, value: string) => void,
+): Record<string, unknown> {
+  const parsed = JSON.parse(rawProperties) as Record<string, unknown>
+  return serializeRowProperties(parsed, schema, nameToId, registerOption)
+}
+
+function buildRowPropertySetOperations(
+  rowId: string,
+  spaceId: string,
+  serializedProps: Record<string, unknown>,
+): Array<{ pointer: { table: 'block'; id: string; spaceId: string }; command: 'set'; path: string[]; args: unknown }> {
+  return Object.entries(serializedProps).map(([propId, value]) => ({
+    pointer: { table: 'block' as const, id: rowId, spaceId },
+    command: 'set' as const,
+    path: ['properties', propId],
+    args: value,
+  }))
 }
 
 const VIEW_TYPES = ['table', 'board', 'calendar', 'list', 'gallery', 'timeline'] as const
@@ -1349,33 +1477,16 @@ export async function handleDatabaseAddRow(
   const spaceId = await resolveSpaceId(tokenV2, parentBlockId)
 
   const schema = collection.schema ?? {}
-  const nameToId: Record<string, string> = {}
-  for (const [propId, prop] of Object.entries(schema)) {
-    nameToId[prop.name] = propId
-  }
+  const nameToId = buildSchemaNameToId(schema)
 
   const optionValuesToRegister: Record<string, string[]> = {}
-
-  const registerSchemaOptionValue = (propId: string, value: string) => {
-    const schemaEntry = schema[propId]
-    const existingOptions = Array.isArray(schemaEntry.options) ? schemaEntry.options : []
-    const existsInSchema = existingOptions.some((option) => getOptionValue(option) === value)
-    if (existsInSchema) {
-      return
-    }
-
-    const pendingValues = optionValuesToRegister[propId] ?? []
-    if (!pendingValues.includes(value)) {
-      optionValuesToRegister[propId] = [...pendingValues, value]
-    }
-  }
+  const registerSchemaOptionValue = createSchemaOptionRegistrar(schema, optionValuesToRegister)
 
   const newRowId = generateId()
   const properties: Record<string, unknown> = { title: [[args.title]] }
 
   if (args.properties) {
-    const parsed = JSON.parse(args.properties) as Record<string, unknown>
-    Object.assign(properties, serializeRowProperties(parsed, schema, nameToId, registerSchemaOptionValue))
+    Object.assign(properties, buildSerializedInputProperties(args.properties, schema, nameToId, registerSchemaOptionValue))
   }
 
   const viewId = await resolveCollectionViewId(tokenV2, collectionId)
@@ -1453,11 +1564,7 @@ export async function handleDatabaseUpdateRow(
 
   const collection = await fetchCollection(tokenV2, collectionId)
   const schema = collection.schema ?? {}
-
-  const nameToId: Record<string, string> = {}
-  for (const [propId, prop] of Object.entries(schema)) {
-    nameToId[prop.name] = propId
-  }
+  const nameToId = buildSchemaNameToId(schema)
 
   const parsed = JSON.parse(args.properties) as Record<string, unknown>
   if (Object.keys(parsed).length === 0) {
@@ -1465,31 +1572,15 @@ export async function handleDatabaseUpdateRow(
   }
 
   const optionValuesToRegister: Record<string, string[]> = {}
-  const registerOption = (propId: string, value: string) => {
-    const schemaEntry = schema[propId]
-    const existingOptions = Array.isArray(schemaEntry.options) ? schemaEntry.options : []
-    const existsInSchema = existingOptions.some((option) => getOptionValue(option) === value)
-    if (existsInSchema) {
-      return
-    }
-
-    const pendingValues = optionValuesToRegister[propId] ?? []
-    if (!pendingValues.includes(value)) {
-      optionValuesToRegister[propId] = [...pendingValues, value]
-    }
-  }
+  const registerOption = createSchemaOptionRegistrar(schema, optionValuesToRegister)
 
   const serializedProps = serializeRowProperties(parsed, schema, nameToId, registerOption)
   const schemaOps = buildSchemaOptionUpdates(optionValuesToRegister, schema, collectionId, spaceId)
+  const propertySetOperations = buildRowPropertySetOperations(rowId, spaceId, serializedProps)
 
   const operations = [
     ...schemaOps,
-    ...Object.entries(serializedProps).map(([propId, value]) => ({
-      pointer: { table: 'block' as const, id: rowId, spaceId },
-      command: 'set' as const,
-      path: ['properties', propId],
-      args: value,
-    })),
+    ...propertySetOperations,
   ]
 
   await internalRequest(tokenV2, 'saveTransactions', {
