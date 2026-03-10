@@ -5,34 +5,24 @@ import { Command } from 'commander'
 import { getClientOrThrow } from '@/platforms/notionbot/client'
 import {
   type ActionRegistry,
-  type BatchOperation,
-  type BatchOutput,
-  type BatchResult,
   type NotionBotHandler,
   normalizeOperationArgs,
   validateOperations,
 } from '@/shared/batch/types'
+import {
+  type BatchCommandOptions,
+  type BatchDeps,
+  executeBatch as executeSharedBatch,
+} from '@/shared/batch/execute'
 import { handleError } from '@/shared/utils/error-handler'
-import { formatOutput } from '@/shared/utils/output'
 
 import { handleBlockAppend, handleBlockDelete, handleBlockUpdate, handleBlockUpload } from './block'
 import { handleCommentCreate } from './comment'
 import { handleDatabaseCreate, handleDatabaseDeleteProperty, handleDatabaseUpdate } from './database'
 import { handlePageArchive, handlePageCreate, handlePageUpdate } from './page'
 
-type BatchCommandOptions = {
-  file?: string
-  pretty?: boolean
-}
-
-type BatchDeps = {
+type NotionBotBatchDeps = BatchDeps<unknown> & {
   actionRegistry: ActionRegistry<NotionBotHandler>
-  getClientOrThrow: () => unknown
-  validateOperations: (ops: unknown[], actions: string[]) => void
-  normalizeOperationArgs: (op: BatchOperation) => Record<string, unknown>
-  readFileSync: (path: string, encoding: string) => string
-  log: (...args: unknown[]) => void
-  exit: (code?: number) => never | undefined
 }
 
 export const NOTIONBOT_ACTION_REGISTRY: ActionRegistry<NotionBotHandler> = {
@@ -50,7 +40,7 @@ export const NOTIONBOT_ACTION_REGISTRY: ActionRegistry<NotionBotHandler> = {
     handleDatabaseDeleteProperty(client, args as Parameters<typeof handleDatabaseDeleteProperty>[1]),
 }
 
-const defaultDeps: BatchDeps = {
+const defaultDeps: NotionBotBatchDeps = {
   actionRegistry: NOTIONBOT_ACTION_REGISTRY,
   getClientOrThrow,
   validateOperations,
@@ -60,86 +50,14 @@ const defaultDeps: BatchDeps = {
   exit: (code?: number) => process.exit(code),
 }
 
-function parseOperations(
-  operationsArg: string | undefined,
-  file: string | undefined,
-  deps: BatchDeps,
-): BatchOperation[] {
-  if (!file && !operationsArg) {
-    throw new Error('Either provide operations JSON as argument or use --file <path>')
-  }
-
-  const raw = file ? deps.readFileSync(file, 'utf8') : operationsArg!
-  const parsed = JSON.parse(raw) as unknown
-
-  if (!Array.isArray(parsed)) {
-    throw new Error('Operations must be an array')
-  }
-
-  if (parsed.length === 0) {
-    throw new Error('Operations array cannot be empty')
-  }
-
-  return parsed as BatchOperation[]
-}
-
-function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
 export async function executeBatch(
   operationsArg: string | undefined,
   options: BatchCommandOptions,
-  overrideDeps?: Partial<BatchDeps>,
+  overrideDeps?: Partial<NotionBotBatchDeps>,
 ): Promise<void> {
   const deps = { ...defaultDeps, ...overrideDeps }
-  const operations = parseOperations(operationsArg, options.file, deps)
-  deps.validateOperations(operations, Object.keys(deps.actionRegistry))
 
-  const client = deps.getClientOrThrow()
-  const results: BatchResult[] = []
-  let failed = false
-
-  for (let index = 0; index < operations.length; index++) {
-    const operation = operations[index]
-    const action = operation.action
-    const handler = deps.actionRegistry[action]
-
-    if (!handler) {
-      results.push({
-        index,
-        action,
-        success: false,
-        error: `No handler found for action: ${action}`,
-      })
-      failed = true
-      break
-    }
-
-    try {
-      const data = await handler(client, deps.normalizeOperationArgs(operation))
-      results.push({ index, action, success: true, data })
-    } catch (error) {
-      results.push({
-        index,
-        action,
-        success: false,
-        error: toErrorMessage(error),
-      })
-      failed = true
-      break
-    }
-  }
-
-  const output: BatchOutput = {
-    results,
-    total: operations.length,
-    succeeded: results.filter((result) => result.success).length,
-    failed: results.filter((result) => !result.success).length,
-  }
-
-  deps.log(formatOutput(output, options.pretty))
-  deps.exit(failed ? 1 : 0)
+  await executeSharedBatch(operationsArg, options, deps)
 }
 
 export const batchCommand = new Command('batch')

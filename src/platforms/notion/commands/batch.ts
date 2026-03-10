@@ -5,13 +5,16 @@ import { Command } from 'commander'
 import {
   type ActionRegistry,
   type BatchOperation,
-  type BatchOutput,
-  type BatchResult,
   type NotionHandler,
   normalizeOperationArgs,
   validateOperations,
 } from '@/shared/batch/types'
-import { formatOutput } from '@/shared/utils/output'
+import {
+  type BatchCommandOptions as SharedBatchCommandOptions,
+  type BatchDeps as SharedBatchDeps,
+  executeBatch as executeSharedBatch,
+  toErrorMessage,
+} from '@/shared/batch/execute'
 
 import { handleBlockAppend, handleBlockDelete, handleBlockMove, handleBlockUpdate, handleBlockUpload } from './block'
 import { handleCommentCreate } from './comment'
@@ -25,21 +28,14 @@ import {
 import * as helpers from './helpers'
 import { handlePageArchive, handlePageCreate, handlePageUpdate } from './page'
 
-type BatchCommandOptions = {
+type BatchCommandOptions = SharedBatchCommandOptions & {
   workspaceId: string
-  file?: string
-  pretty?: boolean
 }
 
-type BatchDeps = {
+type BatchDeps = SharedBatchDeps<string> & {
   actionRegistry: ActionRegistry<NotionHandler>
   getCredentialsOrThrow: () => Promise<{ token_v2: string }>
   resolveAndSetActiveUserId: (token: string, workspaceId: string) => Promise<void>
-  validateOperations: (ops: unknown[], actions: string[]) => void
-  normalizeOperationArgs: (op: BatchOperation) => Record<string, unknown>
-  readFileSync: (path: string, encoding: string) => string
-  log: (...args: unknown[]) => void
-  exit: (code?: number) => never | undefined
 }
 
 export const NOTION_ACTION_REGISTRY: ActionRegistry<NotionHandler> = {
@@ -79,38 +75,19 @@ const defaultDeps: BatchDeps = {
     }
     await helpers.resolveAndSetActiveUserId(token, workspaceId)
   },
+  getClientOrThrow: async () => {
+    const fn = helpers.getCredentialsOrThrow ?? helpers.getCredentialsOrExit
+    if (!fn) {
+      throw new Error('getCredentialsOrThrow is not available')
+    }
+    const credentials = await fn()
+    return credentials.token_v2
+  },
   validateOperations,
   normalizeOperationArgs,
   readFileSync: (path: string, encoding: string) => readFileSync(path, encoding as BufferEncoding),
   log: (...args: unknown[]) => console.log(...args),
   exit: (code?: number) => process.exit(code),
-}
-
-function parseOperations(
-  operationsArg: string | undefined,
-  file: string | undefined,
-  deps: BatchDeps,
-): BatchOperation[] {
-  if (!file && !operationsArg) {
-    throw new Error('Either provide operations JSON as argument or use --file <path>')
-  }
-
-  const raw = file ? deps.readFileSync(file, 'utf8') : operationsArg!
-  const parsed = JSON.parse(raw) as unknown
-
-  if (!Array.isArray(parsed)) {
-    throw new Error('Operations must be an array')
-  }
-
-  if (parsed.length === 0) {
-    throw new Error('Operations array cannot be empty')
-  }
-
-  return parsed as BatchOperation[]
-}
-
-function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }
 
 export async function executeBatch(
@@ -119,56 +96,20 @@ export async function executeBatch(
   overrideDeps?: Partial<BatchDeps>,
 ): Promise<void> {
   const deps = { ...defaultDeps, ...overrideDeps }
-  const operations = parseOperations(operationsArg, options.file, deps)
-  deps.validateOperations(operations, Object.keys(deps.actionRegistry))
 
-  const creds = await deps.getCredentialsOrThrow()
-  await deps.resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
-
-  const results: BatchResult[] = []
-  let failed = false
-
-  for (let index = 0; index < operations.length; index++) {
-    const operation = operations[index]
-    const action = operation.action
-    const handler = deps.actionRegistry[action]
-
-    if (!handler) {
-      results.push({
-        index,
-        action,
-        success: false,
-        error: `No handler found for action: ${action}`,
-      })
-      failed = true
-      break
-    }
-
-    try {
-      const args = { ...deps.normalizeOperationArgs(operation), workspaceId: options.workspaceId }
-      const data = await handler(creds.token_v2, args)
-      results.push({ index, action, success: true, data })
-    } catch (error) {
-      results.push({
-        index,
-        action,
-        success: false,
-        error: toErrorMessage(error),
-      })
-      failed = true
-      break
-    }
-  }
-
-  const output: BatchOutput = {
-    results,
-    total: operations.length,
-    succeeded: results.filter((result) => result.success).length,
-    failed: results.filter((result) => !result.success).length,
-  }
-
-  deps.log(formatOutput(output, options.pretty))
-  deps.exit(failed ? 1 : 0)
+  await executeSharedBatch(
+    operationsArg,
+    options,
+    {
+      ...deps,
+      getClientOrThrow: async () => {
+        const creds = await deps.getCredentialsOrThrow()
+        await deps.resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
+        return creds.token_v2
+      },
+    },
+    (operation: BatchOperation) => ({ ...deps.normalizeOperationArgs(operation), workspaceId: options.workspaceId }),
+  )
 }
 
 export const batchCommand = new Command('batch')
