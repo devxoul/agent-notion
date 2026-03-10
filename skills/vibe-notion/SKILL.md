@@ -392,6 +392,9 @@ vibe-notion user me --pretty
 
 # Get a specific user
 vibe-notion user get <user_id> --workspace-id <workspace_id> --pretty
+
+# List users in a workspace
+vibe-notion user list --workspace-id <workspace_id> --pretty
 ```
 
 ## Output Format
