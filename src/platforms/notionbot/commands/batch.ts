@@ -21,7 +21,7 @@ import { handleCommentCreate } from './comment'
 import { handleDatabaseCreate, handleDatabaseDeleteProperty, handleDatabaseUpdate } from './database'
 import { handlePageArchive, handlePageCreate, handlePageUpdate } from './page'
 
-type NotionBotBatchDeps = BatchDeps<unknown> & {
+type NotionBotBatchDeps = BatchDeps<NotionClient> & {
   actionRegistry: ActionRegistry<NotionBotHandler>
 }
 
