@@ -2,6 +2,7 @@ import { Command } from 'commander'
 
 import { CredentialManager } from '@/platforms/notion/credential-manager'
 import { TokenExtractor } from '@/platforms/notion/token-extractor'
+import { handleNotionError } from '@/shared/utils/error-handler'
 import { formatOutput } from '@/shared/utils/output'
 
 type CommandOptions = { pretty?: boolean; debug?: boolean }
@@ -105,8 +106,7 @@ async function extractAction(options: CommandOptions): Promise<void> {
       ),
     )
   } catch (error) {
-    console.error(JSON.stringify({ error: (error as Error).message }))
-    process.exit(1)
+    handleNotionError(error as Error)
   }
 }
 
@@ -116,8 +116,7 @@ async function logoutAction(options: CommandOptions): Promise<void> {
     await manager.remove()
     console.log(formatOutput({ success: true }, options.pretty))
   } catch (error) {
-    console.error(JSON.stringify({ error: (error as Error).message }))
-    process.exit(1)
+    handleNotionError(error as Error)
   }
 }
 
@@ -157,8 +156,7 @@ async function statusAction(options: CommandOptions): Promise<void> {
       ),
     )
   } catch (error) {
-    console.error(JSON.stringify({ error: (error as Error).message }))
-    process.exit(1)
+    handleNotionError(error as Error)
   }
 }
 
