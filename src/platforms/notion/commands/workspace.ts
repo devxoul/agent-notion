@@ -50,7 +50,7 @@ async function listAction(options: CommandOptions): Promise<void> {
 
     console.log(formatOutput(workspaces, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 

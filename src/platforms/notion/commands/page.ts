@@ -198,7 +198,7 @@ async function listAction(options: ListPageOptions): Promise<void> {
 
     console.log(formatOutput(output, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -245,7 +245,7 @@ async function getAction(rawPageId: string, options: LoadPageChunkOptions): Prom
       console.log(formatOutput(result, options.pretty))
     }
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -389,7 +389,7 @@ async function createAction(options: CreatePageOptions): Promise<void> {
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -566,7 +566,7 @@ async function updateAction(rawPageId: string, options: UpdatePageOptions): Prom
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -643,7 +643,7 @@ async function propertiesAction(rawPageId: string, options: PropertiesOptions): 
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -718,7 +718,7 @@ async function archiveAction(rawPageId: string, options: ArchivePageOptions): Pr
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 

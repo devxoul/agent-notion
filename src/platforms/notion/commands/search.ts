@@ -71,7 +71,7 @@ async function searchAction(query: string, options: SearchOptions): Promise<void
 
     console.log(formatOutput(output, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 

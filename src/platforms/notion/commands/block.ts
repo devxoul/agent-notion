@@ -194,7 +194,7 @@ async function getAction(rawBlockId: string, options: BlockGetOptions): Promise<
       console.log(formatOutput(result, options.pretty))
     }
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -224,7 +224,7 @@ async function childrenAction(rawBlockId: string, options: ChildListOptions): Pr
 
     console.log(formatOutput(output, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -528,7 +528,7 @@ async function appendAction(rawParentId: string, options: AppendOptions): Promis
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -542,7 +542,7 @@ async function updateAction(rawBlockId: string, options: UpdateOptions): Promise
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -555,7 +555,7 @@ async function deleteAction(rawBlockId: string, options: WorkspaceOptions): Prom
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -574,7 +574,7 @@ async function uploadAction(
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -592,7 +592,7 @@ async function moveAction(rawBlockId: string, options: MoveOptions): Promise<voi
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 

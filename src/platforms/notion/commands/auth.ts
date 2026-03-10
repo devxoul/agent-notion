@@ -106,7 +106,7 @@ async function extractAction(options: CommandOptions): Promise<void> {
       ),
     )
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -116,7 +116,7 @@ async function logoutAction(options: CommandOptions): Promise<void> {
     await manager.remove()
     console.log(formatOutput({ success: true }, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -156,7 +156,7 @@ async function statusAction(options: CommandOptions): Promise<void> {
       ),
     )
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 

@@ -57,7 +57,7 @@ async function getAction(userId: string, options: UserGetOptions): Promise<void>
 
     console.log(formatOutput(formatUserValue(user as Record<string, unknown>), options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -84,7 +84,7 @@ async function meAction(options: CommandOptions): Promise<void> {
     const output = accounts.length === 1 ? accounts[0] : accounts
     console.log(formatOutput(output, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 

@@ -524,7 +524,7 @@ async function getAction(rawCollectionId: string, options: GetOptions): Promise<
     const collection = await fetchCollection(creds.token_v2, collectionId)
     console.log(formatOutput(formatCollectionValue(collection as Record<string, unknown>), options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -578,7 +578,7 @@ async function queryAction(rawCollectionId: string, options: QueryOptions): Prom
 
     console.log(formatOutput(formatted, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -600,7 +600,7 @@ async function listAction(options: ListOptions): Promise<void> {
 
     console.log(formatOutput(output, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -615,7 +615,7 @@ async function createAction(options: CreateOptions): Promise<void> {
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -630,7 +630,7 @@ async function updateAction(rawCollectionId: string, options: UpdateOptions): Pr
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -644,7 +644,7 @@ async function deletePropertyAction(rawCollectionId: string, options: DeleteProp
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -659,7 +659,7 @@ async function addRowAction(rawCollectionId: string, options: AddRowOptions): Pr
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -673,7 +673,7 @@ async function updateRowAction(rawRowId: string, options: UpdateRowOptions): Pro
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -799,7 +799,7 @@ async function viewGetAction(rawViewId: string, options: ViewGetOptions): Promis
 
     console.log(formatOutput(output, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -886,7 +886,7 @@ async function viewUpdateAction(rawViewId: string, options: ViewUpdateOptions): 
       ),
     )
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -1092,7 +1092,7 @@ async function viewListAction(rawCollectionId: string, options: ViewListOptions)
 
     console.log(formatOutput(views, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -1161,7 +1161,7 @@ async function viewAddAction(rawCollectionId: string, options: ViewAddOptions): 
       ),
     )
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -1222,7 +1222,7 @@ async function viewDeleteAction(rawViewId: string, options: ViewDeleteOptions): 
 
     console.log(formatOutput({ id: viewId, deleted: true }, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 

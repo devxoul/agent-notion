@@ -107,7 +107,7 @@ async function listAction(options: ListOptions): Promise<void> {
     }
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -269,7 +269,7 @@ async function createAction(text: string, options: CreateOptions): Promise<void>
     })
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 
@@ -304,7 +304,7 @@ async function getAction(commentId: string, options: GetOptions): Promise<void> 
     const result = formatCommentValue(comment, blocks)
     console.log(formatOutput(result, options.pretty))
   } catch (error) {
-    handleNotionError(error as Error)
+    handleNotionError(error)
   }
 }
 

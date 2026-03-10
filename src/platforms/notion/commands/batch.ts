@@ -123,6 +123,6 @@ export const batchCommand = new Command('batch')
     try {
       await executeBatch(operations, options)
     } catch (error) {
-      handleNotionError(error instanceof Error ? error : new Error(toErrorMessage(error)))
+      handleNotionError(error)
     }
   })
