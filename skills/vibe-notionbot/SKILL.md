@@ -1,7 +1,7 @@
 ---
 name: vibe-notionbot
 description: Interact with Notion workspaces using official API - manage pages, databases, blocks, users, and comments
-version: 1.0.0
+version: 1.1.0
 allowed-tools: Bash(vibe-notionbot:*)
 metadata:
   openclaw:
