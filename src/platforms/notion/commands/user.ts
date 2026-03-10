@@ -89,6 +89,34 @@ async function meAction(options: CommandOptions): Promise<void> {
   }
 }
 
+async function listAction(options: UserGetOptions): Promise<void> {
+  try {
+    const creds = await getCredentialsOrExit()
+    await resolveAndSetActiveUserId(creds.token_v2, options.workspaceId)
+    const response = (await internalRequest(creds.token_v2, 'getSpaces', {})) as GetSpacesResponse
+
+    const seen = new Set<string>()
+    const users: Array<{ id: string; name: string | undefined; email: string | undefined }> = []
+
+    for (const entry of Object.values(response)) {
+      if (!entry.space || !(options.workspaceId in entry.space)) {
+        continue
+      }
+
+      for (const userRecord of Object.values(entry.notion_user ?? {})) {
+        if (seen.has(userRecord.value.id)) continue
+        seen.add(userRecord.value.id)
+        users.push(formatUserValue(userRecord.value as Record<string, unknown>))
+      }
+    }
+
+    console.log(formatOutput(users, options.pretty))
+  } catch (error) {
+    console.error(JSON.stringify({ error: (error as Error).message }))
+    process.exit(1)
+  }
+}
+
 export const userCommand = new Command('user')
   .description('User commands')
   .addCommand(
@@ -98,6 +126,13 @@ export const userCommand = new Command('user')
       .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
       .option('--pretty', 'Pretty print JSON output')
       .action(getAction),
+  )
+  .addCommand(
+    new Command('list')
+      .description('List users accessible in a workspace')
+      .requiredOption('--workspace-id <id>', 'Workspace ID (use `workspace list` to find it)')
+      .option('--pretty', 'Pretty print JSON output')
+      .action(listAction),
   )
   .addCommand(
     new Command('me')
